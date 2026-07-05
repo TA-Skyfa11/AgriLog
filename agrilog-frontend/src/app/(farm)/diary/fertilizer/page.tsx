@@ -1,16 +1,13 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { fetchAPI } from '@/lib/api';
 import styles from '@/css/diary.module.css';
-import { Leaf, Search, Plus, X } from 'lucide-react';
+import { FlaskConical, Search, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 
-export default function DiaryBoardsPage() {
+export default function FertilizerDiaryPage() {
   const [boards, setBoards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -25,7 +22,7 @@ export default function DiaryBoardsPage() {
 
   const loadBoards = async () => {
     try {
-      const res = await fetchAPI('/cultivation-boards');
+      const res = await fetchAPI('/fertilizer-boards');
       if (res.success) {
         setBoards(res.data);
       }
@@ -49,7 +46,7 @@ export default function DiaryBoardsPage() {
     if (!formData.name || !formData.cropType) return;
     
     try {
-      const res = await fetchAPI('/cultivation-boards', {
+      const res = await fetchAPI('/fertilizer-boards', {
         method: 'POST',
         body: JSON.stringify({
           name: formData.name,
@@ -73,7 +70,7 @@ export default function DiaryBoardsPage() {
         loadBoards();
       }
     } catch (error) {
-      alert('Có lỗi xảy ra khi tạo bảng canh tác');
+      alert('Có lỗi xảy ra khi tạo bảng phân bón');
     }
   };
 
@@ -83,27 +80,27 @@ export default function DiaryBoardsPage() {
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <h1 className={styles.title}>Nhật ký canh tác</h1>
-          <div className={styles.subtitle}>Quản lý toàn bộ nhật ký sản xuất theo từng cây trồng</div>
+          <h1 className={styles.title}>Nhật ký phân bón</h1>
+          <div className={styles.subtitle}>Ghi chép sử dụng phân bón theo từng mùa vụ</div>
         </div>
         <div className={styles.headerRight}>
           <div className={styles.searchBar}>
             <Search size={18} color="#9ca3af" />
-            <input type="text" placeholder="Tìm bảng..." className={styles.searchInput} />
+            <input type="text" placeholder="Tìm kiếm..." className={styles.searchInput} />
           </div>
           <button className={styles.button} onClick={() => setShowModal(true)}>
-            <Plus size={18} /> Tạo bảng nhật ký
+            <Plus size={18} /> Tạo bảng
           </button>
         </div>
       </div>
 
       {boards.length === 0 ? (
         <div className={styles.emptyState}>
-          <div className={styles.emptyIcon} style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>
-            <Leaf size={32} />
+          <div className={styles.emptyIcon} style={{ backgroundColor: '#eff6ff', color: '#3b82f6' }}>
+            <FlaskConical size={32} />
           </div>
           <div>
-            <div className={styles.emptyTitle}>Chưa có bảng canh tác nào</div>
+            <div className={styles.emptyTitle}>Chưa có bảng nào</div>
             <div className={styles.emptySubtitle}>Tạo bảng đầu tiên để bắt đầu ghi chép</div>
             <button className={styles.button} style={{ margin: '0 auto' }} onClick={() => setShowModal(true)}>
               <Plus size={18} /> Tạo bảng đầu tiên
@@ -113,20 +110,20 @@ export default function DiaryBoardsPage() {
       ) : (
         <div className={styles.grid}>
           {boards.map(board => (
-            <Link href={`/diary/cultivation/${board._id}`} key={board._id} className={styles.card}>
+            <Link href={`/diary/fertilizer/${board._id}`} key={board._id} className={styles.card}>
               <div className={styles.cardTop}>
-                <div className={styles.cardIcon}>
-                  <Leaf size={24} />
+                <div className={styles.cardIcon} style={{ backgroundColor: '#eff6ff', color: '#3b82f6' }}>
+                  <FlaskConical size={24} />
                 </div>
                 <div className={`${styles.statusBadge} ${board.status === 'ACTIVE' ? styles.statusActive : ''}`}>
-                  {board.status === 'ACTIVE' ? 'Đang canh tác' : 'Đã thu hoạch'}
+                  {board.status === 'ACTIVE' ? 'Đang sử dụng' : 'Đã đóng'}
                 </div>
               </div>
               <div className={styles.cardBody}>
                 <div className={styles.boardName}>{board.name}</div>
                 <div className={styles.cropType}>{board.cropType}</div>
                 <div className={styles.boardDetails}>
-                  {board.areaSqm} m² - Từ {format(new Date(board.startDate), 'yyyy-MM-dd')}
+                  Từ {format(new Date(board.startDate), 'yyyy-MM-dd')}
                 </div>
               </div>
               <div className={styles.cardFooter}>
@@ -142,7 +139,7 @@ export default function DiaryBoardsPage() {
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
             <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Tạo bảng nhật ký canh tác</h2>
+              <h2 className={styles.modalTitle}>Tạo bảng nhật ký phân bón</h2>
               <button className={styles.closeBtn} onClick={() => setShowModal(false)}>
                 <X size={20} />
               </button>
@@ -158,7 +155,7 @@ export default function DiaryBoardsPage() {
                   required 
                   value={formData.name} 
                   onChange={handleInputChange} 
-                  placeholder="VD: Lúa IR504 - Vụ Hè Thu 2025" 
+                  placeholder="VD: Bón phân Vụ Hè Thu 2025" 
                 />
               </div>
 

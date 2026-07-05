@@ -14,7 +14,9 @@ app.use(express.json());
 
 import authRoutes from './routes/authRoutes';
 import farmRoutes from './routes/farmRoutes';
-import cropBoardRoutes from './routes/cropBoardRoutes';
+import cultivationRoutes from './routes/cultivationRoutes';
+import fertilizerRoutes from './routes/fertilizerRoutes';
+import pesticideRoutes from './routes/pesticideRoutes';
 import materialRoutes from './routes/materialRoutes';
 import taskRoutes from './routes/taskRoutes';
 import adminRoutes from './routes/adminRoutes';
@@ -22,7 +24,9 @@ import adminRoutes from './routes/adminRoutes';
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/farm', farmRoutes);
-app.use('/api/boards', cropBoardRoutes);
+app.use('/api/cultivation-boards', cultivationRoutes);
+app.use('/api/fertilizer-boards', fertilizerRoutes);
+app.use('/api/pesticide-boards', pesticideRoutes);
 app.use('/api/materials', materialRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/admin', adminRoutes);

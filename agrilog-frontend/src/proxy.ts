@@ -20,8 +20,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protect all other routes
-  if (!token) {
+  // Protect all other routes except landing page
+  if (!token && pathname !== '/') {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
