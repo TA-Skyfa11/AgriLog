@@ -62,7 +62,7 @@ export default function DiaryDetailPage() {
       });
 
       if (res.success) {
-        setFormData({ activityName: '', notes: '' });
+        setFormData({ ...formData, activityName: '', notes: '' });
         loadBoardData();
       }
     } catch (error) {

@@ -1,18 +1,40 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Filter, UserPlus, Shield, Sprout, Ban, Building } from 'lucide-react';
-import { usersData } from '@/lib/mockData';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import styles from '@/css/Users.module.css';
+import { fetchAPI } from '@/lib/api';
 
 export default function UsersPage() {
+  const [farmsData, setFarmsData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadFarms = async () => {
+      try {
+        const res = await fetchAPI('/admin/farms');
+        if (res.success) {
+          setFarmsData(res.data);
+        }
+      } catch (error) {
+        console.error('Error fetching farms:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadFarms();
+  }, []);
+
+  if (loading) {
+    return <div className={styles.container} style={{ padding: '2rem' }}>Đang tải dữ liệu...</div>;
+  }
+
   const kpis = [
-    { label: 'Tổng người dùng', value: usersData.kpis.totalUsers.value, meta: usersData.kpis.totalUsers.growth, isPos: true },
-    { label: 'Nông trại hoạt động', value: usersData.kpis.activeFarms.value, meta: usersData.kpis.activeFarms.status, isPos: true },
-    { label: 'Đăng ký mới (Tháng)', value: usersData.kpis.newRegistrations.value, meta: usersData.kpis.newRegistrations.growth, isPos: true },
-    { label: 'Gói cao cấp (Pro)', value: usersData.kpis.premiumPlans.value, meta: usersData.kpis.premiumPlans.label, isPos: false },
+    { label: 'Tổng Nông trại', value: farmsData.length, meta: 'Dữ liệu thực', isPos: true },
+    { label: 'Nông trại hoạt động', value: farmsData.filter(f => f.user.isActive !== false).length, meta: 'Đang hoạt động', isPos: true },
+    { label: 'Tổng số bảng canh tác', value: farmsData.reduce((acc, f) => acc + (f.boardCount || 0), 0), meta: 'Trên toàn hệ thống', isPos: true },
   ];
 
   return (
@@ -52,42 +74,38 @@ export default function UsersPage() {
             <tr>
               <th>ID</th>
               <th>Tên Nông Trại</th>
-              <th>Người Đại Diện</th>
-              <th>Liên Hệ</th>
+              <th>Email Đăng Ký</th>
+              <th>Tỉnh Thành</th>
               <th>Ngày Đăng Ký</th>
-              <th>Gói Dịch Vụ</th>
+              <th>Số lượng Nhật ký</th>
               <th>Trạng Thái</th>
             </tr>
           </thead>
           <tbody>
-            {usersData.table.map((row) => {
-              let Icon = Sprout;
-              if (row.status === 'Khóa') Icon = Ban;
-              if (row.plan === 'Enterprise') Icon = Building;
+            {farmsData.length === 0 && (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '2rem' }}>Không có dữ liệu.</td>
+              </tr>
+            )}
+            {farmsData.map((row) => {
+              const Icon = Sprout;
 
               return (
-                <tr key={row.id}>
-                  <td style={{ color: 'var(--color-text-muted)' }}>{row.id}</td>
+                <tr key={row.user._id}>
+                  <td style={{ color: 'var(--color-text-muted)' }}>{row.user._id.substring(0, 8)}...</td>
                   <td>
                     <div className={styles.farmCell}>
                       <div className={styles.farmLogo}><Icon size={16} /></div>
-                      <span className={styles.farmName}>{row.farmName}</span>
+                      <span className={styles.farmName}>{row.profile?.farmName || 'Chưa cập nhật'}</span>
                     </div>
                   </td>
-                  <td>{row.rep}</td>
+                  <td>{row.user.email}</td>
+                  <td>{row.profile?.location?.province || 'Chưa cập nhật'}</td>
+                  <td>{new Date(row.user.createdAt).toLocaleDateString('vi-VN')}</td>
+                  <td>{row.boardCount}</td>
                   <td>
-                    <div className={styles.contactCell}>
-                      <span className={styles.contactEmail}>{row.email}</span>
-                      <span className={styles.contactPhone}>{row.phone}</span>
-                    </div>
-                  </td>
-                  <td>{row.regDate}</td>
-                  <td>
-                    <Badge variant={row.planColor as any}>{row.plan}</Badge>
-                  </td>
-                  <td>
-                    <Badge variant={row.status === 'Hoạt động' ? 'success' : 'danger'}>
-                      {row.status}
+                    <Badge variant={row.user.isActive === false ? 'danger' : 'success'}>
+                      {row.user.isActive === false ? 'Bị Khóa' : 'Hoạt động'}
                     </Badge>
                   </td>
                 </tr>
@@ -96,14 +114,10 @@ export default function UsersPage() {
           </tbody>
         </table>
         <div className={styles.pagination}>
-          <div className={styles.pageInfo}>Hiển thị 1-10 của 1,284 tài khoản</div>
+          <div className={styles.pageInfo}>Hiển thị {farmsData.length} tài khoản</div>
           <div className={styles.pageControls}>
             <button className={styles.pageBtn}>&lt;</button>
             <button className={`${styles.pageBtn} ${styles.active}`}>1</button>
-            <button className={styles.pageBtn}>2</button>
-            <button className={styles.pageBtn}>3</button>
-            <span>...</span>
-            <button className={styles.pageBtn}>129</button>
             <button className={styles.pageBtn}>&gt;</button>
           </div>
         </div>

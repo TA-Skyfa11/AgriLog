@@ -31,3 +31,29 @@ export const getFarms = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, message: (error as Error).message });
   }
 };
+
+export const getDashboardStats = async (req: AuthRequest, res: Response) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const totalFarms = await User.countDocuments({ role: Role.FARM });
+    const newUsers = await User.countDocuments({ createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } }); // Last 30 days
+    
+    const cCount = await CultivationBoard.countDocuments();
+    const fCount = await FertilizerBoard.countDocuments();
+    const pCount = await PesticideBoard.countDocuments();
+    const totalBoards = cCount + fCount + pCount;
+
+    res.json({
+      success: true,
+      data: {
+        totalUsers,
+        totalFarms,
+        newUsers,
+        totalBoards
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
