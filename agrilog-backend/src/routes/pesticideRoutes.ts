@@ -8,6 +8,7 @@ import {
   deletePesticideBoard,
   getPesticideEntries,
   createPesticideEntry,
+  updatePesticideEntry,
   deletePesticideEntry
 } from '../controllers/pesticideController';
 
@@ -23,6 +24,7 @@ router.delete('/:id', deletePesticideBoard);
 
 router.get('/:boardId/entries', getPesticideEntries);
 router.post('/:boardId/entries', createPesticideEntry);
+router.put('/entries/:id', updatePesticideEntry);
 router.delete('/entries/:id', deletePesticideEntry);
 
 export default router;

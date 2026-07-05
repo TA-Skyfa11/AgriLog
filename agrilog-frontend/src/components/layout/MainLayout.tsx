@@ -23,13 +23,11 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const todayStr = format(new Date(), 'EEEE, dd/MM/yyyy', { locale: vi });
 
   const handleLogout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-      document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-      router.push('/');
-    }
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    router.push('/');
   };
 
   const farmLinks = [

@@ -9,6 +9,9 @@ export interface ICultivationBoard extends Document {
   status: 'ACTIVE' | 'HARVESTED' | 'CANCELLED';
   description?: string;
   expectedHarvestDate?: Date;
+  harvestYield?: number;
+  harvestDate?: Date;
+  customColumns: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +26,9 @@ const cultivationBoardSchema = new Schema<ICultivationBoard>(
     status: { type: String, enum: ['ACTIVE', 'HARVESTED', 'CANCELLED'], default: 'ACTIVE' },
     description: { type: String },
     expectedHarvestDate: { type: Date },
+    harvestYield: { type: Number },
+    harvestDate: { type: Date },
+    customColumns: [{ type: String }],
   },
   { timestamps: true }
 );

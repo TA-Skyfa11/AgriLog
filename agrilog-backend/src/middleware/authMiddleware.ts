@@ -14,7 +14,7 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
   }
 
   if (!token) {
-    return res.status(401).json({ success: false, message: 'Not authorized to access this route' });
+    return res.status(401).json({ success: false, message: 'Bạn cần đăng nhập để truy cập' });
   }
 
   try {
@@ -22,24 +22,24 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
     const user = await User.findById(decoded.id);
 
     if (!user) {
-      return res.status(401).json({ success: false, message: 'User not found' });
+      return res.status(401).json({ success: false, message: 'Không tìm thấy người dùng' });
     }
 
     if (!user.isActive) {
-      return res.status(403).json({ success: false, message: 'Account is locked' });
+      return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa' });
     }
 
     req.user = user;
     next();
   } catch (error) {
-    return res.status(401).json({ success: false, message: 'Not authorized to access this route' });
+    return res.status(401).json({ success: false, message: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn' });
   }
 };
 
 export const authorize = (...roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ success: false, message: 'User role is not authorized to access this route' });
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền truy cập chức năng này' });
     }
     next();
   };

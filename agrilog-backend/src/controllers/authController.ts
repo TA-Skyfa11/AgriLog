@@ -15,7 +15,7 @@ export const register = async (req: Request, res: Response) => {
     
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return res.status(400).json({ success: false, message: 'User already exists' });
+      return res.status(400).json({ success: false, message: 'Email này đã được đăng ký' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -47,16 +47,16 @@ export const login = async (req: Request, res: Response) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(401).json({ success: false, message: 'Sai email hoặc mật khẩu' });
     }
 
     if (!user.isActive) {
-      return res.status(403).json({ success: false, message: 'Account is locked' });
+      return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa' });
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      return res.status(401).json({ success: false, message: 'Sai email hoặc mật khẩu' });
     }
 
     res.json({

@@ -6,24 +6,7 @@ import styles from '@/css/farmDashboard.module.css';
 import { LayoutDashboard, CalendarClock, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-const mockProductivityData = [
-  { name: 'T1', yield: 4000 },
-  { name: 'T2', yield: 3000 },
-  { name: 'T3', yield: 2000 },
-  { name: 'T4', yield: 2780 },
-  { name: 'T5', yield: 1890 },
-  { name: 'T6', yield: 2390 },
-  { name: 'T7', yield: 3490 },
-];
-
-const mockCostData = [
-  { name: 'Phân bón', value: 400 },
-  { name: 'Thuốc BVTV', value: 300 },
-  { name: 'Giống', value: 300 },
-  { name: 'Khác', value: 200 },
-];
-
-const COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#64748b'];
+const COLORS = ['#3b82f6', '#ea580c', '#64748b'];
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -31,16 +14,18 @@ export default function DashboardPage() {
     tasksPending: 0,
     inventoryAlerts: 0,
   });
+  const [reportStats, setReportStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
     try {
-      const [cBoardsRes, fBoardsRes, pBoardsRes, tasksRes, inventoryRes] = await Promise.all([
+      const [cBoardsRes, fBoardsRes, pBoardsRes, tasksRes, inventoryRes, reportsRes] = await Promise.all([
         fetchAPI('/cultivation-boards'),
         fetchAPI('/fertilizer-boards'),
         fetchAPI('/pesticide-boards'),
         fetchAPI('/tasks'),
         fetchAPI('/materials'),
+        fetchAPI('/farm/reports-stats'),
       ]);
 
       let boardsCount = 0;
@@ -55,6 +40,9 @@ export default function DashboardPage() {
       if (inventoryRes.success) inventoryAlerts = inventoryRes.data.filter((m: any) => m.quantity <= m.minQuantityAlert).length;
 
       setStats({ boardsCount, tasksPending, inventoryAlerts });
+      if (reportsRes.success) {
+        setReportStats(reportsRes.data);
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -66,7 +54,23 @@ export default function DashboardPage() {
     loadData();
   }, []);
 
-  if (loading) return <div>Đang tải tổng quan...</div>;
+  if (loading) return <div style={{ padding: '2rem' }}>Đang tải tổng quan...</div>;
+
+  const harvestData = reportStats?.harvestData || [];
+  const costData = reportStats?.costData || [];
+
+  // Aggregate cost data for the PieChart
+  const totalFertilizer = costData.reduce((acc: number, c: any) => acc + (c.phanBon || 0), 0);
+  const totalPesticide = costData.reduce((acc: number, c: any) => acc + (c.thuocBVTV || 0), 0);
+
+  const costStructure = [
+    { name: 'Phân bón', value: totalFertilizer },
+    { name: 'Thuốc BVTV', value: totalPesticide },
+  ].filter(c => c.value > 0);
+
+  if (costStructure.length === 0) {
+    costStructure.push({ name: 'Chưa có chi phí bón phân & phun thuốc', value: 1 });
+  }
 
   return (
     <div className={styles.container}>
@@ -115,27 +119,27 @@ export default function DashboardPage() {
 
       <div className={styles.chartGrid}>
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Năng suất ước tính (kg)</h3>
+          <h3 className={styles.chartTitle}>Sản lượng thu hoạch thực tế (Tấn)</h3>
           <div style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>
-              <BarChart data={mockProductivityData}>
+              <BarChart data={harvestData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} />
                 <YAxis axisLine={false} tickLine={false} />
-                <Tooltip cursor={{fill: '#f8fafc'}} />
-                <Bar dataKey="yield" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} Tấn`, 'Sản lượng']} />
+                <Bar dataKey="sanLuong" fill="#22c55e" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         <div className={styles.chartCard}>
-          <h3 className={styles.chartTitle}>Cơ cấu chi phí (%)</h3>
+          <h3 className={styles.chartTitle}>Cơ cấu chi phí vật tư đã sử dụng</h3>
           <div style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>
               <PieChart>
                 <Pie
-                  data={mockCostData}
+                  data={costStructure}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -143,11 +147,14 @@ export default function DashboardPage() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {mockCostData.map((entry, index) => (
+                  {costStructure.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(value, name) => [
+                  name === 'Chưa có chi phí bón phân & phun thuốc' ? '—' : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(value)),
+                  name
+                ]} />
               </PieChart>
             </ResponsiveContainer>
           </div>

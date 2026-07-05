@@ -7,6 +7,8 @@ export interface IMaterialLog extends Document {
   date: Date;
   supplier?: string;
   notes?: string;
+  fertilizerEntry?: Types.ObjectId;
+  pesticideEntry?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +21,8 @@ const materialLogSchema = new Schema<IMaterialLog>(
     date: { type: Date, required: true },
     supplier: { type: String },
     notes: { type: String },
+    fertilizerEntry: { type: Schema.Types.ObjectId, ref: 'FertilizerEntry' },
+    pesticideEntry: { type: Schema.Types.ObjectId, ref: 'PesticideEntry' },
   },
   { timestamps: true }
 );

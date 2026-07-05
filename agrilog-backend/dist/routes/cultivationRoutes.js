@@ -1,0 +1,19 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const authMiddleware_1 = require("../middleware/authMiddleware");
+const cultivationController_1 = require("../controllers/cultivationController");
+const router = express_1.default.Router();
+router.use(authMiddleware_1.protect);
+router.get('/', cultivationController_1.getCultivationBoards);
+router.post('/', cultivationController_1.createCultivationBoard);
+router.get('/:id', cultivationController_1.getCultivationBoardById);
+router.put('/:id', cultivationController_1.updateCultivationBoard);
+router.delete('/:id', cultivationController_1.deleteCultivationBoard);
+router.get('/:boardId/entries', cultivationController_1.getCultivationEntries);
+router.post('/:boardId/entries', cultivationController_1.createCultivationEntry);
+router.delete('/entries/:id', cultivationController_1.deleteCultivationEntry);
+exports.default = router;

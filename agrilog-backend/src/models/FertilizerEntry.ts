@@ -5,10 +5,14 @@ export interface IFertilizerEntry extends Document {
   date: Date;
   material?: Types.ObjectId;
   materialName?: string;
-  quantity?: number;
-  unit?: string;
-  notes?: string;
-  imageUrls?: string[];
+  manufacturer?: string; // Nhà sản xuất
+  quantity?: string; // Liều lượng / Số lượng sử dụng
+  unit?: string; // Đơn vị
+  appliedArea?: number; // Diện tích áp dụng (m2)
+  performer?: string; // Người thực hiện
+  cost?: number; // Chi phí
+  notes?: string; // Ghi chú
+  imageUrls?: string[]; // Hình ảnh
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,8 +23,12 @@ const fertilizerEntrySchema = new Schema<IFertilizerEntry>(
     date: { type: Date, required: true },
     material: { type: Schema.Types.ObjectId, ref: 'Material' },
     materialName: { type: String },
-    quantity: { type: Number },
+    manufacturer: { type: String },
+    quantity: { type: String },
     unit: { type: String },
+    appliedArea: { type: Number },
+    performer: { type: String },
+    cost: { type: Number, default: 0 },
     notes: { type: String },
     imageUrls: [{ type: String }],
   },

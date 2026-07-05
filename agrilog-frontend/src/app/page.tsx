@@ -2,6 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import styles from '@/css/landing.module.css';
+import heroImg from '../../public/images/landing/hero_real.jpg';
+import greenhouseImg from '../../public/images/landing/greenhouse_real.jpg';
 
 export default function LandingPage() {
   return (
@@ -49,7 +51,7 @@ export default function LandingPage() {
           <div style={{ position: 'relative', height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: '100%', height: '100%', borderRadius: '24px', overflow: 'hidden', boxShadow: 'var(--shadow-xl)', position: 'relative' }}>
               <img 
-                src="https://images.unsplash.com/photo-1586771107445-d3ca888129ff?auto=format&fit=crop&w=1200&q=80" 
+                src={heroImg.src}
                 alt="AgriLog Dashboard Preview" 
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
@@ -122,7 +124,7 @@ export default function LandingPage() {
           <div className={styles.featureImageWrapper}>
             <div style={{ width: '100%', height: '400px', position: 'relative' }}>
               <img 
-                src="https://images.unsplash.com/photo-1530836369250-ef71a3f5e48c?auto=format&fit=crop&w=1200&q=80" 
+                src={greenhouseImg.src}
                 alt="Modern Greenhouse" 
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />

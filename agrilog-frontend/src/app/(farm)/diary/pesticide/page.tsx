@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { fetchAPI } from '@/lib/api';
 import styles from '@/css/diary.module.css';
 import { ShieldAlert, Search, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function PesticideDiaryPage() {
+  const router = useRouter();
   const [boards, setBoards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -59,15 +61,9 @@ export default function PesticideDiaryPage() {
       });
       if (res.success) {
         setShowModal(false);
-        setFormData({
-          name: '',
-          cropType: '',
-          areaText: '',
-          areaSqm: '',
-          startDate: new Date().toISOString().split('T')[0],
-          description: ''
-        });
-        loadBoards();
+        router.push(`/diary/pesticide/${res.data._id}`);
+      } else {
+        alert(res.message || 'Có lỗi xảy ra khi tạo bảng thuốc BVTV');
       }
     } catch (error) {
       alert('Có lỗi xảy ra khi tạo bảng thuốc BVTV');
@@ -127,7 +123,7 @@ export default function PesticideDiaryPage() {
                 </div>
               </div>
               <div className={styles.cardFooter}>
-                <span className={styles.dataCount}>0 dòng dữ liệu</span>
+                <span className={styles.dataCount}>{board.entryCount || 0} dòng dữ liệu</span>
                 <button className={styles.openBtn}>Mở bảng</button>
               </div>
             </Link>

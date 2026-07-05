@@ -8,6 +8,7 @@ import {
   deleteFertilizerBoard,
   getFertilizerEntries,
   createFertilizerEntry,
+  updateFertilizerEntry,
   deleteFertilizerEntry
 } from '../controllers/fertilizerController';
 
@@ -23,6 +24,7 @@ router.delete('/:id', deleteFertilizerBoard);
 
 router.get('/:boardId/entries', getFertilizerEntries);
 router.post('/:boardId/entries', createFertilizerEntry);
+router.put('/entries/:id', updateFertilizerEntry);
 router.delete('/entries/:id', deleteFertilizerEntry);
 
 export default router;

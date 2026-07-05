@@ -20,6 +20,8 @@ import pesticideRoutes from './routes/pesticideRoutes';
 import materialRoutes from './routes/materialRoutes';
 import taskRoutes from './routes/taskRoutes';
 import adminRoutes from './routes/adminRoutes';
+import uploadRoutes from './routes/uploadRoutes';
+import path from 'path';
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -30,6 +32,9 @@ app.use('/api/pesticide-boards', pesticideRoutes);
 app.use('/api/materials', materialRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/upload', uploadRoutes);
+
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'AgriLog Backend is running' });

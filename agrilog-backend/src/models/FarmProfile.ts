@@ -7,6 +7,7 @@ export interface IFarmProfile extends Document {
   areaSqm: number;
   mainCropType: string;
   contactPhone: string;
+  plan: 'BASIC' | 'STANDARD' | 'PREMIUM';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -19,6 +20,7 @@ const farmProfileSchema = new Schema<IFarmProfile>(
     areaSqm: { type: Number, required: false },
     mainCropType: { type: String, required: false },
     contactPhone: { type: String, required: false },
+    plan: { type: String, enum: ['BASIC', 'STANDARD', 'PREMIUM'], default: 'BASIC' },
   },
   { timestamps: true }
 );

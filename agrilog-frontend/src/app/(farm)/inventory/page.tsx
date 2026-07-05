@@ -15,6 +15,7 @@ export default function InventoryPage() {
     type: 'FERTILIZER',
     quantity: '',
     unit: 'kg',
+    pricePerUnit: '',
     supplier: '',
   });
 
@@ -42,12 +43,16 @@ export default function InventoryPage() {
     try {
       const res = await fetchAPI('/materials', {
         method: 'POST',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          quantity: Number(formData.quantity),
+          pricePerUnit: Number(formData.pricePerUnit) || 0
+        }),
       });
 
       if (res.success) {
         setShowModal(false);
-        setFormData({ name: '', type: 'FERTILIZER', quantity: '', unit: 'kg', supplier: '' });
+        setFormData({ name: '', type: 'FERTILIZER', quantity: '', unit: 'kg', pricePerUnit: '', supplier: '' });
         loadInventory();
       }
     } catch (error) {
@@ -83,13 +88,15 @@ export default function InventoryPage() {
               <th>Phân loại</th>
               <th>Tồn kho</th>
               <th>Đơn vị</th>
+              <th>Đơn giá</th>
+              <th>Tổng giá trị</th>
               <th>Trạng thái</th>
             </tr>
           </thead>
           <tbody>
             {materials.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
                   Kho đang trống. Vui lòng nhập thêm vật tư.
                 </td>
               </tr>
@@ -98,7 +105,7 @@ export default function InventoryPage() {
                 <tr key={m._id}>
                   <td style={{ fontWeight: 600, color: 'var(--color-text-main)' }}>{m.name}</td>
                   <td>
-                    <span className={`${styles.badge} ${styles[`type${m.type}`]}`}>
+                     <span className={`${styles.badge} ${styles[`type${m.type}`]}`}>
                       {m.type === 'FERTILIZER' ? 'Phân bón' : 'Thuốc BVTV'}
                     </span>
                   </td>
@@ -106,6 +113,8 @@ export default function InventoryPage() {
                     {m.quantity}
                   </td>
                   <td>{m.unit}</td>
+                  <td>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(m.pricePerUnit || 0)}</td>
+                  <td style={{ fontWeight: 600 }}>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format((m.quantity || 0) * (m.pricePerUnit || 0))}</td>
                   <td>
                     {m.quantity <= m.minQuantityAlert ? (
                       <span className={styles.warningText} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -151,6 +160,11 @@ export default function InventoryPage() {
                   <label className={styles.label}>Đơn vị</label>
                   <input type="text" name="unit" className={styles.input} required value={formData.unit} onChange={handleInputChange} placeholder="kg, lít..." />
                 </div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Đơn giá nhập (VNĐ)</label>
+                <input type="number" name="pricePerUnit" className={styles.input} required value={formData.pricePerUnit} onChange={handleInputChange} placeholder="VD: 15000" />
               </div>
 
               <div className={styles.formGroup}>

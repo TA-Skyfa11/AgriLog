@@ -8,6 +8,7 @@ import {
   deleteCultivationBoard,
   getCultivationEntries,
   createCultivationEntry,
+  updateCultivationEntry,
   deleteCultivationEntry
 } from '../controllers/cultivationController';
 
@@ -23,6 +24,7 @@ router.delete('/:id', deleteCultivationBoard);
 
 router.get('/:boardId/entries', getCultivationEntries);
 router.post('/:boardId/entries', createCultivationEntry);
+router.put('/entries/:id', updateCultivationEntry);
 router.delete('/entries/:id', deleteCultivationEntry);
 
 export default router;

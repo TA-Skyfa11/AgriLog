@@ -1,0 +1,19 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const authMiddleware_1 = require("../middleware/authMiddleware");
+const pesticideController_1 = require("../controllers/pesticideController");
+const router = express_1.default.Router();
+router.use(authMiddleware_1.protect);
+router.get('/', pesticideController_1.getPesticideBoards);
+router.post('/', pesticideController_1.createPesticideBoard);
+router.get('/:id', pesticideController_1.getPesticideBoardById);
+router.put('/:id', pesticideController_1.updatePesticideBoard);
+router.delete('/:id', pesticideController_1.deletePesticideBoard);
+router.get('/:boardId/entries', pesticideController_1.getPesticideEntries);
+router.post('/:boardId/entries', pesticideController_1.createPesticideEntry);
+router.delete('/entries/:id', pesticideController_1.deletePesticideEntry);
+exports.default = router;

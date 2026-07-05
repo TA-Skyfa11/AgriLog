@@ -7,6 +7,15 @@ import styles from '../../css/AdminLayout.module.css';
 export function Sidebar() {
   const pathname = usePathname();
 
+  const handleLogout = (e: React.MouseEvent) => {
+    e.preventDefault();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    window.location.href = '/';
+  };
+
   const navItems = [
     { name: 'Trang tổng quan', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Quản lý người dùng', href: '/admin/users', icon: Users },
@@ -43,10 +52,10 @@ export function Sidebar() {
           <HelpCircle />
           Trợ giúp
         </Link>
-        <Link href="/" className={`${styles.navItem} ${styles.logout}`}>
+        <a href="#" onClick={handleLogout} className={`${styles.navItem} ${styles.logout}`}>
           <LogOut />
           Đăng xuất
-        </Link>
+        </a>
       </div>
     </aside>
   );

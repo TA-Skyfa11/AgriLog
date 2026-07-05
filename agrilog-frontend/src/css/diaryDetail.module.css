@@ -132,7 +132,9 @@
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
 }
 
 .table {
@@ -152,11 +154,45 @@
 }
 
 .table td {
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   font-size: 0.875rem;
   color: var(--color-text-main);
   border-bottom: 1px solid var(--color-border);
   vertical-align: top;
+}
+
+.table th:first-child,
+.table td:first-child {
+  min-width: 50px;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  border-right: 1px solid var(--color-border);
+}
+
+.table th:first-child {
+  background-color: var(--color-bg);
+}
+
+.table td:first-child {
+  background-color: var(--color-surface);
+}
+
+.table th.actionColumnHeader,
+.table td.actionColumnCell {
+  position: sticky;
+  right: 0;
+  z-index: 10;
+  min-width: 80px;
+  border-left: 1px solid var(--color-border);
+}
+
+.table th.actionColumnHeader {
+  background-color: var(--color-bg);
+}
+
+.table td.actionColumnCell {
+  background-color: var(--color-surface);
 }
 
 .table tr:last-child td {
@@ -186,4 +222,152 @@
 .actionBtn:hover {
   color: var(--color-error);
   background-color: #fef2f2;
+}
+
+.actionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.spreadsheetBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-main);
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.spreadsheetBtn:hover {
+  background-color: var(--color-bg);
+  border-color: var(--color-primary-500);
+  color: var(--color-primary-700);
+}
+
+.addRowBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  margin-top: 1rem;
+  background-color: var(--color-primary-50);
+  color: var(--color-primary-700);
+  border: 1px dashed var(--color-primary-300);
+  border-radius: var(--radius-lg, 12px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  justify-content: center;
+}
+
+.addRowBtn:hover {
+  background-color: var(--color-primary-100);
+  border-color: var(--color-primary-400);
+}
+
+.uploadBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--color-border);
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+.uploadBtn:hover {
+  background: var(--color-bg);
+  color: var(--color-text-main);
+}
+
+/* Harvest Modal */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background-color: var(--color-surface, #ffffff);
+  border-radius: var(--radius-xl, 16px);
+  padding: 2rem;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.modalTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text-main, #111827);
+  margin: 0;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.btnCancel {
+  padding: 0.75rem 1.5rem;
+  background-color: var(--color-bg, #f3f4f6);
+  color: var(--color-text-main, #111827);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius-md, 8px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnCancel:hover {
+  background-color: var(--color-border, #e5e7eb);
+}
+
+.btnSubmit {
+  padding: 0.75rem 1.5rem;
+  background-color: var(--color-primary-600, #16a34a);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnSubmit:hover {
+  filter: brightness(0.9);
 }

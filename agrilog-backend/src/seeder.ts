@@ -60,6 +60,7 @@ const importData = async () => {
       areaSqm: 5000,
       mainCropType: 'Nhãn lồng',
       contactPhone: '0987654321',
+      plan: 'BASIC',
     });
     console.log(`Đã tạo Hồ sơ Nông trại cho Farm`);
 
