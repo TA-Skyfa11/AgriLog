@@ -1,8 +1,24 @@
 'use client';
 
 import React from 'react';
-import MainLayout from '@/components/layout/MainLayout';
+import { Sidebar } from '../../components/admin/Sidebar';
+import { Header } from '../../components/admin/Header';
+import styles from '../../css/AdminLayout.module.css';
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <MainLayout role="ADMIN">{children}</MainLayout>;
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <div className={styles.layout}>
+      <Sidebar />
+      <div className={styles.main}>
+        <Header />
+        <main className={styles.content}>
+          {children}
+        </main>
+      </div>
+    </div>
+  );
 }

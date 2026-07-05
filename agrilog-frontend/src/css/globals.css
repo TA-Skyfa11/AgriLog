@@ -6,19 +6,37 @@
   --color-primary-600: #059669;
   --color-primary-700: #047857;
 
-  --color-bg: #f8fafc;
+  /* Forest Green - Primary */
+  --color-primary: #1e7033; /* Forest green */
+  --color-primary-hover: #165c28;
+  --color-primary-light: #e8f3ec;
+
+  --color-bg: #f8fafc; /* Very light gray for backgrounds */
+  --color-sidebar-bg: #fdfdfd;
   --color-surface: #ffffff;
   --color-surface-hover: #f1f5f9;
   
-  --color-text-main: #0f172a;
-  --color-text-muted: #64748b;
+  --color-text-main: #1f2937;
+  --color-text-muted: #6b7280;
   
-  --color-border: #e2e8f0;
+  --color-border: #e5e7eb;
   
   /* Status Colors */
   --color-success: #10b981;
+  --color-success-bg: #d1fae5;
+  --color-success-text: #065f46;
+
   --color-warning: #f59e0b;
+  --color-warning-bg: #fef3c7;
+  --color-warning-text: #92400e;
+
   --color-error: #ef4444;
+  --color-error-bg: #fee2e2;
+  --color-error-text: #991b1b;
+  
+  --color-neutral: #64748b;
+  --color-neutral-bg: #f1f5f9;
+  --color-neutral-text: #334155;
 
   /* Typography */
   --font-family: var(--font-inter), system-ui, sans-serif;
@@ -34,23 +52,6 @@
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #0f172a;
-    --color-surface: #1e293b;
-    --color-surface-hover: #334155;
-    
-    --color-text-main: #f8fafc;
-    --color-text-muted: #94a3b8;
-    
-    --color-border: #334155;
-    
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-  }
 }
 
 * {
@@ -71,7 +72,6 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 a {
@@ -84,11 +84,25 @@ button, input, select, textarea {
   color: inherit;
 }
 
-/* Utilities */
-.glass-panel {
-  background: rgba(var(--color-surface), 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-glass);
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+ul {
+  list-style: none;
 }

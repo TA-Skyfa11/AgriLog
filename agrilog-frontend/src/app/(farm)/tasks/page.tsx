@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
-import styles from './tasks.module.css';
+import styles from '@/css/tasks.module.css';
 
 export default function TasksPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

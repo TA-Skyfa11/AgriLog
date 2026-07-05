@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
-import styles from './dashboard.module.css';
+import styles from '@/css/farmDashboard.module.css';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({

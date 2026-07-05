@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
-import styles from './profile.module.css';
+import styles from '@/css/profile.module.css';
 
 export default function ProfilePage() {
   const [formData, setFormData] = useState({

@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
-import styles from './inventory.module.css';
+import styles from '@/css/inventory.module.css';
 
 export default function InventoryPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

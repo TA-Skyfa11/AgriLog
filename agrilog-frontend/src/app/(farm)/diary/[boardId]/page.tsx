@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { fetchAPI } from '@/lib/api';
-import styles from './diaryDetail.module.css';
+import styles from '@/css/diaryDetail.module.css';
 
 export default function DiaryDetailPage() {
   const { boardId } = useParams();

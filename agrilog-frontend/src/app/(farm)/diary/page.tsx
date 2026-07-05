@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { fetchAPI } from '@/lib/api';
-import styles from './diary.module.css';
+import styles from '@/css/diary.module.css';
 
 export default function DiaryBoardsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
