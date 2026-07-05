@@ -1,34 +1,75 @@
 .container {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2rem;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .title {
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 800;
+  color: var(--color-text-main);
+}
+
+.subtitle {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full, 9999px);
+  padding: 0.5rem 1rem;
+  width: 250px;
+  gap: 0.5rem;
+}
+
+.searchInput {
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 0.875rem;
   color: var(--color-text-main);
 }
 
 .button {
-  padding: 0.75rem 1.5rem;
-  background-color: var(--color-primary-600);
+  padding: 0.625rem 1.25rem;
+  background-color: var(--color-primary-700);
   color: white;
   border: none;
-  border-radius: var(--radius-md);
-  font-weight: 500;
+  border-radius: var(--radius-full, 9999px);
+  font-weight: 600;
+  font-size: 0.875rem;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   transition: background-color 0.2s;
 }
 
 .button:hover {
-  background-color: var(--color-primary-700);
+  background-color: var(--color-primary-800);
 }
 
 .tableCard {
@@ -36,7 +77,6 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
 }
 
 .table {
@@ -44,17 +84,23 @@
   border-collapse: collapse;
 }
 
-.table th, .table td {
-  padding: 1rem 1.5rem;
+.table th {
+  background-color: var(--color-bg);
+  padding: 1rem;
   text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
   border-bottom: 1px solid var(--color-border);
 }
 
-.table th {
-  background-color: var(--color-surface-hover);
-  font-weight: 600;
-  color: var(--color-text-muted);
+.table td {
+  padding: 1rem;
   font-size: 0.875rem;
+  color: var(--color-text-main);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
 }
 
 .table tr:last-child td {
@@ -62,17 +108,17 @@
 }
 
 .badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
   font-size: 0.75rem;
-  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-weight: 700;
 }
 
-.typeFERTILIZER { background-color: #fef08a; color: #a16207; }
-.typePESTICIDE { background-color: #fecdd3; color: #be123c; }
+.typeFERTILIZER { background-color: #fffbeb; color: #d97706; }
+.typePESTICIDE { background-color: #fef2f2; color: #dc2626; }
 
 .warningText {
-  color: var(--color-error);
+  color: #dc2626;
   font-weight: 600;
 }
 
@@ -80,27 +126,35 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  right: 0;
+  bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 50;
+  backdrop-filter: blur(4px);
 }
 
 .modal {
   background-color: var(--color-surface);
   border-radius: var(--radius-xl);
+  padding: 2rem;
   width: 100%;
   max-width: 500px;
-  padding: 2rem;
   box-shadow: var(--shadow-lg);
+  animation: modalIn 0.3s ease-out;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .modalTitle {
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--color-text-main);
   margin-bottom: 1.5rem;
 }
 
@@ -113,15 +167,23 @@
 
 .label {
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--color-text-main);
 }
 
 .input {
   padding: 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   font-family: inherit;
-  width: 100%;
+  font-size: 0.875rem;
+  background-color: var(--color-bg);
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
 }
 
 .modalActions {
@@ -133,10 +195,16 @@
 
 .btnCancel {
   padding: 0.75rem 1.5rem;
-  background-color: transparent;
+  background-color: var(--color-bg);
   color: var(--color-text-main);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  font-weight: 500;
+  border-radius: var(--radius-full, 9999px);
+  font-weight: 600;
+  font-size: 0.875rem;
   cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnCancel:hover {
+  background-color: #f1f5f9;
 }

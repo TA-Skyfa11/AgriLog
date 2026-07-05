@@ -1,14 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
 import styles from './inventory.module.css';
+import { Package, Search, Plus, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function InventoryPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -34,7 +31,6 @@ export default function InventoryPage() {
 
   useEffect(() => {
     loadInventory();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -64,8 +60,19 @@ export default function InventoryPage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Quản lý Kho Vật Tư</h1>
-        <button className={styles.button} onClick={() => setShowModal(true)}>+ Nhập kho</button>
+        <div className={styles.headerLeft}>
+          <h1 className={styles.title}><Package size={24} color="#16a34a" /> Quản lý Kho vật tư</h1>
+          <div className={styles.subtitle}>Theo dõi số lượng phân bón, thuốc BVTV và vật tư khác</div>
+        </div>
+        <div className={styles.headerRight}>
+          <div className={styles.searchBar}>
+            <Search size={18} color="#9ca3af" />
+            <input type="text" placeholder="Tìm vật tư..." className={styles.searchInput} />
+          </div>
+          <button className={styles.button} onClick={() => setShowModal(true)}>
+            <Plus size={18} /> Nhập kho
+          </button>
+        </div>
       </div>
 
       <div className={styles.tableCard}>
@@ -73,30 +80,42 @@ export default function InventoryPage() {
           <thead>
             <tr>
               <th>Tên vật tư</th>
-              <th>Loại</th>
+              <th>Phân loại</th>
               <th>Tồn kho</th>
               <th>Đơn vị</th>
-              <th>Cảnh báo</th>
+              <th>Trạng thái</th>
             </tr>
           </thead>
           <tbody>
             {materials.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', color: 'var(--color-text-muted)' }}>Kho đang trống</td>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
+                  Kho đang trống. Vui lòng nhập thêm vật tư.
+                </td>
               </tr>
             ) : (
               materials.map((m) => (
                 <tr key={m._id}>
-                  <td style={{ fontWeight: 500 }}>{m.name}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--color-text-main)' }}>{m.name}</td>
                   <td>
                     <span className={`${styles.badge} ${styles[`type${m.type}`]}`}>
                       {m.type === 'FERTILIZER' ? 'Phân bón' : 'Thuốc BVTV'}
                     </span>
                   </td>
-                  <td className={m.quantity <= m.minQuantityAlert ? styles.warningText : ''}>{m.quantity}</td>
+                  <td className={m.quantity <= m.minQuantityAlert ? styles.warningText : ''} style={{ fontWeight: 700 }}>
+                    {m.quantity}
+                  </td>
                   <td>{m.unit}</td>
                   <td>
-                    {m.quantity <= m.minQuantityAlert ? <span className={styles.warningText}>Sắp hết</span> : <span style={{color: 'var(--color-success)'}}>Bình thường</span>}
+                    {m.quantity <= m.minQuantityAlert ? (
+                      <span className={styles.warningText} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <AlertCircle size={14} /> Sắp hết
+                      </span>
+                    ) : (
+                      <span style={{color: '#16a34a', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
+                        <CheckCircle2 size={14} /> Bình thường
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))
@@ -108,7 +127,7 @@ export default function InventoryPage() {
       {showModal && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
-            <h2 className={styles.modalTitle}>Nhập kho vật tư</h2>
+            <h2 className={styles.modalTitle}>Nhập kho vật tư mới</h2>
             <form onSubmit={handleSubmit}>
               <div className={styles.formGroup}>
                 <label className={styles.label}>Loại vật tư</label>
@@ -120,28 +139,28 @@ export default function InventoryPage() {
 
               <div className={styles.formGroup}>
                 <label className={styles.label}>Tên vật tư</label>
-                <input type="text" name="name" className={styles.input} required value={formData.name} onChange={handleInputChange} />
+                <input type="text" name="name" className={styles.input} required value={formData.name} onChange={handleInputChange} placeholder="VD: Phân Ure, Thuốc trừ sâu..." />
               </div>
 
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <div className={styles.formGroup} style={{ flex: 1 }}>
                   <label className={styles.label}>Số lượng nhập</label>
-                  <input type="number" name="quantity" className={styles.input} required value={formData.quantity} onChange={handleInputChange} />
+                  <input type="number" name="quantity" className={styles.input} required value={formData.quantity} onChange={handleInputChange} placeholder="0" />
                 </div>
                 <div className={styles.formGroup} style={{ width: '100px' }}>
                   <label className={styles.label}>Đơn vị</label>
-                  <input type="text" name="unit" className={styles.input} required value={formData.unit} onChange={handleInputChange} placeholder="kg, lit..." />
+                  <input type="text" name="unit" className={styles.input} required value={formData.unit} onChange={handleInputChange} placeholder="kg, lít..." />
                 </div>
               </div>
 
               <div className={styles.formGroup}>
                 <label className={styles.label}>Nhà cung cấp (Tuỳ chọn)</label>
-                <input type="text" name="supplier" className={styles.input} value={formData.supplier} onChange={handleInputChange} />
+                <input type="text" name="supplier" className={styles.input} value={formData.supplier} onChange={handleInputChange} placeholder="VD: Đại lý Vật tư Nông nghiệp A" />
               </div>
 
               <div className={styles.modalActions}>
                 <button type="button" className={styles.btnCancel} onClick={() => setShowModal(false)}>Hủy</button>
-                <button type="submit" className={styles.button}>Xác nhận nhập kho</button>
+                <button type="submit" className={styles.button}>Xác nhận nhập</button>
               </div>
             </form>
           </div>
@@ -150,4 +169,3 @@ export default function InventoryPage() {
     </div>
   );
 }
-

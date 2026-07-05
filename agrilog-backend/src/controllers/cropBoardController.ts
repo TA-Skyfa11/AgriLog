@@ -8,7 +8,13 @@ export const getCropBoards = async (req: AuthRequest, res: Response) => {
     const profile = await FarmProfile.findOne({ user: req.user?._id });
     if (!profile) return res.status(404).json({ success: false, message: 'Farm profile not found' });
 
-    const boards = await CropBoard.find({ farmProfile: profile._id }).sort({ createdAt: -1 });
+    const { boardType } = req.query;
+    const filter: any = { farmProfile: profile._id };
+    if (boardType) {
+      filter.boardType = boardType;
+    }
+
+    const boards = await CropBoard.find(filter).sort({ createdAt: -1 });
     res.json({ success: true, data: boards });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
