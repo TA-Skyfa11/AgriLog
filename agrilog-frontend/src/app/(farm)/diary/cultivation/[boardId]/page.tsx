@@ -105,7 +105,9 @@ export default function CultivationDiaryDetailPage() {
           let weatherData = '';
           try {
             const wRes = await fetchAPI('/weather');
-            if (wRes.success) weatherData = wRes.data;
+            if (wRes.success && wRes.data) {
+              weatherData = `${wRes.data.temp}°C, ${wRes.data.desc}`;
+            }
           } catch (e) {}
 
           const initialRows = Array(3).fill(null).map((_, idx) => ({
@@ -161,11 +163,14 @@ export default function CultivationDiaryDetailPage() {
         });
       } else {
         // Create new
+        const payload = { ...entry };
+        delete payload._id; // Remove temporary ID
+
         const res = await fetchAPI(`/cultivation-boards/${boardId}/entries`, {
           method: 'POST',
           body: JSON.stringify({
-            ...entry,
-            date: entry.date ? new Date(entry.date).toISOString() : new Date().toISOString(),
+            ...payload,
+            date: payload.date ? new Date(payload.date).toISOString() : new Date().toISOString(),
           }),
         });
         if (res.success) {
@@ -223,7 +228,9 @@ export default function CultivationDiaryDetailPage() {
   const fetchWeather = async () => {
     try {
       const res = await fetchAPI('/weather');
-      if (res.success) return res.data;
+      if (res.success && res.data) {
+        return `${res.data.temp}°C, ${res.data.desc}`;
+      }
     } catch (e) {
       console.error(e);
     }

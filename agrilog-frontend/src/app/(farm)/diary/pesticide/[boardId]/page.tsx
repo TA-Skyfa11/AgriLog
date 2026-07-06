@@ -140,14 +140,17 @@ export default function PesticideDiaryDetailPage() {
           body: JSON.stringify(entry),
         });
       } else {
+        const payload = { ...entry };
+        delete payload._id;
+
         const res = await fetchAPI(`/pesticide-boards/${params.boardId}/entries`, {
           method: 'POST',
           body: JSON.stringify({
-            ...entry,
-            date: entry.date ? new Date(entry.date).toISOString() : new Date().toISOString(),
-            quantity: entry.quantity || '',
-            phiDays: Number(entry.phiDays) || 0,
-            cost: Number(entry.cost) || 0,
+            ...payload,
+            date: payload.date ? new Date(payload.date).toISOString() : new Date().toISOString(),
+            quantity: payload.quantity || '',
+            phiDays: Number(payload.phiDays) || 0,
+            cost: Number(payload.cost) || 0,
           }),
         });
         if (res.success) {

@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { User } from './src/models/User';
