@@ -44,8 +44,9 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.status(401).json({ success: false, message: 'Sai email hoặc mật khẩu' });
     }
@@ -54,7 +55,8 @@ export const login = async (req: Request, res: Response) => {
       return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    const normalizedPassword = password?.trim() || '';
+    const isMatch = await bcrypt.compare(normalizedPassword, user.passwordHash);
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'Sai email hoặc mật khẩu' });
     }

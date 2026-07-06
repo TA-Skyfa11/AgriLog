@@ -17,18 +17,15 @@ export const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
   const data = await response.json();
 
   if (!response.ok) {
-    if (response.status === 401 && typeof window !== 'undefined') {
-      // Don't redirect if it's a login failure
-      if (endpoint !== '/auth/login') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-        document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-        window.location.href = '/';
-      }
-      throw new Error(data.message || 'Sai thông tin đăng nhập');
+    if (response.status === 401 && typeof window !== 'undefined' && !endpoint.includes('/auth/login')) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+      document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+      window.location.href = '/';
+      return { success: false, message: 'Unauthorized' };
     }
-    throw new Error(data.message || 'Đã có lỗi xảy ra');
+    throw new Error(data.message || 'Something went wrong');
   }
 
   return data;

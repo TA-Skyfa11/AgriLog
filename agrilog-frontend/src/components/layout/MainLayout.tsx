@@ -2,6 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { fetchAPI } from '@/lib/api';
 import styles from './MainLayout.module.css';
 
 import { 
@@ -22,6 +23,60 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const router = useRouter();
   const todayStr = format(new Date(), 'EEEE, dd/MM/yyyy', { locale: vi });
 
+  const [userName, setUserName] = React.useState('Nguyễn Văn Tâm');
+  const [userInitials, setUserInitials] = React.useState('NT');
+
+  React.useEffect(() => {
+    const loadProfileData = async () => {
+      let currentRole = role;
+      let fallbackName = 'Người dùng';
+      let fallbackInitials = 'ND';
+      
+      try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          if (user) {
+            if (user.role) currentRole = user.role;
+            if (user.email) {
+              fallbackName = user.email.split('@')[0];
+              fallbackInitials = fallbackName.substring(0, 2).toUpperCase();
+            }
+          }
+        }
+      } catch (e) {}
+
+      if (currentRole === 'ADMIN') {
+        setUserName('Quản trị viên');
+        setUserInitials('AD');
+        return;
+      }
+
+      try {
+        const data = await fetchAPI('/farm/profile');
+        if (data.success && data.data && data.data.farmName) {
+           setUserName(data.data.farmName);
+           const parts = data.data.farmName.trim().split(/\s+/);
+           let initials = '';
+           if (parts.length >= 2) {
+              initials = (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+           } else if (parts.length === 1 && parts[0].length >= 1) {
+              initials = parts[0].substring(0, 2).toUpperCase();
+           }
+           if (initials) {
+             setUserInitials(initials);
+           }
+           return;
+        }
+      } catch (e) {}
+      
+      setUserName(fallbackName);
+      setUserInitials(fallbackInitials);
+    };
+
+    loadProfileData();
+  }, [role]);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -40,7 +95,6 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
     { href: '/tasks', label: 'Lịch công việc', icon: <Calendar size={20} /> },
     { href: '/reports', label: 'Báo cáo', icon: <BarChart2 size={20} /> },
     { href: '/billing', label: 'Gói dịch vụ', icon: <CreditCard size={20} /> },
-    { href: '/profile', label: 'Hồ sơ nông trại', icon: <User size={20} /> },
     { href: '/settings', label: 'Cài đặt', icon: <Settings size={20} /> },
   ];
 
@@ -77,9 +131,9 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
           })}
         </nav>
         <div className={styles.userProfileBottom}>
-          <div className={styles.avatar}>NT</div>
+          <div className={styles.avatar}>{userInitials}</div>
           <div className={styles.userInfoText}>
-            <div className={styles.userName}>Nguyễn Văn Tâm</div>
+            <div className={styles.userName}>{userName}</div>
             <div className={styles.userRole}>{role === 'FARM' ? 'Quản lý nông trại' : 'Admin'}</div>
           </div>
           <button className={styles.logoutBtn} title="Đăng xuất" onClick={handleLogout}>
@@ -101,7 +155,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             </div>
             <button className={styles.iconBtn}><Bell size={20} /><span className={styles.badge}></span></button>
             <button className={styles.iconBtn}><ShoppingCart size={20} /></button>
-            <div className={styles.headerAvatar}>NT</div>
+            <div className={styles.headerAvatar}>{userInitials}</div>
           </div>
         </header>
         <div className={styles.content}>
