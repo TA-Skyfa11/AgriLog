@@ -6,6 +6,7 @@ export interface ICultivationEntry extends Document {
   stage?: string; // Giai đoạn
   activityName: string; // Hoạt động
   performer?: string; // Người thực hiện
+  weather?: string; // Thời tiết
   cost?: number; // Chi phí
   notes?: string; // Ghi chú
   imageUrls?: string[]; // Hình ảnh
@@ -21,6 +22,7 @@ const cultivationEntrySchema = new Schema<ICultivationEntry>(
     stage: { type: String },
     activityName: { type: String, required: true },
     performer: { type: String },
+    weather: { type: String },
     cost: { type: Number, default: 0 },
     notes: { type: String },
     imageUrls: [{ type: String }],

@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { fetchAPI } from '@/lib/api';
 import styles from '@/css/diaryDetail.module.css';
+import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, FileText, Download, Printer, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
@@ -40,6 +41,7 @@ const AutoResizeTextarea = (props: any) => {
 
 export default function CultivationDiaryDetailPage() {
   const { boardId } = useParams();
+  const router = useRouter();
   const [board, setBoard] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [entries, setEntries] = useState<any[]>([]);
@@ -68,6 +70,16 @@ export default function CultivationDiaryDetailPage() {
     harvestDate: new Date().toISOString().split('T')[0],
   });
 
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    cropType: '',
+    areaSqm: '',
+    areaText: '',
+    startDate: '',
+    description: ''
+  });
+
   const loadBoardData = async () => {
     try {
       const [boardRes, entriesRes, profileRes] = await Promise.all([
@@ -78,9 +90,38 @@ export default function CultivationDiaryDetailPage() {
 
       if (boardRes.success) {
         setBoard(boardRes.data);
+        setEditFormData({
+          name: boardRes.data.name || '',
+          cropType: boardRes.data.cropType || '',
+          areaSqm: boardRes.data.areaSqm || '',
+          areaText: boardRes.data.areaText || '',
+          startDate: boardRes.data.startDate ? new Date(boardRes.data.startDate).toISOString().split('T')[0] : '',
+          description: boardRes.data.description || ''
+        });
       }
       if (entriesRes.success) {
-        setEntries(entriesRes.data);
+        if (entriesRes.data.length === 0) {
+          // Auto generate 3 blank rows for new boards
+          let weatherData = '';
+          try {
+            const wRes = await fetchAPI('/weather');
+            if (wRes.success) weatherData = wRes.data;
+          } catch (e) {}
+
+          const initialRows = Array(3).fill(null).map((_, idx) => ({
+            _id: `temp-${idx}`, // temporary ID to satisfy key
+            date: new Date().toISOString().split('T')[0],
+            stage: '',
+            activityName: '',
+            performer: '',
+            weather: weatherData,
+            notes: '',
+            customValues: {}
+          }));
+          setEntries(initialRows);
+        } else {
+          setEntries(entriesRes.data);
+        }
       }
       if (profileRes.success) {
         setProfile(profileRes.data);
@@ -112,7 +153,7 @@ export default function CultivationDiaryDetailPage() {
     
     setSavingId(entry._id || `new-${index}`);
     try {
-      if (entry._id) {
+      if (entry._id && !entry._id.startsWith('temp-')) {
         // Update existing
         await fetchAPI(`/cultivation-boards/entries/${entry._id}`, {
           method: 'PUT',
@@ -125,7 +166,6 @@ export default function CultivationDiaryDetailPage() {
           body: JSON.stringify({
             ...entry,
             date: entry.date ? new Date(entry.date).toISOString() : new Date().toISOString(),
-            cost: Number(entry.cost) || 0,
           }),
         });
         if (res.success) {
@@ -180,7 +220,18 @@ export default function CultivationDiaryDetailPage() {
     }
   };
 
-  const handleAddNewRow = () => {
+  const fetchWeather = async () => {
+    try {
+      const res = await fetchAPI('/weather');
+      if (res.success) return res.data;
+    } catch (e) {
+      console.error(e);
+    }
+    return '';
+  };
+
+  const handleAddNewRow = async () => {
+    const weather = await fetchWeather();
     setEntries([
       ...entries,
       {
@@ -188,7 +239,7 @@ export default function CultivationDiaryDetailPage() {
         stage: '',
         activityName: '',
         performer: '',
-        cost: '',
+        weather: weather,
         notes: '',
         customValues: {}
       }
@@ -200,6 +251,43 @@ export default function CultivationDiaryDetailPage() {
   };
 
 
+
+  const handleDeleteBoard = async () => {
+    if (confirm('Bạn có chắc chắn muốn xóa bảng này không? Toàn bộ dữ liệu sẽ bị mất vĩnh viễn.')) {
+      try {
+        const res = await fetchAPI(`/cultivation-boards/${boardId}`, { method: 'DELETE' });
+        if (res.success) {
+          router.push('/diary');
+        } else {
+          alert('Lỗi khi xóa bảng');
+        }
+      } catch (e) {
+        alert('Lỗi kết nối khi xóa bảng');
+      }
+    }
+  };
+
+  const handleEditBoardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetchAPI(`/cultivation-boards/${boardId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          ...editFormData,
+          areaSqm: Number(editFormData.areaSqm) || 0
+        })
+      });
+      if (res.success) {
+        setBoard(res.data);
+        setShowEditModal(false);
+        alert('Cập nhật thông tin bảng thành công');
+      } else {
+        alert('Lỗi khi cập nhật bảng');
+      }
+    } catch (e) {
+      alert('Lỗi kết nối khi cập nhật bảng');
+    }
+  };
 
   const handleAddColumn = async () => {
     const colName = prompt('Nhập tên cột mới cần thêm (Ví dụ: Độ ẩm đất, Nhiệt độ...):');
@@ -403,6 +491,12 @@ export default function CultivationDiaryDetailPage() {
           <ArrowLeft size={16} /> Danh sách bảng
         </Link>
         <div className={styles.actionButtons}>
+          <button className={styles.spreadsheetBtn} onClick={() => setShowEditModal(true)}>
+            ✎ Sửa bảng
+          </button>
+          <button className={styles.spreadsheetBtn} style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }} onClick={handleDeleteBoard}>
+            🗑️ Xóa bảng
+          </button>
           <button className={styles.spreadsheetBtn} onClick={handleAddColumn}>
             + Thêm cột
           </button>
@@ -449,11 +543,11 @@ export default function CultivationDiaryDetailPage() {
             <tr>
               <th style={{ width: '50px' }}>#</th>
               <th>Ngày</th>
-              <th>Giai đoạn</th>
-              <th>Hoạt động</th>
+              <th>Giai đoạn sinh trưởng</th>
+              <th>Hoạt động canh tác</th>
               <th>Người thực hiện</th>
-              <th>Chi phí (VNĐ)</th>
-              <th>Ghi chú</th>
+              <th>Thời tiết</th>
+              <th>Ghi chú/Quan sát</th>
               {/* Dynamic columns inserted here */}
               {customCols.map((col: string) => (
                 <th key={col}>
@@ -474,7 +568,7 @@ export default function CultivationDiaryDetailPage() {
           <tbody>
             {entries.length === 0 ? (
               <tr>
-                <td colSpan={9 + customCols.length} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
+                <td colSpan={10 + customCols.length} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
                   Bảng đang trống. Click nút bên dưới để thêm hàng.
                 </td>
               </tr>
@@ -523,11 +617,10 @@ export default function CultivationDiaryDetailPage() {
                     />
                   </td>
                   <td>
-                    <input 
-                      type="number" 
+                    <AutoResizeTextarea 
                       style={inlineInputStyle}
-                      value={entry.cost || ''}
-                      onChange={(e) => updateLocalEntry(index, 'cost', e.target.value)}
+                      value={entry.weather || ''}
+                      onChange={(e: any) => updateLocalEntry(index, 'weather', e.target.value)}
                       onBlur={() => handleBlurSave(index)}
                       placeholder="—"
                       className={styles.inlineInputHover}
@@ -623,6 +716,89 @@ export default function CultivationDiaryDetailPage() {
               <div className={styles.modalActions}>
                 <button type="button" className={styles.btnCancel} onClick={() => setShowHarvestModal(false)}>Hủy</button>
                 <button type="submit" className={styles.btnSubmit} style={{ backgroundColor: '#10b981' }}>Xác nhận Thu hoạch</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Board Modal */}
+      {showEditModal && (
+        <div className={modalStyles.modalOverlay}>
+          <div className={modalStyles.modal}>
+            <div className={modalStyles.modalHeader}>
+              <h2 className={modalStyles.modalTitle}>Sửa thông tin bảng</h2>
+              <button className={modalStyles.closeBtn} onClick={() => setShowEditModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditBoardSubmit}>
+              <div className={modalStyles.formGroup}>
+                <label className={modalStyles.label}>Tên bảng *</label>
+                <input 
+                  type="text" 
+                  className={modalStyles.input} 
+                  value={editFormData.name} 
+                  onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} 
+                  required
+                />
+              </div>
+
+              <div className={modalStyles.formGroup}>
+                <label className={modalStyles.label}>Loại cây trồng *</label>
+                <input 
+                  type="text" 
+                  className={modalStyles.input} 
+                  value={editFormData.cropType} 
+                  onChange={(e) => setEditFormData({...editFormData, cropType: e.target.value})} 
+                  required 
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem' }}>
+                <div className={modalStyles.formGroup} style={{ flex: 1, marginBottom: 0 }}>
+                  <label className={modalStyles.label}>Khu vực</label>
+                  <input 
+                    type="text" 
+                    className={modalStyles.input} 
+                    value={editFormData.areaText} 
+                    onChange={(e) => setEditFormData({...editFormData, areaText: e.target.value})} 
+                  />
+                </div>
+                <div className={modalStyles.formGroup} style={{ flex: 1, marginBottom: 0 }}>
+                  <label className={modalStyles.label}>Diện tích (m²)</label>
+                  <input 
+                    type="number" 
+                    className={modalStyles.input} 
+                    value={editFormData.areaSqm} 
+                    onChange={(e) => setEditFormData({...editFormData, areaSqm: e.target.value})} 
+                  />
+                </div>
+              </div>
+
+              <div className={modalStyles.formGroup}>
+                <label className={modalStyles.label}>Ngày bắt đầu</label>
+                <input 
+                  type="date" 
+                  className={modalStyles.input} 
+                  value={editFormData.startDate} 
+                  onChange={(e) => setEditFormData({...editFormData, startDate: e.target.value})} 
+                />
+              </div>
+
+              <div className={modalStyles.formGroup}>
+                <label className={modalStyles.label}>Mô tả</label>
+                <textarea 
+                  className={modalStyles.textarea} 
+                  rows={3} 
+                  value={editFormData.description} 
+                  onChange={(e) => setEditFormData({...editFormData, description: e.target.value})} 
+                ></textarea>
+              </div>
+              <div className={modalStyles.modalActions}>
+                <button type="button" className={modalStyles.btnCancel} onClick={() => setShowEditModal(false)}>Hủy</button>
+                <button type="submit" className={modalStyles.btnSubmit}>Lưu thay đổi</button>
               </div>
             </form>
           </div>

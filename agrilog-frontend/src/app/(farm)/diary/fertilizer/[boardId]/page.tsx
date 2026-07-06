@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { fetchAPI } from '@/lib/api';
 import styles from '@/css/diaryDetail.module.css';
+import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, FlaskConical, Download, Printer, ArrowLeft, X, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
@@ -40,6 +41,7 @@ const AutoResizeTextarea = (props: any) => {
 
 export default function FertilizerDiaryDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const [board, setBoard] = useState<any>(null);
   const [entries, setEntries] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
@@ -59,6 +61,16 @@ export default function FertilizerDiaryDetailPage() {
     transition: 'all 0.2s'
   };
 
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    cropType: '',
+    areaSqm: '',
+    areaText: '',
+    startDate: '',
+    description: ''
+  });
+
   const loadData = async () => {
     try {
       const [boardRes, entriesRes, materialsRes] = await Promise.all([
@@ -66,8 +78,36 @@ export default function FertilizerDiaryDetailPage() {
         fetchAPI(`/fertilizer-boards/${params.boardId}/entries`),
         fetchAPI('/materials')
       ]);
-      if (boardRes.success) setBoard(boardRes.data);
-      if (entriesRes.success) setEntries(entriesRes.data);
+      if (boardRes.success) {
+        setBoard(boardRes.data);
+        setEditFormData({
+          name: boardRes.data.name || '',
+          cropType: boardRes.data.cropType || '',
+          areaSqm: boardRes.data.areaSqm || '',
+          areaText: boardRes.data.areaText || '',
+          startDate: boardRes.data.startDate ? new Date(boardRes.data.startDate).toISOString().split('T')[0] : '',
+          description: boardRes.data.description || ''
+        });
+      }
+      if (entriesRes.success) {
+        if (entriesRes.data.length === 0) {
+          const initialRows = Array(3).fill(null).map((_, idx) => ({
+            _id: `temp-${idx}`,
+            date: new Date().toISOString().split('T')[0],
+            materialName: '',
+            quantity: '',
+            unit: '',
+            appliedArea: '',
+            performer: '',
+            cost: '',
+            notes: '',
+            customValues: {}
+          }));
+          setEntries(initialRows);
+        } else {
+          setEntries(entriesRes.data);
+        }
+      }
       if (materialsRes.success) setMaterials(materialsRes.data);
     } catch (error) {
       console.error(error);
@@ -92,7 +132,7 @@ export default function FertilizerDiaryDetailPage() {
     
     setSavingId(entry._id || `new-${index}`);
     try {
-      if (entry._id) {
+      if (entry._id && !entry._id.startsWith('temp-')) {
         await fetchAPI(`/fertilizer-boards/entries/${entry._id}`, {
           method: 'PUT',
           body: JSON.stringify(entry),
@@ -210,6 +250,43 @@ export default function FertilizerDiaryDetailPage() {
     }
   };
 
+  const handleDeleteBoard = async () => {
+    if (confirm('Bạn có chắc chắn muốn xóa bảng này không? Toàn bộ dữ liệu sẽ bị mất vĩnh viễn.')) {
+      try {
+        const res = await fetchAPI(`/fertilizer-boards/${params.boardId}`, { method: 'DELETE' });
+        if (res.success) {
+          router.push('/diary/fertilizer');
+        } else {
+          alert('Lỗi khi xóa bảng');
+        }
+      } catch (e) {
+        alert('Lỗi kết nối khi xóa bảng');
+      }
+    }
+  };
+
+  const handleEditBoardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetchAPI(`/fertilizer-boards/${params.boardId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          ...editFormData,
+          areaSqm: Number(editFormData.areaSqm) || 0
+        })
+      });
+      if (res.success) {
+        setBoard(res.data);
+        setShowEditModal(false);
+        alert('Cập nhật thông tin bảng thành công');
+      } else {
+        alert('Lỗi khi cập nhật bảng');
+      }
+    } catch (e) {
+      alert('Lỗi kết nối khi cập nhật bảng');
+    }
+  };
+
   const handleAddNewRow = () => {
     setEntries([
       ...entries,
@@ -292,6 +369,12 @@ export default function FertilizerDiaryDetailPage() {
           <ArrowLeft size={16} /> Danh sách bảng bón phân
         </Link>
         <div className={styles.actionButtons}>
+          <button className={styles.spreadsheetBtn} onClick={() => setShowEditModal(true)}>
+            ✎ Sửa bảng
+          </button>
+          <button className={styles.spreadsheetBtn} style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }} onClick={handleDeleteBoard}>
+            🗑️ Xóa bảng
+          </button>
           <button className={styles.spreadsheetBtn} onClick={() => alert('Thêm cột mới hiện tại là mock')}>
             + Thêm cột
           </button>
@@ -317,6 +400,83 @@ export default function FertilizerDiaryDetailPage() {
           Đang sử dụng
         </div>
       </div>
+
+      {showEditModal && (
+        <div className={modalStyles.modalOverlay}>
+          <div className={modalStyles.modal}>
+            <div className={modalStyles.modalHeader}>
+              <h2 className={modalStyles.modalTitle}>Sửa thông tin bảng</h2>
+              <button className={modalStyles.closeBtn} onClick={() => setShowEditModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleEditBoardSubmit}>
+              <div className={modalStyles.formGroup}>
+                <label className={modalStyles.label}>Tên bảng phân bón *</label>
+                <input 
+                  type="text" 
+                  className={modalStyles.input} 
+                  value={editFormData.name} 
+                  onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} 
+                  required
+                />
+              </div>
+              <div className={modalStyles.formGroup}>
+                <label className={modalStyles.label}>Loại cây trồng *</label>
+                <input 
+                  type="text" 
+                  className={modalStyles.input} 
+                  value={editFormData.cropType} 
+                  onChange={(e) => setEditFormData({...editFormData, cropType: e.target.value})} 
+                  required 
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem' }}>
+                <div className={modalStyles.formGroup} style={{ flex: 1, marginBottom: 0 }}>
+                  <label className={modalStyles.label}>Khu vực</label>
+                  <input 
+                    type="text" 
+                    className={modalStyles.input} 
+                    value={editFormData.areaText} 
+                    onChange={(e) => setEditFormData({...editFormData, areaText: e.target.value})} 
+                  />
+                </div>
+                <div className={modalStyles.formGroup} style={{ flex: 1, marginBottom: 0 }}>
+                  <label className={modalStyles.label}>Diện tích (m²)</label>
+                  <input 
+                    type="number" 
+                    className={modalStyles.input} 
+                    value={editFormData.areaSqm} 
+                    onChange={(e) => setEditFormData({...editFormData, areaSqm: e.target.value})} 
+                  />
+                </div>
+              </div>
+              <div className={modalStyles.formGroup}>
+                <label className={modalStyles.label}>Ngày bắt đầu</label>
+                <input 
+                  type="date" 
+                  className={modalStyles.input} 
+                  value={editFormData.startDate} 
+                  onChange={(e) => setEditFormData({...editFormData, startDate: e.target.value})} 
+                />
+              </div>
+              <div className={modalStyles.formGroup}>
+                <label className={modalStyles.label}>Mô tả</label>
+                <textarea 
+                  className={modalStyles.textarea} 
+                  rows={3} 
+                  value={editFormData.description} 
+                  onChange={(e) => setEditFormData({...editFormData, description: e.target.value})} 
+                ></textarea>
+              </div>
+              <div className={modalStyles.modalActions}>
+                <button type="button" className={modalStyles.btnCancel} onClick={() => setShowEditModal(false)}>Hủy</button>
+                <button type="submit" className={modalStyles.btnSubmit}>Lưu thay đổi</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Spreadsheet List */}
       <div className={styles.list}>

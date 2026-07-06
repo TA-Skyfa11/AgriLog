@@ -95,10 +95,6 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             <input type="text" placeholder="Tìm kiếm..." className={styles.searchInput} />
           </div>
           <div className={styles.headerWidgets}>
-            <div className={styles.weatherWidget}>
-              <Sun size={18} color="#f59e0b" />
-              <span>28°C – Nắng</span>
-            </div>
             <div className={styles.dateWidget}>
               <Calendar size={18} color="#9ca3af" />
               <span>{todayStr}</span>

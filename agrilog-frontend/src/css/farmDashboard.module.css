@@ -1,130 +1,541 @@
 .container {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
+  padding: 24px;
+  background-color: #f0fdf4;
+  min-height: 100vh;
 }
 
-.welcomeCard {
-  background: linear-gradient(135deg, var(--color-primary-600), var(--color-primary-800));
-  color: white;
-  border-radius: var(--radius-xl);
-  padding: 2.5rem 3rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 10px 25px -5px rgba(34, 197, 94, 0.25);
-}
-
-.welcomeCard::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -5%;
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%);
-  border-radius: 50%;
+.welcomeSection {
+  margin-bottom: 24px;
 }
 
 .welcomeTitle {
-  font-size: 1.75rem;
-  font-weight: 800;
-  z-index: 1;
+  font-size: 24px;
+  font-weight: 700;
+  color: #16a34a;
 }
 
 .welcomeSubtitle {
-  color: var(--color-primary-50);
-  opacity: 0.9;
-  font-size: 1rem;
-  z-index: 1;
+  font-size: 14px;
+  color: #64748b;
+  margin-top: 4px;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-text-main);
+/* TOP SECTION */
+.topGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
 }
 
 .statGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 16px;
 }
 
 .statCard {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  padding: 1.5rem;
+  background-color: #ffffff;
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.statHeader {
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  transition: all 0.2s;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
-.statCard:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--color-primary-200);
-}
-
-.statIcon {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
+.statIconWrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.statInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
 .statTitle {
-  font-size: 0.875rem;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-muted);
+  color: #475569;
 }
 
 .statValue {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: var(--color-text-main);
+  font-size: 32px;
+  font-weight: 700;
+  color: #0f172a;
 }
 
-.chartGrid {
+.statSubtext {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.weatherCard {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 20px;
+  padding: 24px;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+}
+
+.weatherTitle {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.weatherLocation {
+  font-size: 13px;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+.weatherTempWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.weatherTemp {
+  font-size: 48px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.weatherDesc {
+  font-size: 16px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.weatherDetails {
+  display: flex;
+  gap: 24px;
+  margin-top: 16px;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.weatherHourly {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.hourlyItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+/* MIDDLE SECTION */
+.middleGrid {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 1.5rem;
+  gap: 24px;
+  margin-bottom: 24px;
 }
 
-@media (max-width: 1024px) {
-  .chartGrid {
-    grid-template-columns: 1fr;
-  }
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
 }
 
-.chartCard {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  padding: 1.5rem;
-}
-
-.chartTitle {
-  font-size: 1.125rem;
+.sectionTitle {
+  font-size: 18px;
   font-weight: 700;
-  color: var(--color-text-main);
-  margin-bottom: 1.5rem;
+  color: #1e293b;
+}
+
+.viewAllLink {
+  font-size: 13px;
+  font-weight: 600;
+  color: #16a34a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.viewAllLink:hover {
+  text-decoration: underline;
+}
+
+.boardCards {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.boardCard {
+  flex: 1;
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.boardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.boardIcon {
+  width: 40px;
+  height: 40px;
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.boardBadge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.boardTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.boardDate {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+.boardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.boardAvatars {
+  display: flex;
+}
+
+.avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  background-color: #cbd5e1;
+  margin-left: -8px;
+}
+.avatar:first-child {
+  margin-left: 0;
+}
+
+.openBoardBtn {
+  background-color: #15803d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.openBoardBtn:hover {
+  background-color: #166534;
+}
+
+/* TIMELINE */
+.timelineCard {
+  background-color: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.timelineItem {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  position: relative;
+}
+.timelineItem:last-child {
+  margin-bottom: 0;
+}
+
+.timelineLine {
+  position: absolute;
+  left: 3px;
+  top: 24px;
+  bottom: -20px;
+  width: 2px;
+  background-color: #e2e8f0;
+}
+.timelineItem:last-child .timelineLine {
+  display: none;
+}
+
+.timelineDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #16a34a;
+  margin-top: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.timelineContent {
+  flex: 1;
+}
+
+.timelineTime {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.timelineTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+.timelineTitle span {
+  color: #16a34a;
+}
+
+.timelineSubtitle {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* RIGHT COLUMN: TASKS & REMINDERS */
+.tasksList {
+  background-color: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.taskCard {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.taskCheckbox {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid #cbd5e1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.taskCheckbox.completed {
+  background-color: #16a34a;
+  border-color: #16a34a;
+  color: white;
+}
+
+.taskInfo {
+  flex: 1;
+}
+
+.taskName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.taskTime {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.reminderCard {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 16px;
+  padding: 20px;
+  margin-top: 24px;
+}
+
+.reminderHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #15803d;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.reminderItem {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.reminderItem:last-child {
+  margin-bottom: 0;
+}
+
+.reminderLine {
+  width: 3px;
+  border-radius: 2px;
+}
+
+.reminderTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.reminderSubtitle {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* BOTTOM SECTION: MARKETPLACE */
+.marketplaceGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.productCard {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+.productCard:hover {
+  transform: translateY(-4px);
+}
+
+.productImageWrapper {
+  width: 100%;
+  aspect-ratio: 4/3;
+  border-radius: 12px;
+  background-color: #f1f5f9;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.productImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.productBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.productBrand {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.productName {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 12px;
+  line-height: 1.4;
+  height: 36px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.productFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.productPrice {
+  font-size: 15px;
+  font-weight: 700;
+  color: #16a34a;
+}
+
+.productArrow {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #f0fdf4;
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floatingAddBtn {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: #15803d;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 15px -3px rgba(21, 128, 61, 0.4);
+  cursor: pointer;
+  z-index: 50;
+  border: none;
+}
+.floatingAddBtn:hover {
+  background-color: #166534;
 }
