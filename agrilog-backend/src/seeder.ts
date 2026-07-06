@@ -80,10 +80,10 @@ const importData = async () => {
     await CultivationEntry.create({ cultivationBoard: cBoard._id, date: new Date('2026-06-02'), activityName: 'Làm đất, lên luống', notes: 'Đất tơi xốp, bón lót phân chuồng' });
     await CultivationEntry.create({ cultivationBoard: cBoard._id, date: new Date('2026-06-05'), activityName: 'Xuống giống', notes: 'Giống cà chua lai F1' });
     
-    await FertilizerEntry.create({ fertilizerBoard: fBoard._id, date: new Date('2026-06-15'), material: fertilizer1._id, materialName: fertilizer1.name, quantity: 20, unit: 'kg', notes: 'Bón thúc lần 1' });
-    await FertilizerEntry.create({ fertilizerBoard: fBoard._id, date: new Date('2026-07-01'), material: fertilizer2._id, materialName: fertilizer2.name, quantity: 50, unit: 'kg', notes: 'Bón thúc lần 2' });
+    await FertilizerEntry.create({ fertilizerBoard: fBoard._id, date: new Date('2026-06-15'), material: fertilizer1._id, materialName: fertilizer1.name, quantity: '20', unit: 'kg', notes: 'Bón thúc lần 1' });
+    await FertilizerEntry.create({ fertilizerBoard: fBoard._id, date: new Date('2026-07-01'), material: fertilizer2._id, materialName: fertilizer2.name, quantity: '50', unit: 'kg', notes: 'Bón thúc lần 2' });
 
-    await PesticideEntry.create({ pesticideBoard: pBoard._id, date: new Date('2026-06-20'), material: pesticide1._id, materialName: pesticide1.name, quantity: 150, unit: 'ml', phiDays: 7, notes: 'Phòng trừ sâu vẽ bùa' });
+    await PesticideEntry.create({ pesticideBoard: pBoard._id, date: new Date('2026-06-20'), material: pesticide1._id, materialName: pesticide1.name, quantity: '150', unit: 'ml', phiDays: 7, notes: 'Phòng trừ sâu vẽ bùa' });
     console.log(`Đã tạo dữ liệu ghi chép nhật ký (Entries)`);
 
     // 4. Tạo Lịch công việc (Tasks)

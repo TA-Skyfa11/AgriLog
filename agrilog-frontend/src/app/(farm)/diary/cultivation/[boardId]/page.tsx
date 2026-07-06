@@ -259,7 +259,7 @@ export default function CultivationDiaryDetailPage() {
 
     try {
       // 1. Update board columns
-      const updatedColumns = board.customColumns?.map(col => col === oldName ? trimmedName : col) || [];
+      const updatedColumns = board.customColumns?.map((col: string) => col === oldName ? trimmedName : col) || [];
       await fetchAPI(`/cultivation-boards/${boardId}`, {
         method: 'PUT',
         body: JSON.stringify({ customColumns: updatedColumns })
@@ -288,7 +288,7 @@ export default function CultivationDiaryDetailPage() {
     if (!confirm(`Bạn có chắc chắn muốn xóa cột "${colName}" không? Dữ liệu của cột này sẽ không còn được hiển thị.`)) return;
     
     try {
-      const updatedColumns = board.customColumns?.filter(col => col !== colName) || [];
+      const updatedColumns = board.customColumns?.filter((col: string) => col !== colName) || [];
       const res = await fetchAPI(`/cultivation-boards/${boardId}`, {
         method: 'PUT',
         body: JSON.stringify({ customColumns: updatedColumns })
