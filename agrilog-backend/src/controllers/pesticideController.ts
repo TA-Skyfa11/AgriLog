@@ -8,11 +8,7 @@ import { MaterialLog } from '../models/MaterialLog';
 import { CultivationBoard } from '../models/CultivationBoard';
 import { FertilizerBoard } from '../models/FertilizerBoard';
 
-const PLAN_LIMITS = {
-  BASIC: { columns: 10, products: 3 },
-  STANDARD: { columns: 15, products: 5 },
-  PREMIUM: { columns: 25, products: 15 },
-};
+import { PLAN_LIMITS, checkBoardLocked, getRetentionDate, getEffectivePlan } from '../utils/boardUtils';
 
 export const getPesticideBoards = async (req: AuthRequest, res: Response) => {
   try {
@@ -21,7 +17,13 @@ export const getPesticideBoards = async (req: AuthRequest, res: Response) => {
       profile = await FarmProfile.create({ user: req.user?._id, farmName: 'Nông trại của tôi' });
     }
 
-    const boards = await PesticideBoard.find({ farmProfile: profile._id }).sort({ createdAt: -1 });
+    const effectivePlan = getEffectivePlan(profile);
+    const retentionDate = getRetentionDate(effectivePlan);
+
+    const boards = await PesticideBoard.find({ 
+      farmProfile: profile._id,
+      createdAt: { $gte: retentionDate }
+    }).sort({ createdAt: -1 });
     const boardsWithCount = await Promise.all(boards.map(async (board) => {
       const count = await PesticideEntry.countDocuments({ pesticideBoard: board._id });
       return {
@@ -41,6 +43,19 @@ export const createPesticideBoard = async (req: AuthRequest, res: Response) => {
     let profile = await FarmProfile.findOne({ user: req.user?._id });
     if (!profile) {
       profile = await FarmProfile.create({ user: req.user?._id, farmName: 'Nông trại của tôi' });
+    }
+
+    // Check board limit
+    const effectivePlan = getEffectivePlan(profile);
+    const planLimits = PLAN_LIMITS[effectivePlan as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.BASIC;
+    const pesticideCount = await PesticideBoard.countDocuments({ farmProfile: profile._id });
+
+    if (pesticideCount >= planLimits.products) {
+      return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.products} bảng thuốc BVTV. Vui lòng nâng cấp gói cước.` });
+    }
+
+    if (req.body.customColumns && req.body.customColumns.length > planLimits.columns) {
+      return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.columns} cột tùy chỉnh.` });
     }
 
     const board = new PesticideBoard({
@@ -78,6 +93,17 @@ export const updatePesticideBoard = async (req: AuthRequest, res: Response) => {
       profile = await FarmProfile.create({ user: req.user?._id, farmName: 'Nông trại của tôi' });
     }
 
+    const effectivePlan = getEffectivePlan(profile);
+    const isLocked = await checkBoardLocked(profile._id.toString(), req.params.id as string, effectivePlan);
+    if (isLocked) {
+      return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
+    }
+
+    const planLimits = PLAN_LIMITS[effectivePlan as keyof typeof PLAN_LIMITS] || PLAN_LIMITS.BASIC;
+    if (req.body.customColumns && req.body.customColumns.length > planLimits.columns) {
+      return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.columns} cột tùy chỉnh.` });
+    }
+
     const board = await PesticideBoard.findOneAndUpdate(
       { _id: req.params.id, farmProfile: profile._id },
       req.body,
@@ -113,7 +139,16 @@ export const deletePesticideBoard = async (req: AuthRequest, res: Response) => {
 
 export const getPesticideEntries = async (req: AuthRequest, res: Response) => {
   try {
-    const entries = await PesticideEntry.find({ pesticideBoard: req.params.boardId }).sort({ date: -1 });
+    const board = await PesticideBoard.findById(req.params.boardId);
+    if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
+    const profile = await FarmProfile.findById(board.farmProfile);
+    const effectivePlan = profile ? getEffectivePlan(profile) : 'BASIC';
+    const retentionDate = getRetentionDate(effectivePlan);
+
+    const entries = await PesticideEntry.find({ 
+      pesticideBoard: req.params.boardId,
+      date: { $gte: retentionDate }
+    }).sort({ date: -1 });
     res.json({ success: true, data: entries });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
@@ -122,6 +157,15 @@ export const getPesticideEntries = async (req: AuthRequest, res: Response) => {
 
 export const createPesticideEntry = async (req: AuthRequest, res: Response) => {
   try {
+    const board = await PesticideBoard.findById(req.params.boardId);
+    if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
+    const profile = await FarmProfile.findById(board.farmProfile);
+    if (profile) {
+      const effectivePlan = getEffectivePlan(profile);
+      const isLocked = await checkBoardLocked(profile._id.toString(), board._id.toString(), effectivePlan);
+      if (isLocked) return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
+    }
+
     const entry = new PesticideEntry({
       ...req.body,
       pesticideBoard: req.params.boardId,
@@ -135,6 +179,16 @@ export const createPesticideEntry = async (req: AuthRequest, res: Response) => {
 
 export const updatePesticideEntry = async (req: AuthRequest, res: Response) => {
   try {
+    const entryCheck = await PesticideEntry.findById(req.params.id).populate('pesticideBoard');
+    if (!entryCheck) return res.status(404).json({ success: false, message: 'Entry not found' });
+    const board = entryCheck.pesticideBoard as any;
+    const profile = await FarmProfile.findById(board.farmProfile);
+    if (profile) {
+      const effectivePlan = getEffectivePlan(profile);
+      const isLocked = await checkBoardLocked(profile._id.toString(), board._id.toString(), effectivePlan);
+      if (isLocked) return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
+    }
+
     const entry = await PesticideEntry.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!entry) return res.status(404).json({ success: false, message: 'Entry not found' });
     res.json({ success: true, data: entry });
@@ -145,6 +199,16 @@ export const updatePesticideEntry = async (req: AuthRequest, res: Response) => {
 
 export const deletePesticideEntry = async (req: AuthRequest, res: Response) => {
   try {
+    const entryCheck = await PesticideEntry.findById(req.params.id).populate('pesticideBoard');
+    if (!entryCheck) return res.status(404).json({ success: false, message: 'Entry not found' });
+    const board = entryCheck.pesticideBoard as any;
+    const profile = await FarmProfile.findById(board.farmProfile);
+    if (profile) {
+      const effectivePlan = getEffectivePlan(profile);
+      const isLocked = await checkBoardLocked(profile._id.toString(), board._id.toString(), effectivePlan);
+      if (isLocked) return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
+    }
+
     const entry = await PesticideEntry.findByIdAndDelete(req.params.id);
     if (!entry) return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chép.' });
     res.json({ success: true, message: 'Xóa ghi chép thành công.' });

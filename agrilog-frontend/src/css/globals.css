@@ -113,3 +113,30 @@ button, input, select, textarea {
 ul {
   list-style: none;
 }
+
+[data-theme="dark"] {
+  --color-bg: #111827;
+  --color-sidebar-bg: #1f2937;
+  --color-surface: #1f2937;
+  --color-surface-hover: #374151;
+  --color-border: #374151;
+  --color-text-main: #f9fafb;
+  --color-text-muted: #9ca3af;
+  --color-text-light: #22c55e;
+  
+  --color-primary-light: #374151;
+  --color-primary-500: #22c55e;
+  --color-primary-600: #16a34a;
+  
+  --color-success-bg: #064e3b;
+  --color-success-text: #34d399;
+  
+  --color-warning-bg: #78350f;
+  --color-warning-text: #fbbf24;
+  
+  --color-error-bg: #7f1d1d;
+  --color-error-text: #f87171;
+  
+  --color-neutral-bg: #374151;
+  --color-neutral-text: #d1d5db;
+}

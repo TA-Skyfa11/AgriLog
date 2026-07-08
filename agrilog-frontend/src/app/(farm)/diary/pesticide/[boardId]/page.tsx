@@ -9,6 +9,8 @@ import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, ShieldAlert, Download, Printer, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const AutoResizeTextarea = (props: any) => {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -49,6 +51,7 @@ export default function PesticideDiaryDetailPage() {
   const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [userPlan, setUserPlan] = useState('BASIC');
 
   const inlineInputStyle: React.CSSProperties = {
     width: '100%',
@@ -75,10 +78,11 @@ export default function PesticideDiaryDetailPage() {
 
   const loadData = async () => {
     try {
-      const [boardRes, entriesRes, materialsRes] = await Promise.all([
+      const [boardRes, entriesRes, materialsRes, profileRes] = await Promise.all([
         fetchAPI(`/pesticide-boards/${params.boardId}`),
         fetchAPI(`/pesticide-boards/${params.boardId}/entries`),
-        fetchAPI('/materials')
+        fetchAPI('/materials'),
+        fetchAPI('/farm/profile')
       ]);
       if (boardRes.success) {
         setBoard(boardRes.data);
@@ -113,6 +117,7 @@ export default function PesticideDiaryDetailPage() {
         }
       }
       if (materialsRes.success) setMaterials(materialsRes.data);
+      if (profileRes.success) setUserPlan(profileRes.data.plan || 'BASIC');
     } catch (error) {
       console.error(error);
     } finally {
@@ -122,6 +127,8 @@ export default function PesticideDiaryDetailPage() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    const plan = localStorage.getItem('userPlan') || 'BASIC';
+    setUserPlan(plan);
     loadData();
   }, [params.boardId]);
 
@@ -360,7 +367,11 @@ export default function PesticideDiaryDetailPage() {
   };
 
   const exportToExcel = () => {
-    const headers = ['STT', 'Ngày sử dụng', 'Tên thuốc', 'Hoạt chất', 'Mục tiêu phòng trừ', 'Liều lượng', 'Cách ly (PHI - Ngày)', 'Người thực hiện', 'Chi phí (VNĐ)', 'Ghi chú'];
+    if (userPlan === 'BASIC') {
+      alert('Gói cước Basic không hỗ trợ xuất file Excel. Vui lòng nâng cấp gói cước.');
+      return;
+    }
+    const headers = ['STT', 'Ngày sử dụng', 'Tên thuốc', 'Hoạt chất', 'Mục tiêu phòng trừ', 'Liều lượng', 'Thời gian cách ly', 'Người thực hiện', 'Chi phí (VNĐ)', 'Ghi chú'];
     const csvRows = [headers.join(',')];
 
     entries.forEach((e, idx) => {
@@ -391,7 +402,72 @@ export default function PesticideDiaryDetailPage() {
   };
 
   const exportToPDF = () => {
-    window.print();
+    if (userPlan === 'BASIC') {
+      alert('Gói cước Basic không hỗ trợ xuất file PDF. Vui lòng nâng cấp gói cước.');
+      return;
+    }
+    
+    const doc = new jsPDF('landscape');
+    
+    // Add title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(234, 88, 12); // Orange 600
+    doc.text(`NHAT KY THUOC BVTV: ${board?.name || ''}`, 14, 20);
+    
+    // Add info
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(71, 85, 105); // Slate 600
+    doc.text(`Cay trong: ${board?.cropType || ''}`, 14, 30);
+    doc.text(`Dien tich: ${board?.areaSqm || 0} m2`, 80, 30);
+    doc.text(`Ngay bat dau: ${board?.startDate ? format(new Date(board.startDate), 'dd/MM/yyyy') : ''}`, 150, 30);
+
+    // Divider line
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.5);
+    doc.line(14, 35, 280, 35);
+
+    const customCols = board?.customColumns || [];
+    const headers = [
+      'STT', 
+      'Ngay su dung', 
+      'Ten thuoc', 
+      'Hoat chat', 
+      'Muc tieu', 
+      'Lieu luong', 
+      'Cach ly (ngay)', 
+      'Nguoi thuc hien', 
+      'Chi phi', 
+      'Ghi chu',
+      ...customCols.map(c => c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+    ];
+    
+    const data = entries.map((e, idx) => [
+      idx + 1,
+      e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
+      (e.materialName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      (e.activeIngredient || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      (e.targetPest || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      (e.quantity || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      e.phiDays || 0,
+      (e.performer || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      e.cost || 0,
+      (e.notes || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      ...customCols.map(col => (e.customValues?.[col] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+    ]);
+
+    autoTable(doc as any, {
+      startY: 42,
+      head: [headers],
+      body: data,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.1 },
+      headStyles: { fillColor: [234, 88, 12], textColor: 255, fontStyle: 'bold', halign: 'center' }, // #ea580c orange
+      alternateRowStyles: { fillColor: [248, 250, 252] }
+    });
+
+    doc.save(`${board?.name || 'nhat_ky'}_thuoc_bvtv.pdf`);
   };
 
   if (loading) return <div style={{ padding: '2rem' }}>Đang tải dữ liệu bảng thuốc BVTV...</div>;
@@ -413,10 +489,10 @@ export default function PesticideDiaryDetailPage() {
           <button className={styles.spreadsheetBtn} onClick={handleAddNewColumn}>
             + Thêm cột
           </button>
-          <button className={styles.spreadsheetBtn} onClick={exportToPDF}>
+          <button className={styles.spreadsheetBtn} onClick={exportToPDF} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
             <Printer size={16} /> PDF
           </button>
-          <button className={styles.spreadsheetBtn} onClick={exportToExcel}>
+          <button className={styles.spreadsheetBtn} onClick={exportToExcel} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
             <Download size={16} /> Excel
           </button>
         </div>

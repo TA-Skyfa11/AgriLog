@@ -25,6 +25,7 @@ import weatherRoutes from './routes/weatherRoutes';
 import companyRoutes from './routes/companyRoutes';
 import productRoutes from './routes/productRoutes';
 import orderRoutes from './routes/orderRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 import path from 'path';
 
 // Routes
@@ -35,6 +36,7 @@ app.use('/api/fertilizer-boards', fertilizerRoutes);
 app.use('/api/pesticide-boards', pesticideRoutes);
 app.use('/api/materials', materialRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/weather', weatherRoutes);

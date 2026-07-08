@@ -9,6 +9,8 @@ import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, FileText, Download, Printer, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const AutoResizeTextarea = (props: any) => {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -50,6 +52,7 @@ export default function CultivationDiaryDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showHarvestModal, setShowHarvestModal] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [userPlan, setUserPlan] = useState('BASIC');
 
   // Define new inline input style
   const inlineInputStyle: React.CSSProperties = {
@@ -129,6 +132,7 @@ export default function CultivationDiaryDetailPage() {
       }
       if (profileRes.success) {
         setProfile(profileRes.data);
+        setUserPlan(profileRes.data.plan || 'BASIC');
       }
     } catch (error) {
       console.error(error);
@@ -139,6 +143,8 @@ export default function CultivationDiaryDetailPage() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
+    const plan = localStorage.getItem('userPlan') || 'BASIC';
+    setUserPlan(plan);
     loadBoardData();
   }, [boardId]);
 
@@ -445,6 +451,10 @@ export default function CultivationDiaryDetailPage() {
   };
 
   const exportToExcel = () => {
+    if (userPlan === 'BASIC') {
+      alert('Gói cước Basic không hỗ trợ xuất file Excel. Vui lòng nâng cấp gói cước.');
+      return;
+    }
     const customCols = board?.customColumns || [];
     const headers = [
       'STT', 
@@ -485,7 +495,66 @@ export default function CultivationDiaryDetailPage() {
   };
 
   const exportToPDF = () => {
-    window.print();
+    if (userPlan === 'BASIC') {
+      alert('Gói cước Basic không hỗ trợ xuất file PDF. Vui lòng nâng cấp gói cước.');
+      return;
+    }
+    
+    const doc = new jsPDF('landscape');
+    
+    // Add title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(22, 163, 74); // Green 600
+    doc.text(`NHAT KY CANH TAC: ${board?.name || ''}`, 14, 20);
+    
+    // Add info
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(71, 85, 105); // Slate 600
+    doc.text(`Cay trong: ${board?.cropType || ''}`, 14, 30);
+    doc.text(`Dien tich: ${board?.areaSqm || 0} m2`, 80, 30);
+    doc.text(`Ngay bat dau: ${board?.startDate ? format(new Date(board.startDate), 'dd/MM/yyyy') : ''}`, 150, 30);
+
+    // Divider line
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.5);
+    doc.line(14, 35, 280, 35);
+
+    const customCols = board?.customColumns || [];
+    const headers = [
+      'STT', 
+      'Ngay', 
+      'Giai doan', 
+      'Hoat dong', 
+      'Nguoi lam', 
+      'Thoi tiet', 
+      'Ghi chu',
+      ...customCols.map(c => c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+    ];
+    
+    const data = entries.map((e, idx) => [
+      idx + 1,
+      e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
+      (e.stage || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      (e.activityName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      (e.performer || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      (e.weather || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      (e.notes || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      ...customCols.map(col => (e.customValues?.[col] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+    ]);
+
+    autoTable(doc as any, {
+      startY: 42,
+      head: [headers],
+      body: data,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.1 },
+      headStyles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'center' },
+      alternateRowStyles: { fillColor: [248, 250, 252] }
+    });
+
+    doc.save(`${board?.name || 'nhat_ky'}_canh_tac.pdf`);
   };
 
   if (loading) return <div style={{ padding: '2rem' }}>Đang tải dữ liệu bảng canh tác...</div>;
@@ -510,10 +579,10 @@ export default function CultivationDiaryDetailPage() {
           <button className={styles.spreadsheetBtn} onClick={handleAddColumn}>
             + Thêm cột
           </button>
-          <button className={styles.spreadsheetBtn} onClick={exportToPDF}>
+          <button className={styles.spreadsheetBtn} onClick={exportToPDF} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
             <Printer size={16} /> PDF
           </button>
-          <button className={styles.spreadsheetBtn} onClick={exportToExcel}>
+          <button className={styles.spreadsheetBtn} onClick={exportToExcel} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
             <Download size={16} /> Excel
           </button>
           {board.status === 'ACTIVE' && (
