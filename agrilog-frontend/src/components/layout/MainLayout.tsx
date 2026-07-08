@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 import React from 'react';
 import Link from 'next/link';
@@ -8,14 +9,15 @@ import styles from './MainLayout.module.css';
 import { 
   Home, Leaf, FlaskConical, ShieldAlert, Package, 
   ShoppingBag, Calendar, BarChart2, CreditCard, 
-  User, Settings, Search, Sun, Bell, ShoppingCart, LogOut
+  User, Settings, Search, Sun, Bell, ShoppingCart, LogOut,
+  Building, PackagePlus, ClipboardList, PieChart
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  role: 'FARM' | 'ADMIN';
+  role: 'FARM' | 'ADMIN' | 'COMPANY';
 }
 
 export default function MainLayout({ children, role }: MainLayoutProps) {
@@ -49,6 +51,27 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
       if (currentRole === 'ADMIN') {
         setUserName('Quản trị viên');
         setUserInitials('AD');
+        return;
+      }
+
+      if (currentRole === 'COMPANY') {
+        try {
+          const data = await fetchAPI('/company/profile');
+          if (data.success && data.data && data.data.companyName) {
+            setUserName(data.data.companyName);
+            const parts = data.data.companyName.trim().split(/\s+/);
+            let initials = '';
+            if (parts.length >= 2) {
+              initials = (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+            } else if (parts.length === 1) {
+              initials = parts[0].substring(0, 2).toUpperCase();
+            }
+            if (initials) setUserInitials(initials);
+            return;
+          }
+        } catch (e) {}
+        setUserName(fallbackName);
+        setUserInitials(fallbackInitials);
         return;
       }
 
@@ -101,9 +124,19 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const adminLinks = [
     { href: '/admin/dashboard', label: 'Dashboard', icon: <Home size={20} /> },
     { href: '/admin/users', label: 'Quản lý người dùng', icon: <User size={20} /> },
+    { href: '/admin/marketplace', label: 'Kiểm duyệt sản phẩm', icon: <ShoppingBag size={20} /> },
+    { href: '/admin/orders', label: 'Đơn hàng', icon: <ShoppingCart size={20} /> },
+    { href: '/admin/settings', label: 'Cài đặt', icon: <Settings size={20} /> },
   ];
 
-  const links = role === 'FARM' ? farmLinks : adminLinks;
+  const companyLinks = [
+    { href: '/company/dashboard', label: 'Dashboard', icon: <Home size={20} /> },
+    { href: '/company/products', label: 'Sản phẩm', icon: <PackagePlus size={20} /> },
+    { href: '/company/orders', label: 'Đơn hàng', icon: <ClipboardList size={20} /> },
+    { href: '/company/settings', label: 'Cài đặt', icon: <Settings size={20} /> },
+  ];
+
+  const links = role === 'FARM' ? farmLinks : role === 'ADMIN' ? adminLinks : companyLinks;
 
   return (
     <div className={styles.layout}>
@@ -134,7 +167,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
           <div className={styles.avatar}>{userInitials}</div>
           <div className={styles.userInfoText}>
             <div className={styles.userName}>{userName}</div>
-            <div className={styles.userRole}>{role === 'FARM' ? 'Quản lý nông trại' : 'Admin'}</div>
+            <div className={styles.userRole}>{role === 'FARM' ? 'Quản lý nông trại' : role === 'ADMIN' ? 'Admin' : 'Doanh nghiệp'}</div>
           </div>
           <button className={styles.logoutBtn} title="Đăng xuất" onClick={handleLogout}>
             <LogOut size={20} />

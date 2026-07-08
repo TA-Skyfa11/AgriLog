@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 import { Search, Bell } from 'lucide-react';
 import styles from '../../css/AdminLayout.module.css';

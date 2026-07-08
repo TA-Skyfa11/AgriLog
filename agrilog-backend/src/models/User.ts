@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export enum Role {
   FARM = 'FARM',
   ADMIN = 'ADMIN',
+  COMPANY = 'COMPANY',
 }
 
 export interface IUser extends Document {
@@ -10,6 +11,7 @@ export interface IUser extends Document {
   passwordHash: string;
   role: Role;
   isActive: boolean;
+  allowAdminReset: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +22,7 @@ const userSchema = new Schema<IUser>(
     passwordHash: { type: String, required: true },
     role: { type: String, enum: Object.values(Role), default: Role.FARM },
     isActive: { type: Boolean, default: true },
+    allowAdminReset: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

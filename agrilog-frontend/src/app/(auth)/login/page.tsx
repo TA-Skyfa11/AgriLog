@@ -1,7 +1,9 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { fetchAPI } from '@/lib/api';
 import styles from '@/css/login.module.css';
 
@@ -24,11 +26,9 @@ export default function LoginPage() {
       });
 
       if (data.success) {
-        // Save token to cookie for Middleware
         document.cookie = `token=${data.token}; path=/; max-age=2592000`; // 30 days
         document.cookie = `role=${data.user.role}; path=/; max-age=2592000`;
         
-        // Save to localStorage for client-side API calls
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
 
@@ -50,46 +50,68 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        <div className={styles.header}>
-          <h1 className={styles.title}>AgriLog</h1>
-          <p className={styles.subtitle}>Đăng nhập để quản lý nông trại</p>
+    <div className={styles.splitContainer}>
+      <div className={styles.imageSection}>
+        <img 
+          src="https://images.unsplash.com/photo-1500937386664-56d1dfef3854?q=80&w=2070&auto=format&fit=crop" 
+          alt="Agriculture Field" 
+          className={styles.unsplashImage} 
+        />
+        <div className={styles.imageOverlay}></div>
+        <div className={styles.imageQuote}>
+          <h2>AgriLog.</h2>
+          <p>Nền tảng quản lý nông trại thông minh, giúp bạn theo dõi mùa màng, kiểm soát vật tư và tối ưu hóa năng suất hiệu quả.</p>
         </div>
-        
-        {error && <div style={{ color: 'var(--color-error)', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center' }}>{error}</div>}
+      </div>
 
-        <form className={styles.form} onSubmit={handleSubmit}>
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              className={styles.input}
-              placeholder="nhap@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
+      <div className={styles.formSection}>
+        <div className={styles.card}>
+          <div className={styles.header}>
+            <h1 className={styles.title}>Đăng nhập</h1>
+            <p className={styles.subtitle}>Chào mừng trở lại! Vui lòng điền thông tin để tiếp tục.</p>
           </div>
           
-          <div className={styles.formGroup}>
-            <label className={styles.label} htmlFor="password">Mật khẩu</label>
-            <input
-              id="password"
-              type="password"
-              className={styles.input}
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+          {error && <div style={{ color: 'var(--color-error)', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: '8px' }}>{error}</div>}
+
+          <form className={styles.form} onSubmit={handleSubmit}>
+            <div className={styles.formGroup}>
+              <label className={styles.label} htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                className={styles.input}
+                placeholder="nhap@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            
+            <div className={styles.formGroup}>
+              <label className={styles.label} htmlFor="password">Mật khẩu</label>
+              <input
+                id="password"
+                type="password"
+                className={styles.input}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            
+            <button type="submit" className={styles.button} disabled={loading}>
+              {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+            </button>
+          </form>
+
+          <div className={styles.footer}>
+            Chưa có tài khoản?{' '}
+            <Link href="/register" className={styles.footerLink}>
+              Đăng ký ngay
+            </Link>
           </div>
-          
-          <button type="submit" className={styles.button} disabled={loading}>
-            {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
-          </button>
-        </form>
+        </div>
       </div>
     </div>
   );

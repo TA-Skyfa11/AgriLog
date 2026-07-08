@@ -22,6 +22,9 @@ import taskRoutes from './routes/taskRoutes';
 import adminRoutes from './routes/adminRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import weatherRoutes from './routes/weatherRoutes';
+import companyRoutes from './routes/companyRoutes';
+import productRoutes from './routes/productRoutes';
+import orderRoutes from './routes/orderRoutes';
 import path from 'path';
 
 // Routes
@@ -35,6 +38,9 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/weather', weatherRoutes);
+app.use('/api/company', companyRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
 
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 

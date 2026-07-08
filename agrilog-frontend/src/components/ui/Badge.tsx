@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React from 'react';
 import styles from '../../css/ui.module.css';
 

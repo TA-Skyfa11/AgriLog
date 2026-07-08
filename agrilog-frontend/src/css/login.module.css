@@ -1,47 +1,103 @@
-.container {
+.splitContainer {
   min-height: 100vh;
+  display: flex;
+  background-color: white;
+}
+
+.imageSection {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .splitContainer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .imageSection {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    position: relative;
+    padding: 4rem;
+    overflow: hidden;
+  }
+  
+  .imageOverlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.8) 100%);
+    z-index: 1;
+  }
+  
+  .unsplashImage {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    transition: transform 10s ease;
+  }
+
+  .imageSection:hover .unsplashImage {
+    transform: scale(1.05);
+  }
+
+  .imageQuote {
+    position: relative;
+    z-index: 2;
+    color: white;
+  }
+
+  .imageQuote h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    line-height: 1.2;
+  }
+
+  .imageQuote p {
+    font-size: 1.125rem;
+    opacity: 0.9;
+    line-height: 1.6;
+  }
+}
+
+.formSection {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-bg);
-  background-image: radial-gradient(circle at top right, var(--color-primary-50), transparent 50%),
-                    radial-gradient(circle at bottom left, var(--color-primary-100), transparent 50%);
-  padding: 1rem;
+  padding: 2rem;
+  background-color: white;
 }
 
 .card {
   width: 100%;
   max-width: 440px;
-  background-color: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-radius: var(--radius-3xl);
-  box-shadow: var(--shadow-xl);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 3rem 2.5rem;
+  padding: 2rem;
 }
 
 .header {
-  text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
 }
 
 .title {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 2.25rem;
+  font-weight: 800;
   color: var(--color-text-main);
   margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
 }
 
 .subtitle {
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: var(--color-text-muted);
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .formGroup {
@@ -52,17 +108,17 @@
 
 .label {
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-text-main);
 }
 
 .input {
   width: 100%;
-  padding: 0.875rem 1.25rem;
+  padding: 1rem 1.25rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   font-size: 1rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: all 0.3s ease;
   background-color: var(--color-surface);
   color: var(--color-text-main);
 }
@@ -70,12 +126,13 @@
 .input:focus {
   outline: none;
   border-color: var(--color-primary-500);
-  box-shadow: 0 0 0 3px var(--color-primary-100);
+  box-shadow: 0 0 0 4px var(--color-primary-100);
+  background-color: white;
 }
 
 .button {
   width: 100%;
-  padding: 0.875rem 1.25rem;
+  padding: 1rem 1.25rem;
   background-color: var(--color-primary-600);
   color: white;
   border: none;
@@ -83,10 +140,53 @@
   font-size: 1.125rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
   margin-top: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.2), 0 2px 4px -1px rgba(22, 163, 74, 0.1);
 }
 
 .button:hover {
   background-color: var(--color-primary-700);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(22, 163, 74, 0.3), 0 4px 6px -2px rgba(22, 163, 74, 0.1);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+.button:disabled {
+  background-color: var(--color-primary-300);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.footer {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+}
+
+.footerLink {
+  color: var(--color-primary-600);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.footerLink:hover {
+  color: var(--color-primary-800);
+  text-decoration: underline;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+  animation: fadeIn 0.6s ease-out forwards;
 }

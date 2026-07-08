@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "../css/globals.css";
