@@ -8,6 +8,8 @@ import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, FlaskConical, Download, Printer, ArrowLeft, X, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const AutoResizeTextarea = (props: any) => {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -47,6 +49,7 @@ export default function FertilizerDiaryDetailPage() {
   const [materials, setMaterials] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [userPlan, setUserPlan] = useState('BASIC');
 
   const inlineInputStyle: React.CSSProperties = {
     width: '100%',
@@ -73,10 +76,11 @@ export default function FertilizerDiaryDetailPage() {
 
   const loadData = async () => {
     try {
-      const [boardRes, entriesRes, materialsRes] = await Promise.all([
+      const [boardRes, entriesRes, materialsRes, profileRes] = await Promise.all([
         fetchAPI(`/fertilizer-boards/${params.boardId}`),
         fetchAPI(`/fertilizer-boards/${params.boardId}/entries`),
-        fetchAPI('/materials')
+        fetchAPI('/materials'),
+        fetchAPI('/farm/profile')
       ]);
       if (boardRes.success) {
         setBoard(boardRes.data);
@@ -109,6 +113,7 @@ export default function FertilizerDiaryDetailPage() {
         }
       }
       if (materialsRes.success) setMaterials(materialsRes.data);
+      if (profileRes.success) setUserPlan(profileRes.data.plan || 'BASIC');
     } catch (error) {
       console.error(error);
     } finally {
@@ -117,6 +122,8 @@ export default function FertilizerDiaryDetailPage() {
   };
 
   useEffect(() => {
+    const plan = localStorage.getItem('userPlan') || 'BASIC';
+    setUserPlan(plan);
     loadData();
   }, [params.boardId]);
 
@@ -326,6 +333,10 @@ export default function FertilizerDiaryDetailPage() {
   };
 
   const exportToExcel = () => {
+    if (userPlan === 'BASIC') {
+      alert('Gói cước Basic không hỗ trợ xuất file Excel. Vui lòng nâng cấp gói cước.');
+      return;
+    }
     const headers = ['STT', 'Ngày sử dụng', 'Tên phân bón', 'Nhà sản xuất', 'Liều lượng', 'Diện tích áp dụng (m²)', 'Người thực hiện', 'Chi phí (VNĐ)', 'Ghi chú'];
     const csvRows = [headers.join(',')];
 
@@ -356,7 +367,67 @@ export default function FertilizerDiaryDetailPage() {
   };
 
   const exportToPDF = () => {
-    window.print();
+    if (userPlan === 'BASIC') {
+      alert('Gói cước Basic không hỗ trợ xuất file PDF. Vui lòng nâng cấp gói cước.');
+      return;
+    }
+    
+    const doc = new jsPDF('landscape');
+    
+    // Add title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(59, 130, 246); // Blue 500
+    doc.text(`NHAT KY PHAN BON: ${board?.name || ''}`, 14, 20);
+    
+    // Add info
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(71, 85, 105); // Slate 600
+    doc.text(`Cay trong: ${board?.cropType || ''}`, 14, 30);
+    doc.text(`Dien tich: ${board?.areaSqm || 0} m2`, 80, 30);
+    doc.text(`Ngay bat dau: ${board?.startDate ? format(new Date(board.startDate), 'dd/MM/yyyy') : ''}`, 150, 30);
+
+    // Divider line
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.5);
+    doc.line(14, 35, 280, 35);
+
+    const headers = [
+      'STT', 
+      'Ngay su dung', 
+      'Ten phan bon', 
+      'Nha san xuat', 
+      'Lieu luong', 
+      'Dien tich (m2)', 
+      'Nguoi thuc hien', 
+      'Chi phi', 
+      'Ghi chu'
+    ];
+    
+    const data = entries.map((e, idx) => [
+      idx + 1,
+      e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
+      (e.materialName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      (e.manufacturer || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      (e.quantity || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      e.appliedArea || 0,
+      (e.performer || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      e.cost || 0,
+      (e.notes || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    ]);
+
+    autoTable(doc as any, {
+      startY: 42,
+      head: [headers],
+      body: data,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.1 },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold', halign: 'center' },
+      alternateRowStyles: { fillColor: [248, 250, 252] }
+    });
+
+    doc.save(`${board?.name || 'nhat_ky'}_phan_bon.pdf`);
   };
 
   if (loading) return <div style={{ padding: '2rem' }}>Đang tải dữ liệu bảng phân bón...</div>;
@@ -381,10 +452,10 @@ export default function FertilizerDiaryDetailPage() {
           <button className={styles.spreadsheetBtn} onClick={() => alert('Thêm cột mới hiện tại là mock')}>
             + Thêm cột
           </button>
-          <button className={styles.spreadsheetBtn} onClick={exportToPDF}>
+          <button className={styles.spreadsheetBtn} onClick={exportToPDF} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
             <Printer size={16} /> PDF
           </button>
-          <button className={styles.spreadsheetBtn} onClick={exportToExcel}>
+          <button className={styles.spreadsheetBtn} onClick={exportToExcel} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
             <Download size={16} /> Excel
           </button>
         </div>

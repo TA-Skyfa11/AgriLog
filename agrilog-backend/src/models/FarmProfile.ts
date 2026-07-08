@@ -8,6 +8,14 @@ export interface IFarmProfile extends Document {
   mainCropType: string;
   contactPhone: string;
   plan: 'BASIC' | 'STANDARD' | 'PREMIUM';
+  planExpiresAt?: Date;
+  previousPlan?: 'BASIC' | 'STANDARD' | 'PREMIUM';
+  notificationPreferences: {
+    push: boolean;
+    email: boolean;
+    tasks: boolean;
+    billing: boolean;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +29,14 @@ const farmProfileSchema = new Schema<IFarmProfile>(
     mainCropType: { type: String, required: false },
     contactPhone: { type: String, required: false },
     plan: { type: String, enum: ['BASIC', 'STANDARD', 'PREMIUM'], default: 'BASIC' },
+    planExpiresAt: { type: Date, required: false },
+    previousPlan: { type: String, enum: ['BASIC', 'STANDARD', 'PREMIUM'], required: false },
+    notificationPreferences: {
+      push: { type: Boolean, default: true },
+      email: { type: Boolean, default: false },
+      tasks: { type: Boolean, default: true },
+      billing: { type: Boolean, default: true },
+    }
   },
   { timestamps: true }
 );

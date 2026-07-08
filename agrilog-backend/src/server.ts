@@ -22,6 +22,7 @@ import taskRoutes from './routes/taskRoutes';
 import adminRoutes from './routes/adminRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import weatherRoutes from './routes/weatherRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 import path from 'path';
 
 // Routes
@@ -32,6 +33,7 @@ app.use('/api/fertilizer-boards', fertilizerRoutes);
 app.use('/api/pesticide-boards', pesticideRoutes);
 app.use('/api/materials', materialRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/weather', weatherRoutes);

@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
 import styles from '@/css/settings.module.css';
 import { User, Lock, Bell, Globe, Layout, Shield, Save } from 'lucide-react';
+import { useAppContext } from '@/context/AppProvider';
+import { toast } from 'react-hot-toast';
 
 export default function SettingsPage() {
   const [formData, setFormData] = useState({
@@ -18,6 +20,19 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [activeTab, setActiveTab] = useState('account');
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [notifSettings, setNotifSettings] = useState({
+    push: true,
+    email: false,
+    tasks: true,
+    billing: true
+  });
+  const { theme, setTheme, language, setLanguage, timezone, setTimezone, t } = useAppContext();
+  const [loginHistory, setLoginHistory] = useState<any[]>([]);
 
   const loadProfile = async () => {
     try {
@@ -29,8 +44,17 @@ export default function SettingsPage() {
           areaSqm: res.data.areaSqm || '',
           mainCropType: res.data.mainCropType || '',
           contactPhone: res.data.contactPhone || '',
-          email: 'nongtrainguyentam@gmail.com', // Mock email as it's typically tied to user account
+          email: 'nongtrainguyentam@gmail.com',
         });
+        
+        if (res.data.notificationPreferences) {
+          setNotifSettings(res.data.notificationPreferences);
+        }
+      }
+      
+      const historyRes = await fetchAPI('/auth/login-history');
+      if (historyRes.success && historyRes.data) {
+        setLoginHistory(historyRes.data);
       }
     } catch (error: any) {
       console.log('No profile yet or error:', error);
@@ -60,6 +84,46 @@ export default function SettingsPage() {
       setMessage({ type: 'success', text: 'Cập nhật hồ sơ thành công!' });
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message || 'Lỗi khi cập nhật' });
+    } finally {
+      setSaving(false);
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    }
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPasswordData({ ...passwordData, [e.target.name]: e.target.value });
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setMessage({ type: 'error', text: 'Mật khẩu xác nhận không khớp!' });
+      return;
+    }
+    if (passwordData.newPassword.length < 6) {
+      setMessage({ type: 'error', text: 'Mật khẩu mới phải có ít nhất 6 ký tự!' });
+      return;
+    }
+
+    setSaving(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      const res = await fetchAPI('/auth/change-password', {
+        method: 'PUT',
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        }),
+      });
+      if (res.success) {
+        setMessage({ type: 'success', text: 'Đổi mật khẩu thành công!' });
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        setMessage({ type: 'error', text: res.message || 'Lỗi khi đổi mật khẩu' });
+      }
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Lỗi khi đổi mật khẩu' });
     } finally {
       setSaving(false);
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
@@ -106,7 +170,7 @@ export default function SettingsPage() {
         <div className={styles.mainPanel}>
           {activeTab === 'account' && (
             <>
-              <h2 className={styles.panelTitle}>Thông tin tài khoản</h2>
+              <h2 className={styles.panelTitle}>{t('settings.account')}</h2>
               <form onSubmit={handleSubmit}>
                 <div className={styles.formGrid}>
                   <div className={styles.formGroup}>
@@ -199,9 +263,214 @@ export default function SettingsPage() {
               </form>
             </>
           )}
-          {activeTab !== 'account' && (
-            <div>Chức năng đang được phát triển...</div>
+          
+          {activeTab === 'password' && (
+            <>
+              <h2 className={styles.panelTitle}>Đổi mật khẩu</h2>
+              <form onSubmit={handlePasswordSubmit}>
+                <div className={styles.formGrid}>
+                  <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                    <label className={styles.label}>Mật khẩu hiện tại</label>
+                    <input
+                      className={styles.input}
+                      type="password"
+                      name="currentPassword"
+                      value={passwordData.currentPassword}
+                      onChange={handlePasswordChange}
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                    <label className={styles.label}>Mật khẩu mới</label>
+                    <input
+                      className={styles.input}
+                      type="password"
+                      name="newPassword"
+                      value={passwordData.newPassword}
+                      onChange={handlePasswordChange}
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup} style={{ gridColumn: '1 / -1' }}>
+                    <label className={styles.label}>Xác nhận mật khẩu mới</label>
+                    <input
+                      className={styles.input}
+                      type="password"
+                      name="confirmPassword"
+                      value={passwordData.confirmPassword}
+                      onChange={handlePasswordChange}
+                      required
+                    />
+                  </div>
+                </div>
+                <button type="submit" className={styles.button} disabled={saving}>
+                  <Lock size={18} /> {saving ? 'Đang lưu...' : 'Đổi mật khẩu'}
+                </button>
+              </form>
+            </>
           )}
+
+          {activeTab === 'notifications' && (
+            <>
+              <h2 className={styles.panelTitle}>Cài đặt thông báo</h2>
+              <div className={styles.settingsList}>
+                <div className={styles.settingItem}>
+                  <div>
+                    <div className={styles.settingLabel}>Thông báo đẩy (Trình duyệt)</div>
+                    <div className={styles.settingDesc}>Nhận thông báo ngay trên màn hình khi bạn đang sử dụng ứng dụng.</div>
+                  </div>
+                  <label className={styles.switch}>
+                    <input type="checkbox" checked={notifSettings.push} onChange={async (e) => {
+                      const newSet = {...notifSettings, push: e.target.checked};
+                      setNotifSettings(newSet);
+                      await fetchAPI('/farm/profile', { method: 'PUT', body: JSON.stringify({ notificationPreferences: newSet }) });
+                      toast.success('Cập nhật thành công');
+                    }} />
+                    <span className={styles.slider}></span>
+                  </label>
+                </div>
+                <div className={styles.settingItem}>
+                  <div>
+                    <div className={styles.settingLabel}>Thông báo qua Email</div>
+                    <div className={styles.settingDesc}>Nhận bản tóm tắt các thông báo quan trọng qua email định kỳ.</div>
+                  </div>
+                  <label className={styles.switch}>
+                    <input type="checkbox" checked={notifSettings.email} onChange={async (e) => {
+                      const newSet = {...notifSettings, email: e.target.checked};
+                      setNotifSettings(newSet);
+                      await fetchAPI('/farm/profile', { method: 'PUT', body: JSON.stringify({ notificationPreferences: newSet }) });
+                      toast.success('Cập nhật thành công');
+                    }} />
+                    <span className={styles.slider}></span>
+                  </label>
+                </div>
+                <div className={styles.settingItem}>
+                  <div>
+                    <div className={styles.settingLabel}>Nhắc nhở Công việc</div>
+                    <div className={styles.settingDesc}>Nhận thông báo khi có công việc sắp đến hạn hoặc quá hạn.</div>
+                  </div>
+                  <label className={styles.switch}>
+                    <input type="checkbox" checked={notifSettings.tasks} onChange={async (e) => {
+                      const newSet = {...notifSettings, tasks: e.target.checked};
+                      setNotifSettings(newSet);
+                      await fetchAPI('/farm/profile', { method: 'PUT', body: JSON.stringify({ notificationPreferences: newSet }) });
+                      toast.success('Cập nhật thành công');
+                    }} />
+                    <span className={styles.slider}></span>
+                  </label>
+                </div>
+                <div className={styles.settingItem}>
+                  <div>
+                    <div className={styles.settingLabel}>Nhắc nhở Gói dịch vụ</div>
+                    <div className={styles.settingDesc}>Cảnh báo khi gói cước sắp hết hạn hoặc thanh toán thành công.</div>
+                  </div>
+                  <label className={styles.switch}>
+                    <input type="checkbox" checked={notifSettings.billing} onChange={async (e) => {
+                      const newSet = {...notifSettings, billing: e.target.checked};
+                      setNotifSettings(newSet);
+                      await fetchAPI('/farm/profile', { method: 'PUT', body: JSON.stringify({ notificationPreferences: newSet }) });
+                      toast.success('Cập nhật thành công');
+                    }} />
+                    <span className={styles.slider}></span>
+                  </label>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'language' && (
+            <>
+              <h2 className={styles.panelTitle}>Ngôn ngữ khu vực</h2>
+              <div className={styles.settingsList}>
+                <div className={styles.settingItem}>
+                  <div>
+                    <div className={styles.settingLabel}>Ngôn ngữ hiển thị</div>
+                    <div className={styles.settingDesc}>Chọn ngôn ngữ giao diện của hệ thống.</div>
+                  </div>
+                  <select className={styles.select} value={language} onChange={(e) => {
+                    setLanguage(e.target.value as any);
+                    toast.success('Đã thay đổi ngôn ngữ');
+                  }}>
+                    <option value="vi">Tiếng Việt</option>
+                    <option value="en">English (Tiếng Anh)</option>
+                  </select>
+                </div>
+                <div className={styles.settingItem}>
+                  <div>
+                    <div className={styles.settingLabel}>Múi giờ</div>
+                    <div className={styles.settingDesc}>Hệ thống sẽ đồng bộ thời gian theo múi giờ này.</div>
+                  </div>
+                  <select className={styles.select} value={timezone} onChange={(e) => {
+                    setTimezone(e.target.value);
+                    toast.success('Đã cập nhật múi giờ');
+                  }}>
+                    <option value="GMT+7">(GMT+07:00) Băng Cốc, Hà Nội, Jakarta</option>
+                    <option value="GMT+8">(GMT+08:00) Bắc Kinh, Singapore, Đài Bắc</option>
+                    <option value="GMT+9">(GMT+09:00) Tokyo, Seoul, Osaka</option>
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'appearance' && (
+            <>
+              <h2 className={styles.panelTitle}>Tùy chỉnh Giao diện</h2>
+              <div className={styles.settingsList}>
+                <div className={styles.settingItem}>
+                  <div>
+                    <div className={styles.settingLabel}>Giao diện (Theme)</div>
+                    <div className={styles.settingDesc}>Chuyển đổi giữa chế độ nền sáng và nền tối.</div>
+                  </div>
+                  <div className={styles.radioGroup}>
+                    <label className={styles.radioLabel}>
+                      <input type="radio" name="theme" value="light" checked={theme === 'light'} onChange={() => setTheme('light')} /> Sáng
+                    </label>
+                    <label className={styles.radioLabel}>
+                      <input type="radio" name="theme" value="dark" checked={theme === 'dark'} onChange={() => setTheme('dark')} /> Tối
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'security' && (
+            <>
+              <h2 className={styles.panelTitle}>Cài đặt Bảo mật</h2>
+              <div className={styles.settingsList}>
+                <div className={styles.settingItem}>
+                  <div>
+                    <div className={styles.settingLabel}>Lịch sử đăng nhập</div>
+                    <div className={styles.settingDesc}>Danh sách các phiên đăng nhập gần đây.</div>
+                  </div>
+                </div>
+                <div style={{ marginTop: '1rem' }}>
+                  {loginHistory.length === 0 ? <p>Chưa có dữ liệu</p> : (
+                    <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                          <th style={{ padding: '0.75rem' }}>Thời gian</th>
+                          <th style={{ padding: '0.75rem' }}>IP Address</th>
+                          <th style={{ padding: '0.75rem' }}>Thiết bị (User Agent)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {loginHistory.map(h => (
+                          <tr key={h._id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                            <td style={{ padding: '0.75rem' }}>{new Date(h.createdAt).toLocaleString('vi-VN')}</td>
+                            <td style={{ padding: '0.75rem' }}>{h.ipAddress}</td>
+                            <td style={{ padding: '0.75rem' }}>{h.userAgent.substring(0, 50)}...</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
         </div>
       </div>
     </div>

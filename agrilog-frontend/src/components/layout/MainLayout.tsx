@@ -8,10 +8,12 @@ import styles from './MainLayout.module.css';
 import { 
   Home, Leaf, FlaskConical, ShieldAlert, Package, 
   ShoppingBag, Calendar, BarChart2, CreditCard, 
-  User, Settings, Search, Sun, Bell, ShoppingCart, LogOut
+  User, Settings, Search, Sun, Bell, ShoppingCart, LogOut, Check, X
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
+import { vi, enUS } from 'date-fns/locale';
+import { Toaster, toast } from 'react-hot-toast';
+import { useAppContext } from '@/context/AppProvider';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -21,10 +23,15 @@ interface MainLayoutProps {
 export default function MainLayout({ children, role }: MainLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const todayStr = format(new Date(), 'EEEE, dd/MM/yyyy', { locale: vi });
+  const { language, t } = useAppContext();
+  
+  const currentLocale = language === 'en' ? enUS : vi;
+  const todayStr = format(new Date(), 'EEEE, dd/MM/yyyy', { locale: currentLocale });
 
   const [userName, setUserName] = React.useState('Nguyễn Văn Tâm');
   const [userInitials, setUserInitials] = React.useState('NT');
+  const [notifications, setNotifications] = React.useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = React.useState(false);
 
   React.useEffect(() => {
     const loadProfileData = async () => {
@@ -55,6 +62,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
       try {
         const data = await fetchAPI('/farm/profile');
         if (data.success && data.data && data.data.farmName) {
+           localStorage.setItem('userPlan', data.data.plan || 'BASIC');
            setUserName(data.data.farmName);
            const parts = data.data.farmName.trim().split(/\s+/);
            let initials = '';
@@ -74,8 +82,42 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
       setUserInitials(fallbackInitials);
     };
 
+    const loadNotifications = async () => {
+      try {
+        if (role === 'FARM') {
+          const res = await fetchAPI('/notifications');
+          if (res.success && res.data) {
+            setNotifications(res.data);
+            
+            // Show toasts for unread notifications that haven't been toasted yet in this session
+            const toastedIds = JSON.parse(sessionStorage.getItem('toastedIds') || '[]');
+            const unread = res.data.filter((n: any) => !n.isRead && !toastedIds.includes(n._id));
+            
+            unread.forEach((n: any) => {
+              toast(n.title + ': ' + n.message, {
+                icon: n.type === 'BILLING' ? '💎' : n.type === 'TASK' ? '📅' : '🔔',
+                duration: 6000,
+              });
+              toastedIds.push(n._id);
+            });
+            sessionStorage.setItem('toastedIds', JSON.stringify(toastedIds));
+          }
+        }
+      } catch (e) {}
+    };
+
     loadProfileData();
-  }, [role]);
+    loadNotifications();
+  }, [role, pathname]);
+
+  const markAsRead = async (id: string) => {
+    try {
+      await fetchAPI(`/notifications/${id}/read`, { method: 'PUT' });
+      setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+    } catch (e) {}
+  };
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -86,20 +128,20 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   };
 
   const farmLinks = [
-    { href: '/dashboard', label: 'Dashboard', icon: <Home size={20} /> },
-    { href: '/diary', label: 'Nhật ký canh tác', icon: <Leaf size={20} /> },
-    { href: '/diary/fertilizer', label: 'Nhật ký phân bón', icon: <FlaskConical size={20} /> },
-    { href: '/diary/pesticide', label: 'Nhật ký thuốc BVTV', icon: <ShieldAlert size={20} /> },
-    { href: '/inventory', label: 'Kho vật tư', icon: <Package size={20} /> },
-    { href: '/marketplace', label: 'Marketplace', icon: <ShoppingBag size={20} /> },
-    { href: '/tasks', label: 'Lịch công việc', icon: <Calendar size={20} /> },
-    { href: '/reports', label: 'Báo cáo', icon: <BarChart2 size={20} /> },
-    { href: '/billing', label: 'Gói dịch vụ', icon: <CreditCard size={20} /> },
-    { href: '/settings', label: 'Cài đặt', icon: <Settings size={20} /> },
+    { href: '/dashboard', label: t('dashboard.title'), icon: <Home size={20} /> },
+    { href: '/diary', label: t('diary.cultivation'), icon: <Leaf size={20} /> },
+    { href: '/diary/fertilizer', label: t('diary.fertilizer'), icon: <FlaskConical size={20} /> },
+    { href: '/diary/pesticide', label: t('diary.pesticide'), icon: <ShieldAlert size={20} /> },
+    { href: '/inventory', label: t('inventory'), icon: <Package size={20} /> },
+    { href: '/marketplace', label: t('marketplace'), icon: <ShoppingBag size={20} /> },
+    { href: '/tasks', label: t('tasks'), icon: <Calendar size={20} /> },
+    { href: '/reports', label: t('reports'), icon: <BarChart2 size={20} /> },
+    { href: '/billing', label: t('billing'), icon: <CreditCard size={20} /> },
+    { href: '/settings', label: t('settings.title'), icon: <Settings size={20} /> },
   ];
 
   const adminLinks = [
-    { href: '/admin/dashboard', label: 'Dashboard', icon: <Home size={20} /> },
+    { href: '/admin/dashboard', label: t('dashboard.title'), icon: <Home size={20} /> },
     { href: '/admin/users', label: 'Quản lý người dùng', icon: <User size={20} /> },
   ];
 
@@ -136,7 +178,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             <div className={styles.userName}>{userName}</div>
             <div className={styles.userRole}>{role === 'FARM' ? 'Quản lý nông trại' : 'Admin'}</div>
           </div>
-          <button className={styles.logoutBtn} title="Đăng xuất" onClick={handleLogout}>
+          <button className={styles.logoutBtn} title={t('logout')} onClick={handleLogout}>
             <LogOut size={20} />
           </button>
         </div>
@@ -153,7 +195,43 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
               <Calendar size={18} color="#9ca3af" />
               <span>{todayStr}</span>
             </div>
-            <button className={styles.iconBtn}><Bell size={20} /><span className={styles.badge}></span></button>
+            
+            <div style={{ position: 'relative' }}>
+              <button 
+                className={styles.iconBtn} 
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <Bell size={20} />
+                {unreadCount > 0 && <span className={styles.badge}>{unreadCount}</span>}
+              </button>
+              
+              {showNotifications && (
+                <div className={styles.notificationDropdown}>
+                  <div className={styles.notificationHeader}>
+                    <h4>Thông báo</h4>
+                    <button onClick={() => setShowNotifications(false)} className={styles.closeBtn}><X size={16} /></button>
+                  </div>
+                  <div className={styles.notificationList}>
+                    {notifications.length === 0 ? (
+                      <div className={styles.noNotifications}>Không có thông báo nào</div>
+                    ) : (
+                      notifications.map(n => (
+                        <div key={n._id} className={`${styles.notificationItem} ${!n.isRead ? styles.unread : ''}`} onClick={() => markAsRead(n._id)}>
+                          <div className={styles.notifIcon}>{n.type === 'BILLING' ? '💎' : n.type === 'TASK' ? '📅' : '🔔'}</div>
+                          <div className={styles.notifContent}>
+                            <div className={styles.notifTitle}>{n.title}</div>
+                            <div className={styles.notifMessage}>{n.message}</div>
+                            <div className={styles.notifTime}>{format(new Date(n.createdAt), 'dd/MM/yyyy HH:mm')}</div>
+                          </div>
+                          {!n.isRead && <div className={styles.unreadDot}></div>}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            
             <button className={styles.iconBtn}><ShoppingCart size={20} /></button>
             <div className={styles.headerAvatar}>{userInitials}</div>
           </div>
@@ -162,6 +240,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
           {children}
         </div>
       </main>
+      <Toaster position="bottom-right" toastOptions={{ style: { background: '#333', color: '#fff' } }} />
     </div>
   );
 }
