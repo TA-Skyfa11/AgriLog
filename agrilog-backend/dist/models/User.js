@@ -39,11 +39,13 @@ var Role;
 (function (Role) {
     Role["FARM"] = "FARM";
     Role["ADMIN"] = "ADMIN";
+    Role["COMPANY"] = "COMPANY";
 })(Role || (exports.Role = Role = {}));
 const userSchema = new mongoose_1.Schema({
     email: { type: String, required: true, unique: true, trim: true, lowercase: true },
     passwordHash: { type: String, required: true },
     role: { type: String, enum: Object.values(Role), default: Role.FARM },
     isActive: { type: Boolean, default: true },
+    allowAdminReset: { type: Boolean, default: false },
 }, { timestamps: true });
 exports.User = mongoose_1.default.model('User', userSchema);

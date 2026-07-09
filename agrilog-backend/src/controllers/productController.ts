@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/authMiddleware';
 import { Product, ProductStatus, checkAgricultureRelevance, ProductCategory } from '../models/Product';
+import { User, Role } from '../models/User';
+import { Notification } from '../models/Notification';
 
 // ===== COMPANY ENDPOINTS =====
 
@@ -28,6 +30,19 @@ export const createProduct = async (req: AuthRequest, res: Response) => {
       status: filterResult.passed ? ProductStatus.PENDING : ProductStatus.REJECTED,
       rejectionReason: filterResult.passed ? '' : filterResult.reason,
     });
+
+    if (filterResult.passed) {
+      const admin = await User.findOne({ role: Role.ADMIN });
+      if (admin) {
+        await Notification.create({
+          user: admin._id,
+          title: 'Sản phẩm mới chờ duyệt',
+          message: `Doanh nghiệp vừa thêm sản phẩm "${name}" cần được kiểm duyệt.`,
+          type: 'SYSTEM',
+          referenceId: product._id.toString()
+        });
+      }
+    }
 
     res.status(201).json({
       success: true,

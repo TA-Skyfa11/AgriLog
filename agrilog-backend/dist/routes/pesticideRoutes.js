@@ -15,5 +15,6 @@ router.put('/:id', pesticideController_1.updatePesticideBoard);
 router.delete('/:id', pesticideController_1.deletePesticideBoard);
 router.get('/:boardId/entries', pesticideController_1.getPesticideEntries);
 router.post('/:boardId/entries', pesticideController_1.createPesticideEntry);
+router.put('/entries/:id', pesticideController_1.updatePesticideEntry);
 router.delete('/entries/:id', pesticideController_1.deletePesticideEntry);
 exports.default = router;

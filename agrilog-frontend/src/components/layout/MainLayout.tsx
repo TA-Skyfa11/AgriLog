@@ -34,6 +34,12 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const [userInitials, setUserInitials] = React.useState('NT');
   const [notifications, setNotifications] = React.useState<any[]>([]);
   const [showNotifications, setShowNotifications] = React.useState(false);
+  const [time, setTime] = React.useState(new Date());
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   React.useEffect(() => {
     const loadProfileData = async () => {
@@ -133,10 +139,17 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
     loadNotifications();
   }, [role, pathname]);
 
-  const markAsRead = async (id: string) => {
+  const markAsRead = async (id: string, type?: string) => {
     try {
       await fetchAPI(`/notifications/${id}/read`, { method: 'PUT' });
       setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+      
+      if (type === 'TASK') {
+        router.push('/tasks');
+      } else if (type === 'BILLING') {
+        router.push('/billing');
+      }
+      setShowNotifications(false);
     } catch (e) {}
   };
 
@@ -226,7 +239,10 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
           <div className={styles.headerWidgets}>
             <div className={styles.dateWidget}>
               <Calendar size={18} color="#9ca3af" />
-              <span>{todayStr}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <span style={{ fontWeight: 500, lineHeight: 1.2 }}>{todayStr}</span>
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{time.toLocaleTimeString('vi-VN')}</span>
+              </div>
             </div>
             
             <div style={{ position: 'relative' }}>
@@ -249,7 +265,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
                       <div className={styles.noNotifications}>Không có thông báo nào</div>
                     ) : (
                       notifications.map(n => (
-                        <div key={n._id} className={`${styles.notificationItem} ${!n.isRead ? styles.unread : ''}`} onClick={() => markAsRead(n._id)}>
+                        <div key={n._id} className={`${styles.notificationItem} ${!n.isRead ? styles.unread : ''}`} onClick={() => markAsRead(n._id, n.type)}>
                           <div className={styles.notifIcon}>{n.type === 'BILLING' ? '💎' : n.type === 'TASK' ? '📅' : '🔔'}</div>
                           <div className={styles.notifContent}>
                             <div className={styles.notifTitle}>{n.title}</div>

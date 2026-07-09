@@ -41,7 +41,7 @@ const fertilizerEntrySchema = new mongoose_1.Schema({
     material: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Material' },
     materialName: { type: String },
     manufacturer: { type: String },
-    quantity: { type: Number },
+    quantity: { type: String },
     unit: { type: String },
     appliedArea: { type: Number },
     performer: { type: String },

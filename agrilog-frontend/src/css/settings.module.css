@@ -144,7 +144,7 @@
 
 .alertSuccess {
   padding: 1rem;
-  background-color: #f0fdf4;
+  background-color: var(--color-bg);
   color: #166534;
   border: 1px solid #bbf7d0;
   border-radius: var(--radius-lg);
@@ -224,7 +224,7 @@
   width: 18px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background-color: var(--color-surface);
   transition: .4s;
   border-radius: 50%;
 }

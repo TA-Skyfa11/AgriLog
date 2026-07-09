@@ -43,5 +43,13 @@ const farmProfileSchema = new mongoose_1.Schema({
     mainCropType: { type: String, required: false },
     contactPhone: { type: String, required: false },
     plan: { type: String, enum: ['BASIC', 'STANDARD', 'PREMIUM'], default: 'BASIC' },
+    planExpiresAt: { type: Date, required: false },
+    previousPlan: { type: String, enum: ['BASIC', 'STANDARD', 'PREMIUM'], required: false },
+    notificationPreferences: {
+        push: { type: Boolean, default: true },
+        email: { type: Boolean, default: false },
+        tasks: { type: Boolean, default: true },
+        billing: { type: Boolean, default: true },
+    }
 }, { timestamps: true });
 exports.FarmProfile = mongoose_1.default.model('FarmProfile', farmProfileSchema);

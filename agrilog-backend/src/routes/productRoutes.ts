@@ -12,7 +12,7 @@ const router = express.Router();
 router.use(protect);
 
 // Company CRUD
-router.post('/', authorize(Role.COMPANY), createProduct);
+router.post('/', authorize(Role.COMPANY, Role.ADMIN), createProduct);
 router.get('/mine', authorize(Role.COMPANY), getMyProducts);
 router.put('/:id', authorize(Role.COMPANY), updateProduct);
 router.delete('/:id', authorize(Role.COMPANY), deleteProduct);

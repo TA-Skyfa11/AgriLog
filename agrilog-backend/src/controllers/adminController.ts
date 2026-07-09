@@ -6,6 +6,55 @@ import { FarmProfile } from '../models/FarmProfile';
 import { CultivationBoard } from '../models/CultivationBoard';
 import { FertilizerBoard } from '../models/FertilizerBoard';
 import { PesticideBoard } from '../models/PesticideBoard';
+import { Product } from '../models/Product';
+import { Order } from '../models/Order';
+
+import { CompanyProfile } from '../models/CompanyProfile';
+
+export const getUsers = async (req: AuthRequest, res: Response) => {
+  try {
+    const { role, status } = req.query;
+    let query: any = { role: { $ne: Role.ADMIN } };
+
+    if (role && role !== 'ALL') {
+      query.role = role;
+    }
+    
+    if (status && status !== 'ALL') {
+      query.isActive = status === 'ACTIVE';
+    }
+
+    const users = await User.find(query).select('-passwordHash');
+    
+    const results = await Promise.all(users.map(async (u) => {
+      let profile = null;
+      let boardCount = 0;
+      
+      if (u.role === Role.FARM) {
+        profile = await FarmProfile.findOne({ user: u._id });
+        if (profile) {
+          const cCount = await CultivationBoard.countDocuments({ farmProfile: profile._id });
+          const fCount = await FertilizerBoard.countDocuments({ farmProfile: profile._id });
+          const pCount = await PesticideBoard.countDocuments({ farmProfile: profile._id });
+          boardCount = cCount + fCount + pCount;
+        }
+      } else if (u.role === Role.COMPANY) {
+        profile = await CompanyProfile.findOne({ user: u._id });
+      }
+
+      return {
+        user: u,
+        profile,
+        boardCount
+      };
+    }));
+
+    res.json({ success: true, data: results });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
 export const getFarms = async (req: AuthRequest, res: Response) => {
   try {
     // Return list of Farm users with their profiles and board count
@@ -38,11 +87,58 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     const totalUsers = await User.countDocuments();
     const totalFarms = await User.countDocuments({ role: Role.FARM });
     const newUsers = await User.countDocuments({ createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } }); // Last 30 days
+    const totalProducts = await Product.countDocuments();
     
     const cCount = await CultivationBoard.countDocuments();
     const fCount = await FertilizerBoard.countDocuments();
     const pCount = await PesticideBoard.countDocuments();
     const totalBoards = cCount + fCount + pCount;
+
+    // Recent Activities (Mix of recent users and recent products)
+    const recentUsers = await User.find().sort({ createdAt: -1 }).limit(5).select('email role createdAt');
+    const recentProducts = await Product.find().sort({ createdAt: -1 }).limit(5).select('name createdAt status');
+    
+    let activities: any[] = [];
+    recentUsers.forEach(u => {
+      activities.push({
+        id: u._id,
+        type: 'USER',
+        text: `Người dùng mới: ${u.email}`,
+        time: u.createdAt
+      });
+    });
+    recentProducts.forEach(p => {
+      activities.push({
+        id: p._id,
+        type: 'PRODUCT',
+        text: `Sản phẩm mới: ${p.name}`,
+        time: p.createdAt
+      });
+    });
+    
+    activities.sort((a, b) => b.time.getTime() - a.time.getTime());
+    const recentActivities = activities.slice(0, 5);
+
+    // Chart Data (Last 6 months)
+    const chartData = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+
+      const usersCount = await User.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
+      const ordersCount = await Order.countDocuments({ createdAt: { $gte: startDate, $lte: endDate } });
+      
+      chartData.push({
+        name: `Tháng ${month + 1}`,
+        users: usersCount,
+        orders: ordersCount
+      });
+    }
 
     res.json({
       success: true,
@@ -50,7 +146,10 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
         totalUsers,
         totalFarms,
         newUsers,
-        totalBoards
+        totalProducts,
+        totalBoards,
+        recentActivities,
+        chartData
       }
     });
   } catch (error) {
@@ -89,6 +188,30 @@ export const addUser = async (req: AuthRequest, res: Response) => {
         role: user.role,
       }
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
+
+export const toggleUserLock = async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    if (user.role === Role.ADMIN) {
+      return res.status(403).json({ success: false, message: 'Cannot lock admin accounts' });
+    }
+    
+    // Default to true if undefined
+    const currentStatus = user.isActive === false ? false : true;
+    user.isActive = !currentStatus;
+    
+    await user.save();
+    
+    res.json({ success: true, message: `Tài khoản đã được ${user.isActive ? 'mở khóa' : 'khóa'}` });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
   }

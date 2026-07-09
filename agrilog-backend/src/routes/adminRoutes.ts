@@ -1,5 +1,5 @@
 import express from 'express';
-import { getFarms, getDashboardStats, addUser, adminResetPassword, getCommissionSetting, updateCommissionSetting } from '../controllers/adminController';
+import { getFarms, getUsers, getDashboardStats, addUser, adminResetPassword, toggleUserLock, getCommissionSetting, updateCommissionSetting } from '../controllers/adminController';
 import { getAllOrdersAdmin } from '../controllers/orderController';
 import { protect, authorize } from '../middleware/authMiddleware';
 import { Role } from '../models/User';
@@ -16,8 +16,12 @@ router.route('/farms')
   .get(getFarms);
 
 router.route('/users')
+  .get(getUsers)
   .post(addUser);
 
+router.route('/users/:userId/toggle-lock')
+  .put(toggleUserLock);
+  
 router.route('/users/:userId/reset-password')
   .put(adminResetPassword);
 

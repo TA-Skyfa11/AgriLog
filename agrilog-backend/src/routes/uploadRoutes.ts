@@ -52,6 +52,10 @@ interface UploadRequest extends AuthRequest {
 // Check image limit middleware
 const checkImageLimit = async (req: UploadRequest, res: express.Response, next: express.NextFunction) => {
   try {
+    if (req.user?.role !== 'FARM') {
+      return next();
+    }
+
     const profile = await FarmProfile.findOne({ user: req.user?._id });
     if (!profile) {
       return res.status(404).json({ success: false, message: 'Farm profile not found' });

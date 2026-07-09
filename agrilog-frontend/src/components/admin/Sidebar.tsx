@@ -49,10 +49,6 @@ export function Sidebar() {
         })}
       </nav>
       <div className={styles.footerNav}>
-        <Link href="/admin/help" className={styles.navItem}>
-          <HelpCircle />
-          Trợ giúp
-        </Link>
         <a href="#" onClick={handleLogout} className={`${styles.navItem} ${styles.logout}`}>
           <LogOut />
           Đăng xuất

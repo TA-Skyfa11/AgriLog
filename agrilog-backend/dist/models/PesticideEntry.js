@@ -42,7 +42,7 @@ const pesticideEntrySchema = new mongoose_1.Schema({
     materialName: { type: String },
     activeIngredient: { type: String },
     targetPest: { type: String },
-    quantity: { type: Number },
+    quantity: { type: String },
     unit: { type: String },
     phiDays: { type: Number },
     performer: { type: String },

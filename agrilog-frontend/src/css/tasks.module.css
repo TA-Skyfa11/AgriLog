@@ -131,7 +131,7 @@
 }
 
 .dayCell.today {
-  background-color: #f0fdf4;
+  background-color: var(--color-bg);
 }
 
 .dayNumber {
@@ -216,7 +216,7 @@
 
 .priorityTag.high { color: #ef4444; background-color: #fef2f2; }
 .priorityTag.medium { color: #f59e0b; background-color: #fffbeb; }
-.priorityTag.low { color: #22c55e; background-color: #f0fdf4; }
+.priorityTag.low { color: #22c55e; background-color: var(--color-bg); }
 
 .modalOverlay {
   position: fixed;

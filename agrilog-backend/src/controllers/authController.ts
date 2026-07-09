@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User, Role } from '../models/User';
 import { LoginHistory } from '../models/LoginHistory';
+import { Notification } from '../models/Notification';
 
 const generateToken = (id: string, role: string) => {
   return jwt.sign({ id, role }, process.env.JWT_SECRET || 'secret_key', {
@@ -32,6 +33,18 @@ export const register = async (req: Request, res: Response) => {
       passwordHash,
       role: finalRole,
     });
+
+    // Create notification for admin
+    const admin = await User.findOne({ role: Role.ADMIN });
+    if (admin) {
+      await Notification.create({
+        user: admin._id,
+        title: 'Người dùng mới đăng ký',
+        message: `Tài khoản ${email} vừa đăng ký vào hệ thống.`,
+        type: 'SYSTEM',
+        referenceId: user._id.toString()
+      });
+    }
 
     res.status(201).json({
       success: true,

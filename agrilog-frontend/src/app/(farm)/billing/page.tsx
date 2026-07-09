@@ -8,13 +8,21 @@ import { fetchAPI } from '@/lib/api';
 
 export default function BillingPage() {
   const [profile, setProfile] = useState<any>(null);
+  const [packages, setPackages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = async () => {
+  const loadData = async () => {
     try {
-      const res = await fetchAPI('/farm/profile');
-      if (res.success) {
-        setProfile(res.data);
+      const [profileRes, pkgRes] = await Promise.all([
+        fetchAPI('/farm/profile'),
+        fetchAPI('/services')
+      ]);
+      
+      if (profileRes.success) {
+        setProfile(profileRes.data);
+      }
+      if (pkgRes.success) {
+        setPackages(pkgRes.data);
       }
     } catch (error) {
       console.error(error);
@@ -23,25 +31,24 @@ export default function BillingPage() {
     }
   };
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
-    loadProfile();
+    loadData();
   }, []);
 
-  const handleUpgrade = async (planName: 'BASIC' | 'STANDARD' | 'PREMIUM') => {
-    if (profile?.plan === planName) return;
+  const handleUpgrade = async (planCode: string) => {
+    if (profile?.plan === planCode) return;
     
     try {
       const res = await fetchAPI('/farm/profile', {
         method: 'PUT',
         body: JSON.stringify({
-          plan: planName,
-          farmName: profile?.farmName || 'Nông trại mẫu' // Keep existing required name
+          plan: planCode,
+          farmName: profile?.farmName || 'Nông trại mẫu'
         }),
       });
       if (res.success) {
-        alert(`Chúc mừng! Bạn đã thay đổi gói dịch vụ thành công sang ${planName}`);
-        loadProfile();
+        alert(`Chúc mừng! Bạn đã thay đổi gói dịch vụ thành công sang ${planCode}`);
+        loadData();
       }
     } catch (error) {
       alert('Có lỗi xảy ra khi nâng cấp gói dịch vụ');
@@ -60,71 +67,28 @@ export default function BillingPage() {
       </div>
 
       <div className={styles.pricingGrid}>
-        <div className={`${styles.pricingCard} ${currentPlan === 'BASIC' ? styles.activeCard : ''}`}>
-          <div className={styles.planName}>Basic (Cơ Bản)</div>
-          <div className={styles.planDesc}>Dành cho nông hộ nhỏ.</div>
-          <div className={styles.planPrice}>
-            290.000 VNĐ <span>/ tháng</span>
+        {packages.map((pkg) => (
+          <div key={pkg._id} className={`${styles.pricingCard} ${pkg.code === 'STANDARD' ? styles.popular : ''} ${currentPlan === pkg.code ? styles.activeCard : ''}`}>
+            {pkg.code === 'STANDARD' && <div className={styles.popularBadge}>Phổ biến nhất</div>}
+            <div className={styles.planName}>{pkg.name}</div>
+            <div className={styles.planDesc}>{pkg.description}</div>
+            <div className={styles.planPrice}>
+              {pkg.price.toLocaleString('vi-VN')} VNĐ <span>/ tháng</span>
+            </div>
+            <div className={styles.featureList}>
+              {pkg.features && pkg.features.map((feature: string, idx: number) => (
+                <div key={idx} className={styles.featureItem}><Check size={18} color="#16a34a" /> {feature}</div>
+              ))}
+            </div>
+            <button 
+              className={`${styles.button} ${currentPlan === pkg.code ? styles.btnDisabled : (pkg.code === 'STANDARD' ? styles.btnSolid : styles.btnOutline)}`}
+              onClick={() => handleUpgrade(pkg.code)}
+              disabled={currentPlan === pkg.code || !pkg.isActive}
+            >
+              {!pkg.isActive ? 'Ngừng cung cấp' : currentPlan === pkg.code ? 'Gói hiện tại' : 'Chọn gói này'}
+            </button>
           </div>
-          <div className={styles.featureList}>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Tạo tối đa 3 bảng nhật ký</div>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Tối đa 10 cột thông tin/sheet</div>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Đính kèm tối đa 50 ảnh/tháng</div>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Lưu trữ dữ liệu truy xuất 1 năm</div>
-          </div>
-          <button 
-            className={`${styles.button} ${currentPlan === 'BASIC' ? styles.btnDisabled : styles.btnOutline}`}
-            onClick={() => handleUpgrade('BASIC')}
-            disabled={currentPlan === 'BASIC'}
-          >
-            {currentPlan === 'BASIC' ? 'Gói hiện tại' : 'Chọn gói này'}
-          </button>
-        </div>
-
-        <div className={`${styles.pricingCard} ${styles.popular} ${currentPlan === 'STANDARD' ? styles.activeCard : ''}`}>
-          <div className={styles.popularBadge}>Phổ biến nhất</div>
-          <div className={styles.planName}>Standard (Tiêu Chuẩn)</div>
-          <div className={styles.planDesc}>Dành cho HTX & nông trại trung bình.</div>
-          <div className={styles.planPrice}>
-            590.000 VNĐ <span>/ tháng</span>
-          </div>
-          <div className={styles.featureList}>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Tạo tối đa 5 bảng nhật ký</div>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Tối đa 15 cột thông tin/sheet</div>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Đính kèm tối đa 500 ảnh/tháng</div>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Hỗ trợ hồ sơ VietGAP</div>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Lưu trữ dữ liệu truy xuất 2 năm</div>
-          </div>
-          <button 
-            className={`${styles.button} ${currentPlan === 'STANDARD' ? styles.btnDisabled : styles.btnSolid}`}
-            onClick={() => handleUpgrade('STANDARD')}
-            disabled={currentPlan === 'STANDARD'}
-          >
-            {currentPlan === 'STANDARD' ? 'Gói hiện tại' : 'Nâng cấp ngay'}
-          </button>
-        </div>
-
-        <div className={`${styles.pricingCard} ${currentPlan === 'PREMIUM' ? styles.activeCard : ''}`}>
-          <div className={styles.planName}>Premium (Cao Cấp)</div>
-          <div className={styles.planDesc}>Dành cho các doanh nghiệp quy mô lớn.</div>
-          <div className={styles.planPrice}>
-            990.000 VNĐ <span>/ tháng</span>
-          </div>
-          <div className={styles.featureList}>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Tạo tối đa 15 bảng nhật ký</div>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Tối đa 25 cột thông tin/sheet</div>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Đính kèm không giới hạn hình ảnh</div>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Hỗ trợ hồ sơ VietGAP + GlobalGAP</div>
-            <div className={styles.featureItem}><Check size={18} color="#16a34a" /> Lưu trữ dữ liệu truy xuất 3 năm</div>
-          </div>
-          <button 
-            className={`${styles.button} ${currentPlan === 'PREMIUM' ? styles.btnDisabled : styles.btnOutline}`}
-            onClick={() => handleUpgrade('PREMIUM')}
-            disabled={currentPlan === 'PREMIUM'}
-          >
-            {currentPlan === 'PREMIUM' ? 'Gói hiện tại' : 'Chọn gói này'}
-          </button>
-        </div>
+        ))}
       </div>
     </div>
   );

@@ -7,18 +7,37 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Card } from '@/components/ui/Card';
 import styles from '@/css/Dashboard.module.css';
 import { fetchAPI } from '@/lib/api';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const [chartTab, setChartTab] = useState<'users' | 'orders'>('users');
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [weather, setWeather] = useState({ 
+    temp: '--', condition: 'Đang tải...', 
+    humidity: '--', wind: '--', chanceOfRain: '--'
+  });
 
   useEffect(() => {
-    const loadStats = async () => {
+    const loadData = async () => {
       try {
-        const res = await fetchAPI('/admin/dashboard');
-        if (res.success) {
-          setStats(res.data);
+        const [statsRes, weatherRes] = await Promise.all([
+          fetchAPI('/admin/dashboard'),
+          fetchAPI('/weather')
+        ]);
+        
+        if (statsRes.success) {
+          setStats(statsRes.data);
+        }
+        
+        if (weatherRes.success && weatherRes.data) {
+          setWeather({
+            temp: weatherRes.data.temp,
+            condition: weatherRes.data.desc,
+            humidity: weatherRes.data.humidity,
+            wind: weatherRes.data.wind,
+            chanceOfRain: weatherRes.data.chanceOfRain
+          });
         }
       } catch (error) {
         console.error('Error fetching admin dashboard stats:', error);
@@ -26,7 +45,7 @@ export default function DashboardPage() {
         setLoading(false);
       }
     };
-    loadStats();
+    loadData();
   }, []);
 
   if (loading) {
@@ -36,19 +55,12 @@ export default function DashboardPage() {
   const kpis = [
     { label: 'Tổng Nông trại', value: stats?.totalFarms || 0, growth: '+0%', isPos: true, icon: TreePine },
     { label: 'Người dùng mới (30 ngày)', value: stats?.newUsers || 0, growth: '+0%', isPos: true, icon: UserPlus },
-    { label: 'Sản phẩm Marketplace', value: 'Đang cập nhật', growth: 'N/A', isPos: true, icon: Package },
+    { label: 'Sản phẩm Marketplace', value: stats?.totalProducts || 0, growth: '+0%', isPos: true, icon: Package },
     { label: 'Tổng số Nhật ký canh tác', value: stats?.totalBoards || 0, growth: '+0%', isPos: true, icon: ShoppingCart },
   ];
 
-  // Placeholder trend data since we don't have historical DB data yet
-  const trendChart = [
-    { name: 'Tháng 1', users: 5, orders: 0 },
-    { name: 'Tháng 2', users: 12, orders: 0 },
-    { name: 'Tháng 3', users: 8, orders: 0 },
-    { name: 'Tháng 4', users: 20, orders: 0 },
-    { name: 'Tháng 5', users: 15, orders: 0 },
-    { name: 'Tháng 6', users: Math.max(stats?.newUsers || 0, 1), orders: 0 },
-  ];
+  const trendChart = stats?.chartData || [];
+  const recentActivities = stats?.recentActivities || [];
 
   return (
     <div className={styles.container}>
@@ -119,55 +131,66 @@ export default function DashboardPage() {
           <div className={styles.quickActions}>
             <Card className={styles.quickActionCard}>
               <h4 className={styles.quickActionTitle}>Thêm sản phẩm mới</h4>
-              <p className={styles.quickActionDesc}>Chức năng Marketplace đang phát triển.</p>
-              <button className={styles.quickActionBtn}>
-                <PlusCircle size={18} /> Đang cập nhật
-              </button>
+              <p className={styles.quickActionDesc}>Thêm sản phẩm trực tiếp với tư cách Admin.</p>
+              <Link href="/admin/products/new" style={{ textDecoration: 'none' }}>
+                <button className={styles.quickActionBtn}>
+                  <PlusCircle size={18} /> Thêm sản phẩm
+                </button>
+              </Link>
             </Card>
             <Card className={styles.quickActionCard}>
               <h4 className={styles.quickActionTitle}>Duyệt người dùng</h4>
-              <p className={styles.quickActionDesc}>Không có hồ sơ nào đang chờ duyệt.</p>
-              <button className={styles.quickActionBtn}>
-                <CheckCircle size={18} /> Xem danh sách
-              </button>
+              <p className={styles.quickActionDesc}>Kiểm tra người dùng đăng ký hệ thống.</p>
+              <Link href="/admin/users" style={{ textDecoration: 'none' }}>
+                <button className={styles.quickActionBtn}>
+                  <CheckCircle size={18} /> Xem danh sách
+                </button>
+              </Link>
             </Card>
           </div>
         </div>
 
         <div className={styles.rightCol}>
+          <Card className={`${styles.card} ${styles.weatherWidget}`}>
+            <div className={styles.weatherContent}>
+              <div className={styles.weatherHeader}>
+                <div>
+                  <div className={styles.weatherLabel}>Thời tiết hệ thống</div>
+                  <div className={styles.weatherLoc}>Hà Nội</div>
+                </div>
+                <CloudRain className={styles.weatherIcon} size={24} />
+              </div>
+              <div className={styles.weatherTempBox}>
+                <div className={styles.weatherTemp}>{weather.temp}°C</div>
+                <div className={styles.weatherCond}>{weather.condition}</div>
+              </div>
+            </div>
+            <TreePine className={styles.weatherBg} size={120} />
+          </Card>
+
           <Card>
             <h3 className={styles.sectionTitle}>
               Hoạt động gần đây
             </h3>
             <div className={styles.activityList}>
-              <div className={styles.activityItem}>
-                <div className={`${styles.activityIcon} ${styles.iconUser}`}>
-                  <UserPlus size={16} />
-                </div>
-                <div className={styles.activityContent}>
-                  <div className={styles.activityText}>
+              {recentActivities.length === 0 ? (
+                <div style={{ color: '#64748b', fontSize: '0.9rem', padding: '1rem 0' }}>Chưa có hoạt động nào</div>
+              ) : (
+                recentActivities.map((act: any, idx: number) => (
+                  <div key={idx} className={styles.activityItem}>
+                    <div className={`${styles.activityIcon} ${act.type === 'USER' ? styles.iconUser : styles.iconSystem}`}>
+                      {act.type === 'USER' ? <UserPlus size={16} /> : <Package size={16} />}
+                    </div>
+                    <div className={styles.activityContent}>
+                      <div className={styles.activityText}>
+                        {act.text}
+                      </div>
+                      <div className={styles.activityTime}>{new Date(act.time).toLocaleString('vi-VN')}</div>
+                    </div>
                   </div>
-                  <div className={styles.activityTime}>Vừa xong</div>
-                </div>
-              </div>
+                ))
+              )}
             </div>
-          </Card>
-
-          <Card className={`${styles.card} ${styles.weatherWidget}`}>
-            <div className={styles.weatherContent}>
-              <div className={styles.weatherHeader}>
-                <div>
-                  <div className={styles.weatherLabel}>Thời tiết khu vực canh tác</div>
-                  <div className={styles.weatherLoc}>Đà Lạt, Lâm Đồng</div>
-                </div>
-                <CloudRain className={styles.weatherIcon} size={24} />
-              </div>
-              <div className={styles.weatherTempBox}>
-                <div className={styles.weatherTemp}>24°C</div>
-                <div className={styles.weatherCond}>Mưa rào nhẹ</div>
-              </div>
-            </div>
-            <TreePine className={styles.weatherBg} size={120} />
           </Card>
         </div>
       </div>

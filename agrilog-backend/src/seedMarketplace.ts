@@ -31,11 +31,11 @@ const seedMarketplace = async () => {
     // 2. Create Company
     const salt = await bcrypt.genSalt(10);
     const companyPassword = await bcrypt.hash('123456', salt);
-    let companyUser = await User.findOne({ email: 'company@gmail.com' });
+    let companyUser = await User.findOne({ email: 'company@agrilog.com' });
     
     if (!companyUser) {
       companyUser = await User.create({
-        email: 'company@gmail.com',
+        email: 'company@agrilog.com',
         passwordHash: companyPassword,
         role: Role.COMPANY,
         allowAdminReset: true,
@@ -50,7 +50,7 @@ const seedMarketplace = async () => {
       businessType: 'Sản xuất phân bón & vật tư nông nghiệp',
       taxCode: '0312345678',
     });
-    console.log('Created Company: company@gmail.com');
+    console.log('Created Company: company@agrilog.com');
 
     // 3. Create Farm
     const farmPassword = await bcrypt.hash('123456', salt);

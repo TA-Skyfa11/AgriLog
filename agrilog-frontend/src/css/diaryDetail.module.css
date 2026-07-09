@@ -206,7 +206,7 @@
   font-weight: 700;
 }
 
-.typeACTIVITY { background-color: #f0fdf4; color: #16a34a; }
+.typeACTIVITY { background-color: var(--color-bg); color: #16a34a; }
 .typeFERTILIZER { background-color: #fffbeb; color: #d97706; }
 .typePESTICIDE { background-color: #fef2f2; color: #dc2626; }
 
@@ -241,7 +241,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background-color: white;
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md, 8px);
   font-size: 0.875rem;
@@ -287,7 +287,7 @@
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
   border: 1px solid var(--color-border);
-  background: white;
+  background: var(--color-surface);
   border-radius: 4px;
   cursor: pointer;
   color: var(--color-text-muted);

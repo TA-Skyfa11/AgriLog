@@ -1,12 +1,27 @@
+'use client';
 /* eslint-disable react-hooks/set-state-in-effect */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import styles from '@/css/landing.module.css';
+import { fetchAPI } from '@/lib/api';
 import heroImg from '../../public/images/landing/hero_real.jpg';
 import greenhouseImg from '../../public/images/landing/greenhouse_real.jpg';
 
 export default function LandingPage() {
+  const [packages, setPackages] = useState<any[]>([]);
+  useEffect(() => {
+    const loadPackages = async () => {
+      try {
+        const res = await fetchAPI('/services');
+        if (res.success) {
+          setPackages(res.data);
+        }
+      } catch (err) {}
+    };
+    loadPackages();
+  }, []);
+
   return (
     <div className={styles.wrapper}>
       {/* Header */}
@@ -28,7 +43,7 @@ export default function LandingPage() {
           </nav>
           <div className={styles.headerActions}>
             <Link href="/login" className={styles.loginBtn}>Đăng nhập</Link>
-            <Link href="/login" className={styles.signupBtn}>Đăng ký dùng thử</Link>
+            <Link href="/register" className={styles.signupBtn}>Đăng ký dùng thử</Link>
           </div>
         </div>
       </header>
@@ -45,7 +60,7 @@ export default function LandingPage() {
               Quản lý nhật ký canh tác, vật tư nông nghiệp, lịch công việc và hồ sơ sản xuất trên một nền tảng duy nhất — được thiết kế riêng cho người làm nông nghiệp Việt Nam.
             </p>
             <div className={styles.heroActions}>
-              <Link href="/login" className={styles.heroPrimaryBtn}>Đăng ký miễn phí ➔</Link>
+              <Link href="/register" className={styles.heroPrimaryBtn}>Đăng ký miễn phí ➔</Link>
               <button className={styles.heroSecondaryBtn}>Xem Demo ▾</button>
             </div>
           </div>
@@ -185,46 +200,30 @@ export default function LandingPage() {
         </p>
 
         <div className={styles.pricingCards}>
-          <div className={styles.pricingCard}>
-            <div className={styles.planName}>AgriLog Basic</div>
-            <div className={styles.planDesc}>Dành cho nông hộ nhỏ</div>
-            <div className={styles.planPrice}>299.000 <span>/ tháng</span></div>
-            <ul className={styles.planFeatures}>
-              <li><span className={styles.featureCheck}>✓</span> Tối đa 5 bàng/luống</li>
-              <li><span className={styles.featureCheck}>✓</span> Nhật ký canh tác cơ bản</li>
-              <li><span className={styles.featureCheck}>✓</span> Quản lý kho cơ bản</li>
-              <li><span className={styles.featureCheck}>✓</span> Xuất báo cáo PDF</li>
-            </ul>
-            <button className={`${styles.planBtn} ${styles.outline}`}>Đăng ký miễn phí</button>
-          </div>
-          
-          <div className={`${styles.pricingCard} ${styles.popular}`}>
-            <div className={styles.popularBadge}>PHỔ BIẾN NHẤT</div>
-            <div className={styles.planName}>AgriLog Standard</div>
-            <div className={styles.planDesc}>Dành cho HTX & Nông trại vừa</div>
-            <div className={styles.planPrice}>699.000 <span>/ tháng</span></div>
-            <ul className={styles.planFeatures}>
-              <li><span className={styles.featureCheck}>✓</span> Không giới hạn luống</li>
-              <li><span className={styles.featureCheck}>✓</span> Đầy đủ tính năng sản xuất</li>
-              <li><span className={styles.featureCheck}>✓</span> Hồ sơ VietGAP/GlobalGAP</li>
-              <li><span className={styles.featureCheck}>✓</span> Phân quyền nhân viên</li>
-              <li><span className={styles.featureCheck}>✓</span> Hỗ trợ ưu tiên 24/7</li>
-            </ul>
-            <button className={`${styles.planBtn} ${styles.filled}`}>Bắt đầu ngay</button>
-          </div>
-
-          <div className={styles.pricingCard}>
-            <div className={styles.planName}>AgriLog Premium</div>
-            <div className={styles.planDesc}>Dành cho Doanh nghiệp & Chuỗi</div>
-            <div className={styles.planPrice}>Liên hệ</div>
-            <ul className={styles.planFeatures}>
-              <li><span className={styles.featureCheck}>✓</span> Tùy chỉnh riêng cho thương hiệu</li>
-              <li><span className={styles.featureCheck}>✓</span> Quản lý đa nông trại</li>
-              <li><span className={styles.featureCheck}>✓</span> API tích hợp hệ thống ERP</li>
-              <li><span className={styles.featureCheck}>✓</span> Tính năng truy xuất cao cấp</li>
-            </ul>
-            <button className={`${styles.planBtn} ${styles.outline}`}>Liên hệ tư vấn</button>
-          </div>
+          {packages.length === 0 ? (
+            <div style={{ textAlign: 'center', width: '100%', padding: '2rem' }}>Đang tải bảng giá...</div>
+          ) : (
+            packages.map((pkg) => (
+              <div key={pkg._id} className={`${styles.pricingCard} ${pkg.code === 'STANDARD' ? styles.popular : ''}`}>
+                {pkg.code === 'STANDARD' && <div className={styles.popularBadge}>PHỔ BIẾN NHẤT</div>}
+                <div className={styles.planName}>{pkg.name}</div>
+                <div className={styles.planDesc}>{pkg.description}</div>
+                <div className={styles.planPrice}>
+                  {pkg.price === 0 ? 'Liên hệ' : pkg.price.toLocaleString('vi-VN')} <span>/ tháng</span>
+                </div>
+                <ul className={styles.planFeatures}>
+                  {pkg.features && pkg.features.map((feature: string, idx: number) => (
+                    <li key={idx}><span className={styles.featureCheck}>✓</span> {feature}</li>
+                  ))}
+                </ul>
+                <Link href="/register" style={{ textDecoration: 'none' }}>
+                  <button className={`${styles.planBtn} ${pkg.code === 'STANDARD' ? styles.filled : styles.outline}`}>
+                    Đăng ký ngay
+                  </button>
+                </Link>
+              </div>
+            ))
+          )}
         </div>
       </section>
 
@@ -234,7 +233,7 @@ export default function LandingPage() {
           <h2 className={styles.ctaTitle}>Bắt đầu hành trình số hóa nông trại ngay hôm nay.</h2>
           <p className={styles.ctaDesc}>Đăng ký miễn phí trong 30 ngày. Không cần thẻ tín dụng. Cài đặt trong 5 phút.</p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/login" style={{ padding: '1rem 2rem', backgroundColor: 'var(--color-primary-600)', color: 'white', fontWeight: '600', borderRadius: '9999px' }}>Đăng ký miễn phí ➔</Link>
+            <Link href="/register" style={{ padding: '1rem 2rem', backgroundColor: 'var(--color-primary-600)', color: 'white', fontWeight: '600', borderRadius: '9999px', textDecoration: 'none' }}>Đăng ký miễn phí ➔</Link>
             <button style={{ padding: '1rem 2rem', backgroundColor: 'white', border: '1px solid var(--color-border)', color: 'var(--color-text-main)', fontWeight: '600', borderRadius: '9999px' }}>Liên hệ tư vấn</button>
           </div>
         </div>

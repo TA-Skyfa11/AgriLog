@@ -15,5 +15,6 @@ router.put('/:id', fertilizerController_1.updateFertilizerBoard);
 router.delete('/:id', fertilizerController_1.deleteFertilizerBoard);
 router.get('/:boardId/entries', fertilizerController_1.getFertilizerEntries);
 router.post('/:boardId/entries', fertilizerController_1.createFertilizerEntry);
+router.put('/entries/:id', fertilizerController_1.updateFertilizerEntry);
 router.delete('/entries/:id', fertilizerController_1.deleteFertilizerEntry);
 exports.default = router;

@@ -41,6 +41,7 @@ const cultivationEntrySchema = new mongoose_1.Schema({
     stage: { type: String },
     activityName: { type: String, required: true },
     performer: { type: String },
+    weather: { type: String },
     cost: { type: Number, default: 0 },
     notes: { type: String },
     imageUrls: [{ type: String }],

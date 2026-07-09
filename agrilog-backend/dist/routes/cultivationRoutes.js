@@ -15,5 +15,6 @@ router.put('/:id', cultivationController_1.updateCultivationBoard);
 router.delete('/:id', cultivationController_1.deleteCultivationBoard);
 router.get('/:boardId/entries', cultivationController_1.getCultivationEntries);
 router.post('/:boardId/entries', cultivationController_1.createCultivationEntry);
+router.put('/entries/:id', cultivationController_1.updateCultivationEntry);
 router.delete('/entries/:id', cultivationController_1.deleteCultivationEntry);
 exports.default = router;

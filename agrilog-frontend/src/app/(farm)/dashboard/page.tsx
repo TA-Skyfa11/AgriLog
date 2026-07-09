@@ -6,7 +6,8 @@ import { fetchAPI } from '@/lib/api';
 import styles from '@/css/farmDashboard.module.css';
 import { 
   LayoutDashboard, ClipboardCheck, Package, ShoppingCart, 
-  CloudRain, Wind, ArrowRight, Check, Plus, BellRing, Droplets, Sun, CloudSun, Cloud
+  CloudRain, Wind, ArrowRight, Check, Plus, BellRing, Droplets, Sun, CloudSun, Cloud,
+  Leaf, Calendar
 } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
@@ -15,6 +16,7 @@ import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const router = useRouter();
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [stats, setStats] = useState({
     boardsCount: 0,
     tasksToday: 0,
@@ -334,9 +336,31 @@ export default function DashboardPage() {
       </div>
 
       {/* Floating Add Button */}
-      <button className={styles.floatingAddBtn}>
-        <Plus size={28} />
-      </button>
+      <div className={styles.fabContainer}>
+        {showQuickAdd && (
+          <div className={styles.quickAddMenu}>
+            <button className={styles.quickAddItem} onClick={() => router.push('/diary')}>
+              <Leaf size={18} />
+              <span>Nhật ký Canh tác</span>
+            </button>
+            <button className={styles.quickAddItem} onClick={() => router.push('/tasks')}>
+              <Calendar size={18} />
+              <span>Công việc mới</span>
+            </button>
+            <button className={styles.quickAddItem} onClick={() => router.push('/inventory')}>
+              <Package size={18} />
+              <span>Nhập vật tư</span>
+            </button>
+          </div>
+        )}
+        <button 
+          className={styles.floatingAddBtn} 
+          onClick={() => setShowQuickAdd(!showQuickAdd)}
+          style={{ transform: showQuickAdd ? 'rotate(45deg)' : 'none' }}
+        >
+          <Plus size={28} />
+        </button>
+      </div>
 
     </div>
   );

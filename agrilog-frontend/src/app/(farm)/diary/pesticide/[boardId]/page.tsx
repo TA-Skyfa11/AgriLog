@@ -440,7 +440,7 @@ export default function PesticideDiaryDetailPage() {
       'Nguoi thuc hien', 
       'Chi phi', 
       'Ghi chu',
-      ...customCols.map(c => c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+      ...customCols.map((c: string) => c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
     ];
     
     const data = entries.map((e, idx) => [
@@ -454,7 +454,7 @@ export default function PesticideDiaryDetailPage() {
       (e.performer || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
       e.cost || 0,
       (e.notes || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      ...customCols.map(col => (e.customValues?.[col] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+      ...customCols.map((col: string) => (e.customValues?.[col] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
     ]);
 
     autoTable(doc as any, {

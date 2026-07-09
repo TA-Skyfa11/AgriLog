@@ -443,7 +443,7 @@ export default function SettingsPage() {
                     : 'Chỉ bạn mới có thể thay đổi mật khẩu của mình.'}
                 </div>
               </div>
-
+            </>
           )}
 
           {activeTab === 'notifications' && (

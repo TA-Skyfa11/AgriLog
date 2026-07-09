@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const adminController_1 = require("../controllers/adminController");
+const orderController_1 = require("../controllers/orderController");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const User_1 = require("../models/User");
 const router = express_1.default.Router();
@@ -14,4 +15,13 @@ router.route('/dashboard')
     .get(adminController_1.getDashboardStats);
 router.route('/farms')
     .get(adminController_1.getFarms);
+router.route('/users')
+    .post(adminController_1.addUser);
+router.route('/users/:userId/reset-password')
+    .put(adminController_1.adminResetPassword);
+router.route('/commission')
+    .get(adminController_1.getCommissionSetting)
+    .put(adminController_1.updateCommissionSetting);
+router.route('/orders')
+    .get(orderController_1.getAllOrdersAdmin);
 exports.default = router;

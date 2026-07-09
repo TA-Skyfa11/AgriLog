@@ -1,22 +1,22 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteCultivationEntry = exports.createCultivationEntry = exports.getCultivationEntries = exports.deleteCultivationBoard = exports.updateCultivationBoard = exports.getCultivationBoardById = exports.createCultivationBoard = exports.getCultivationBoards = exports.PLAN_LIMITS = void 0;
+exports.deleteCultivationEntry = exports.updateCultivationEntry = exports.createCultivationEntry = exports.getCultivationEntries = exports.deleteCultivationBoard = exports.updateCultivationBoard = exports.getCultivationBoardById = exports.createCultivationBoard = exports.getCultivationBoards = void 0;
 const FarmProfile_1 = require("../models/FarmProfile");
 const CultivationBoard_1 = require("../models/CultivationBoard");
 const CultivationEntry_1 = require("../models/CultivationEntry");
-const FertilizerBoard_1 = require("../models/FertilizerBoard");
-const PesticideBoard_1 = require("../models/PesticideBoard");
-exports.PLAN_LIMITS = {
-    BASIC: { boards: 3, columns: 10 },
-    STANDARD: { boards: 5, columns: 15 },
-    PREMIUM: { boards: 15, columns: 25 },
-};
+const boardUtils_1 = require("../utils/boardUtils");
 const getCultivationBoards = async (req, res) => {
     try {
-        const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
-        if (!profile)
-            return res.status(404).json({ success: false, message: 'Farm profile not found' });
-        const boards = await CultivationBoard_1.CultivationBoard.find({ farmProfile: profile._id }).sort({ createdAt: -1 });
+        let profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile) {
+            profile = await FarmProfile_1.FarmProfile.create({ user: req.user?._id, farmName: 'Nông trại của tôi' });
+        }
+        const effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
+        const retentionDate = (0, boardUtils_1.getRetentionDate)(effectivePlan);
+        const boards = await CultivationBoard_1.CultivationBoard.find({
+            farmProfile: profile._id,
+            createdAt: { $gte: retentionDate }
+        }).sort({ createdAt: -1 });
         const boardsWithCount = await Promise.all(boards.map(async (board) => {
             const count = await CultivationEntry_1.CultivationEntry.countDocuments({ cultivationBoard: board._id });
             return {
@@ -33,19 +33,19 @@ const getCultivationBoards = async (req, res) => {
 exports.getCultivationBoards = getCultivationBoards;
 const createCultivationBoard = async (req, res) => {
     try {
-        const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
-        if (!profile)
-            return res.status(404).json({ success: false, message: 'Farm profile not found' });
-        const cCount = await CultivationBoard_1.CultivationBoard.countDocuments({ farmProfile: profile._id });
-        const fCount = await FertilizerBoard_1.FertilizerBoard.countDocuments({ farmProfile: profile._id });
-        const pCount = await PesticideBoard_1.PesticideBoard.countDocuments({ farmProfile: profile._id });
-        const totalBoards = cCount + fCount + pCount;
-        const limits = exports.PLAN_LIMITS[profile.plan || 'BASIC'];
-        if (totalBoards >= limits.boards) {
-            return res.status(400).json({
-                success: false,
-                message: `Gói tài khoản ${profile.plan || 'BASIC'} của bạn chỉ cho phép tạo tối đa ${limits.boards} bảng nhật ký. Vui lòng nâng cấp gói dịch vụ.`
-            });
+        let profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile) {
+            profile = await FarmProfile_1.FarmProfile.create({ user: req.user?._id, farmName: 'Nông trại của tôi' });
+        }
+        // Check board limit
+        const effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
+        const planLimits = boardUtils_1.PLAN_LIMITS[effectivePlan] || boardUtils_1.PLAN_LIMITS.BASIC;
+        const cultivationCount = await CultivationBoard_1.CultivationBoard.countDocuments({ farmProfile: profile._id });
+        if (cultivationCount >= planLimits.products) {
+            return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.products} bảng canh tác. Vui lòng nâng cấp gói cước.` });
+        }
+        if (req.body.customColumns && req.body.customColumns.length > planLimits.columns) {
+            return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.columns} cột tùy chỉnh.` });
         }
         const board = new CultivationBoard_1.CultivationBoard({
             ...req.body,
@@ -61,9 +61,10 @@ const createCultivationBoard = async (req, res) => {
 exports.createCultivationBoard = createCultivationBoard;
 const getCultivationBoardById = async (req, res) => {
     try {
-        const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
-        if (!profile)
-            return res.status(404).json({ success: false, message: 'Farm profile not found' });
+        let profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile) {
+            profile = await FarmProfile_1.FarmProfile.create({ user: req.user?._id, farmName: 'Nông trại của tôi' });
+        }
         const board = await CultivationBoard_1.CultivationBoard.findOne({ _id: req.params.id, farmProfile: profile._id });
         if (!board)
             return res.status(404).json({ success: false, message: 'Board not found' });
@@ -76,9 +77,20 @@ const getCultivationBoardById = async (req, res) => {
 exports.getCultivationBoardById = getCultivationBoardById;
 const updateCultivationBoard = async (req, res) => {
     try {
-        const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
-        if (!profile)
-            return res.status(404).json({ success: false, message: 'Farm profile not found' });
+        let profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile) {
+            profile = await FarmProfile_1.FarmProfile.create({ user: req.user?._id, farmName: 'Nông trại của tôi' });
+        }
+        const effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
+        const isLocked = await (0, boardUtils_1.checkBoardLocked)(profile._id.toString(), req.params.id, effectivePlan);
+        if (isLocked) {
+            return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
+        }
+        const normalizedPlan = (profile.plan || 'BASIC').toUpperCase();
+        const planLimits = boardUtils_1.PLAN_LIMITS[normalizedPlan] || boardUtils_1.PLAN_LIMITS.BASIC;
+        if (req.body.customColumns && req.body.customColumns.length > planLimits.columns) {
+            return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.columns} cột tùy chỉnh.` });
+        }
         const board = await CultivationBoard_1.CultivationBoard.findOneAndUpdate({ _id: req.params.id, farmProfile: profile._id }, req.body, { new: true });
         if (!board)
             return res.status(404).json({ success: false, message: 'Board not found' });
@@ -91,9 +103,10 @@ const updateCultivationBoard = async (req, res) => {
 exports.updateCultivationBoard = updateCultivationBoard;
 const deleteCultivationBoard = async (req, res) => {
     try {
-        const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
-        if (!profile)
-            return res.status(404).json({ success: false, message: 'Farm profile not found' });
+        let profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile) {
+            profile = await FarmProfile_1.FarmProfile.create({ user: req.user?._id, farmName: 'Nông trại của tôi' });
+        }
         const board = await CultivationBoard_1.CultivationBoard.findOneAndDelete({ _id: req.params.id, farmProfile: profile._id });
         if (!board)
             return res.status(404).json({ success: false, message: 'Board not found' });
@@ -108,7 +121,16 @@ exports.deleteCultivationBoard = deleteCultivationBoard;
 // --- Entries ---
 const getCultivationEntries = async (req, res) => {
     try {
-        const entries = await CultivationEntry_1.CultivationEntry.find({ cultivationBoard: req.params.boardId }).sort({ date: -1 });
+        const board = await CultivationBoard_1.CultivationBoard.findById(req.params.boardId);
+        if (!board)
+            return res.status(404).json({ success: false, message: 'Board not found' });
+        const profile = await FarmProfile_1.FarmProfile.findById(board.farmProfile);
+        const effectivePlan = profile ? (0, boardUtils_1.getEffectivePlan)(profile) : 'BASIC';
+        const retentionDate = (0, boardUtils_1.getRetentionDate)(effectivePlan);
+        const entries = await CultivationEntry_1.CultivationEntry.find({
+            cultivationBoard: req.params.boardId,
+            date: { $gte: retentionDate }
+        }).sort({ date: -1 });
         res.json({ success: true, data: entries });
     }
     catch (error) {
@@ -118,6 +140,16 @@ const getCultivationEntries = async (req, res) => {
 exports.getCultivationEntries = getCultivationEntries;
 const createCultivationEntry = async (req, res) => {
     try {
+        const board = await CultivationBoard_1.CultivationBoard.findById(req.params.boardId);
+        if (!board)
+            return res.status(404).json({ success: false, message: 'Board not found' });
+        const profile = await FarmProfile_1.FarmProfile.findById(board.farmProfile);
+        if (profile) {
+            const effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
+            const isLocked = await (0, boardUtils_1.checkBoardLocked)(profile._id.toString(), board._id.toString(), effectivePlan);
+            if (isLocked)
+                return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
+        }
         const entry = new CultivationEntry_1.CultivationEntry({
             ...req.body,
             cultivationBoard: req.params.boardId,
@@ -130,8 +162,42 @@ const createCultivationEntry = async (req, res) => {
     }
 };
 exports.createCultivationEntry = createCultivationEntry;
+const updateCultivationEntry = async (req, res) => {
+    try {
+        const entryCheck = await CultivationEntry_1.CultivationEntry.findById(req.params.id).populate('cultivationBoard');
+        if (!entryCheck)
+            return res.status(404).json({ success: false, message: 'Entry not found' });
+        const board = entryCheck.cultivationBoard;
+        const profile = await FarmProfile_1.FarmProfile.findById(board.farmProfile);
+        if (profile) {
+            const effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
+            const isLocked = await (0, boardUtils_1.checkBoardLocked)(profile._id.toString(), board._id.toString(), effectivePlan);
+            if (isLocked)
+                return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
+        }
+        const entry = await CultivationEntry_1.CultivationEntry.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!entry)
+            return res.status(404).json({ success: false, message: 'Entry not found' });
+        res.json({ success: true, data: entry });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.updateCultivationEntry = updateCultivationEntry;
 const deleteCultivationEntry = async (req, res) => {
     try {
+        const entryCheck = await CultivationEntry_1.CultivationEntry.findById(req.params.id).populate('cultivationBoard');
+        if (!entryCheck)
+            return res.status(404).json({ success: false, message: 'Entry not found' });
+        const board = entryCheck.cultivationBoard;
+        const profile = await FarmProfile_1.FarmProfile.findById(board.farmProfile);
+        if (profile) {
+            const effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
+            const isLocked = await (0, boardUtils_1.checkBoardLocked)(profile._id.toString(), board._id.toString(), effectivePlan);
+            if (isLocked)
+                return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
+        }
         const entry = await CultivationEntry_1.CultivationEntry.findByIdAndDelete(req.params.id);
         if (!entry)
             return res.status(404).json({ success: false, message: 'Entry not found' });
