@@ -5,6 +5,11 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 type Theme = 'light' | 'dark';
 type Language = 'vi' | 'en';
 
+export interface CartItem {
+  product: any;
+  quantity: number;
+}
+
 interface AppContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
@@ -13,6 +18,10 @@ interface AppContextType {
   timezone: string;
   setTimezone: (tz: string) => void;
   t: (key: string) => string;
+  cart: CartItem[];
+  addToCart: (product: any, quantity: number) => void;
+  removeFromCart: (productId: string) => void;
+  clearCart: () => void;
 }
 
 const translations: Record<Language, Record<string, string>> = {
@@ -64,11 +73,13 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>('light');
   const [language, setLanguageState] = useState<Language>('vi');
   const [timezone, setTimezoneState] = useState<string>('GMT+7');
+  const [cart, setCart] = useState<CartItem[]>([]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as Theme;
     const savedLang = localStorage.getItem('language') as Language;
     const savedTz = localStorage.getItem('timezone');
+    const savedCart = localStorage.getItem('cart');
     
     if (savedTheme) {
       setThemeState(savedTheme);
@@ -81,6 +92,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     
     if (savedTz) {
       setTimezoneState(savedTz);
+    }
+
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch (e) {
+        console.error('Failed to parse cart', e);
+      }
     }
   }, []);
 
@@ -104,8 +123,37 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     return translations[language][key] || translations['vi'][key] || key;
   };
 
+  const addToCart = (product: any, quantity: number) => {
+    setCart(prev => {
+      const existing = prev.find(item => item.product._id === product._id);
+      let newCart;
+      if (existing) {
+        newCart = prev.map(item => 
+          item.product._id === product._id ? { ...item, quantity: item.quantity + quantity } : item
+        );
+      } else {
+        newCart = [...prev, { product, quantity }];
+      }
+      localStorage.setItem('cart', JSON.stringify(newCart));
+      return newCart;
+    });
+  };
+
+  const removeFromCart = (productId: string) => {
+    setCart(prev => {
+      const newCart = prev.filter(item => item.product._id !== productId);
+      localStorage.setItem('cart', JSON.stringify(newCart));
+      return newCart;
+    });
+  };
+
+  const clearCart = () => {
+    setCart([]);
+    localStorage.removeItem('cart');
+  };
+
   return (
-    <AppContext.Provider value={{ theme, setTheme, language, setLanguage, timezone, setTimezone, t }}>
+    <AppContext.Provider value={{ theme, setTheme, language, setLanguage, timezone, setTimezone, t, cart, addToCart, removeFromCart, clearCart }}>
       {children}
     </AppContext.Provider>
   );

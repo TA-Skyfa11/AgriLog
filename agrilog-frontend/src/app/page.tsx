@@ -10,16 +10,19 @@ import greenhouseImg from '../../public/images/landing/greenhouse_real.jpg';
 
 export default function LandingPage() {
   const [packages, setPackages] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+
   useEffect(() => {
-    const loadPackages = async () => {
+    const loadData = async () => {
       try {
-        const res = await fetchAPI('/services');
-        if (res.success) {
-          setPackages(res.data);
-        }
+        const resServices = await fetchAPI('/services');
+        if (resServices.success) setPackages(resServices.data);
+        
+        const resProducts = await fetchAPI('/products/public');
+        if (resProducts.success) setProducts(resProducts.data);
       } catch (err) {}
     };
-    loadPackages();
+    loadData();
   }, []);
 
   return (
@@ -27,19 +30,18 @@ export default function LandingPage() {
       {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerContent}>
-          <div className={styles.logo}>
+          <a href="/" onClick={(e) => { e.preventDefault(); window.location.href = '/'; }} className={styles.logo} style={{ textDecoration: 'none' }}>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
               <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             AgriLog
-          </div>
+          </a>
           <nav className={styles.navLinks}>
             <a href="#features" className={styles.navLink}>Tính năng</a>
             <a href="#store" className={styles.navLink}>Vật tư</a>
             <a href="#pricing" className={styles.navLink}>Bảng giá</a>
-            <a href="#contact" className={styles.navLink}>Liên hệ</a>
           </nav>
           <div className={styles.headerActions}>
             <Link href="/login" className={styles.loginBtn}>Đăng nhập</Link>
@@ -125,7 +127,7 @@ export default function LandingPage() {
                 <div className={styles.featureItemIcon}>✓</div>
                 <div>
                   <h4 className={styles.featureItemTitle}>Dễ dàng truy xuất</h4>
-                  <p className={styles.featureItemDesc}>Mã QR minh bạch quá trình cho khách hàng.</p>
+                  <p className={styles.featureItemDesc}>Minh bạch quá trình canh tác cho khách hàng.</p>
                 </div>
               </div>
               <div className={styles.featureItem}>
@@ -181,7 +183,7 @@ export default function LandingPage() {
             <div className={styles.gridCard}>
               <div className={styles.gridIcon}>🔍</div>
               <h3 className={styles.gridCardTitle}>Truy xuất nguồn gốc</h3>
-              <p className={styles.gridCardDesc}>Cung cấp mã QR để người tiêu dùng quét và xem nhật ký sản phẩm.</p>
+              <p className={styles.gridCardDesc}>Minh bạch thông tin canh tác và nhật ký sản phẩm cho người tiêu dùng.</p>
             </div>
             <div className={styles.gridCard}>
               <div className={styles.gridIcon}>⚙️</div>
@@ -189,6 +191,44 @@ export default function LandingPage() {
               <p className={styles.gridCardDesc}>Tích hợp trạm thời tiết, cảm biến độ ẩm để quản lý tự động.</p>
             </div>
           </div>
+        </div>
+      </section>
+      {/* Store Section */}
+      <section id="store" className={styles.store}>
+        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <h2 className={styles.sectionTitle}>Vật tư Nông nghiệp</h2>
+          <p className={styles.sectionDesc} style={{ margin: '0 auto', maxWidth: '600px' }}>
+            Khám phá các sản phẩm vật tư chất lượng từ Marketplace.
+          </p>
+        </div>
+        <div className={styles.storeCards}>
+          {products.length === 0 ? (
+            <div style={{ textAlign: 'center', width: '100%', padding: '2rem', gridColumn: '1 / -1' }}>Đang tải vật tư...</div>
+          ) : (
+            products.slice(0, 6).map((product) => (
+              <div key={product._id} className={styles.productCard}>
+                <div className={styles.productImg}>
+                  {product.images && product.images.length > 0 ? (
+                    <img src={product.images[0]} alt={product.name} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>No Image</div>
+                  )}
+                </div>
+                <div className={styles.productInfo}>
+                  <div className={styles.productCategory}>{product.category}</div>
+                  <h4 className={styles.productTitle}>{product.name}</h4>
+                  <div className={styles.productPrice}>
+                    {product.price.toLocaleString('vi-VN')}đ <span style={{ fontSize: '0.875rem', fontWeight: 'normal', color: 'var(--color-text-muted)' }}>/ {product.unit}</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <div style={{ textAlign: 'center', marginTop: '3rem' }}>
+          <Link href="/login" style={{ padding: '0.75rem 2.5rem', border: '2px solid var(--color-primary-600)', color: 'var(--color-primary-600)', fontWeight: 600, borderRadius: '9999px', textDecoration: 'none', display: 'inline-block', transition: 'all 0.2s' }}>
+            Xem tất cả sản phẩm ➔
+          </Link>
         </div>
       </section>
 

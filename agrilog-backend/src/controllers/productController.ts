@@ -136,11 +136,27 @@ export const getApprovedProducts = async (req: AuthRequest, res: Response) => {
       ];
     }
 
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 6;
+    const skip = (page - 1) * limit;
+
+    const total = await Product.countDocuments(filter);
     const products = await Product.find(filter)
       .populate('company', 'email')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    res.json({ success: true, data: products });
+    res.json({ 
+      success: true, 
+      data: products,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
   }

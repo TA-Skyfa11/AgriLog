@@ -134,8 +134,10 @@ export default function CultivationDiaryDetailPage() {
         setProfile(profileRes.data);
         setUserPlan(profileRes.data.plan || 'BASIC');
       }
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      if (error.message !== 'Board not found') {
+        console.error(error);
+      }
     } finally {
       setLoading(false);
     }

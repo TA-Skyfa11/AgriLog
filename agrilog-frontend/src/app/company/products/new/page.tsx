@@ -17,7 +17,8 @@ export default function NewProductPage() {
   const [price, setPrice] = useState('');
   const [unit, setUnit] = useState('kg');
   const [stock, setStock] = useState('');
-  
+  const [imageMode, setImageMode] = useState<'upload' | 'url'>('url');
+  const [imageUrl, setImageUrl] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   
@@ -44,6 +45,7 @@ export default function NewProductPage() {
   const removeImage = () => {
     setImageFile(null);
     setImagePreview(null);
+    if (imageMode === 'url') setImageUrl('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,7 +57,7 @@ export default function NewProductPage() {
     try {
       let images: string[] = [];
 
-      if (imageFile) {
+      if (imageMode === 'upload' && imageFile) {
         const formData = new FormData();
         formData.append('image', imageFile);
 
@@ -81,6 +83,12 @@ export default function NewProductPage() {
           throw new Error(uploadData.message || 'Lỗi tải ảnh lên');
         }
         images.push(uploadData.imageUrl);
+      } else if (imageMode === 'url' && imageUrl) {
+        images.push(imageUrl);
+      }
+
+      if (images.length === 0) {
+        throw new Error('Vui lòng cung cấp hình ảnh sản phẩm');
       }
 
       const token = localStorage.getItem('token');
@@ -166,11 +174,35 @@ export default function NewProductPage() {
           
           <div>
             <label style={labelStyle}>Hình ảnh sản phẩm <span style={{ color: 'red' }}>*</span></label>
-            {!imagePreview ? (
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                <button type="button" onClick={() => setImageMode('url')} style={{
+                    padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid var(--color-border)',
+                    backgroundColor: imageMode === 'url' ? 'var(--color-primary-100)' : 'white',
+                    color: imageMode === 'url' ? 'var(--color-primary-700)' : 'var(--color-text-main)',
+                    fontWeight: imageMode === 'url' ? 600 : 400, cursor: 'pointer'
+                }}>Gắn link ảnh</button>
+                <button type="button" onClick={() => setImageMode('upload')} style={{
+                    padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid var(--color-border)',
+                    backgroundColor: imageMode === 'upload' ? 'var(--color-primary-100)' : 'white',
+                    color: imageMode === 'upload' ? 'var(--color-primary-700)' : 'var(--color-text-main)',
+                    fontWeight: imageMode === 'upload' ? 600 : 400, cursor: 'pointer'
+                }}>Tải ảnh từ máy</button>
+            </div>
+
+            {imageMode === 'url' && (
+                <div style={{ marginBottom: '1rem' }}>
+                    <input style={inputStyle} value={imageUrl} onChange={e => {
+                        setImageUrl(e.target.value);
+                        setImagePreview(e.target.value);
+                    }} placeholder="Nhập đường link ảnh (VD: https://...)" />
+                </div>
+            )}
+
+            {imageMode === 'upload' && !imagePreview && (
               <div style={{ 
                 border: '2px dashed var(--color-border)', borderRadius: '8px', padding: '2rem',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                backgroundColor: '#f8fafc', cursor: 'pointer'
+                backgroundColor: '#f8fafc', cursor: 'pointer', marginBottom: '1rem'
               }}
               onClick={() => document.getElementById('imageUpload')?.click()}
               >
@@ -178,9 +210,11 @@ export default function NewProductPage() {
                 <span style={{ fontSize: '0.9rem', color: '#64748b' }}>Nhấn để chọn ảnh (Tối đa 5MB)</span>
                 <input id="imageUpload" type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageChange} />
               </div>
-            ) : (
+            )}
+
+            {imagePreview && (
               <div style={{ position: 'relative', width: '200px', height: '200px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-                <Image src={imagePreview} alt="Preview" fill style={{ objectFit: 'cover' }} />
+                <Image src={imagePreview} alt="Preview" fill style={{ objectFit: 'cover' }} unoptimized />
                 <button 
                   type="button" 
                   onClick={removeImage}
@@ -220,10 +254,10 @@ export default function NewProductPage() {
             </div>
           </div>
 
-          <button type="submit" disabled={loading || !imageFile} style={{
+          <button type="submit" disabled={loading || (!imageFile && !imageUrl)} style={{
             padding: '0.85rem', backgroundColor: 'var(--color-primary-600)', color: 'white',
             border: 'none', borderRadius: '8px', fontWeight: 600, fontSize: '1rem',
-            cursor: loading || !imageFile ? 'not-allowed' : 'pointer', opacity: loading || !imageFile ? 0.7 : 1, marginTop: '0.5rem'
+            cursor: loading || (!imageFile && !imageUrl) ? 'not-allowed' : 'pointer', opacity: loading || (!imageFile && !imageUrl) ? 0.7 : 1, marginTop: '0.5rem'
           }}>
             {loading ? 'Đang gửi...' : 'Đăng sản phẩm'}
           </button>

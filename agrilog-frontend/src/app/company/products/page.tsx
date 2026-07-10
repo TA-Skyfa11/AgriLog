@@ -101,6 +101,9 @@ export default function CompanyProductsPage() {
                     </td>
                     <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                        <Link href={`/company/products/${p._id}/edit`} style={{ color: 'var(--color-primary-600)' }} title="Chỉnh sửa">
+                          <Edit size={16} />
+                        </Link>
                         <button onClick={() => handleDelete(p._id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }} title="Xóa">
                           <Trash2 size={16} />
                         </button>

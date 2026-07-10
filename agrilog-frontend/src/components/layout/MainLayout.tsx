@@ -25,7 +25,7 @@ interface MainLayoutProps {
 export default function MainLayout({ children, role }: MainLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { language, t } = useAppContext();
+  const { language, t, cart, removeFromCart } = useAppContext();
   
   const currentLocale = language === 'en' ? enUS : vi;
   const todayStr = format(new Date(), 'EEEE, dd/MM/yyyy', { locale: currentLocale });
@@ -34,10 +34,11 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const [userInitials, setUserInitials] = React.useState('NT');
   const [notifications, setNotifications] = React.useState<any[]>([]);
   const [showNotifications, setShowNotifications] = React.useState(false);
+  const [showCart, setShowCart] = React.useState(false);
   const [time, setTime] = React.useState(new Date());
 
   React.useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
+    const timer = setInterval(() => setTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
@@ -240,8 +241,8 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             <div className={styles.dateWidget}>
               <Calendar size={18} color="#9ca3af" />
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <span style={{ fontWeight: 500, lineHeight: 1.2 }}>{todayStr}</span>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{time.toLocaleTimeString('vi-VN')}</span>
+                <span suppressHydrationWarning style={{ fontWeight: 500, lineHeight: 1.2 }}>{todayStr}</span>
+                <span suppressHydrationWarning style={{ fontSize: '0.75rem', color: '#64748b' }}>{time.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
             </div>
             
@@ -281,7 +282,55 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
               )}
             </div>
             
-            <button className={styles.iconBtn}><ShoppingCart size={20} /></button>
+            <div style={{ position: 'relative' }}>
+              <button className={styles.iconBtn} onClick={() => setShowCart(!showCart)}>
+                <ShoppingCart size={20} />
+                {cart && cart.length > 0 && <span className={styles.badge}>{cart.length}</span>}
+              </button>
+              
+              {showCart && (
+                <div className={styles.notificationDropdown}>
+                  <div className={styles.notificationHeader}>
+                    <h4>Giỏ hàng</h4>
+                    <button onClick={() => setShowCart(false)} className={styles.closeBtn}><X size={16} /></button>
+                  </div>
+                  <div className={styles.notificationList}>
+                    {!cart || cart.length === 0 ? (
+                      <div className={styles.noNotifications}>Giỏ hàng đang trống</div>
+                    ) : (
+                      <>
+                        {cart.map(item => (
+                          <div key={item.product._id} className={styles.notificationItem} style={{ cursor: 'default' }}>
+                            <div className={styles.notifIcon} style={{ fontSize: '24px' }}>📦</div>
+                            <div className={styles.notifContent}>
+                              <div className={styles.notifTitle} style={{ paddingRight: '20px' }}>{item.product.name}</div>
+                              <div className={styles.notifMessage}>{item.quantity} {item.product.unit} x {item.product.price.toLocaleString('vi-VN')}đ</div>
+                            </div>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); removeFromCart(item.product._id); }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', position: 'absolute', right: '1rem', top: '1rem' }}
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        ))}
+                        <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                            <span>Tổng tiền:</span>
+                            <span style={{ color: '#ef4444' }}>
+                              {cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0).toLocaleString('vi-VN')}đ
+                            </span>
+                          </div>
+                          <Link href="/marketplace/checkout" style={{ display: 'block', textAlign: 'center', padding: '0.75rem', backgroundColor: 'var(--color-primary-600)', color: 'white', borderRadius: '6px', fontWeight: 600, textDecoration: 'none', marginTop: '0.5rem' }}>
+                            Thanh toán ngay
+                          </Link>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <div className={styles.headerAvatar}>{userInitials}</div>
           </div>
         </header>

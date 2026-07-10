@@ -13,7 +13,7 @@ export function Header() {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
+    const timer = setInterval(() => setTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
@@ -51,7 +51,7 @@ export function Header() {
       <div className={styles.searchBar}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <span style={{ fontWeight: 600, fontSize: '1.1rem', color: '#1e293b' }} suppressHydrationWarning>{getGreeting()}, Admin!</span>
-          <span style={{ fontSize: '0.85rem', color: '#64748b' }} suppressHydrationWarning>Bây giờ là {time.toLocaleTimeString('vi-VN')}</span>
+          <span style={{ fontSize: '0.85rem', color: '#64748b' }} suppressHydrationWarning>Bây giờ là {time.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
       </div>
       <div className={styles.headerRight}>

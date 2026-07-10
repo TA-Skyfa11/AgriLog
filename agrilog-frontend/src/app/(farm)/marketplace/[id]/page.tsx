@@ -7,10 +7,13 @@ import { Card } from '@/components/ui/Card';
 import { ShoppingCart, ArrowLeft, Building2, Package, Tag } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
+import { useAppContext } from '@/context/AppProvider';
 
 export default function ProductDetailPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  const { addToCart } = useAppContext();
   
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -90,18 +93,39 @@ export default function ProductDetailPage() {
               </p>
             </div>
             
-            <Link 
-              href={`/marketplace/${product._id}/checkout`}
-              style={{
-                display: 'block', width: '100%', textAlign: 'center',
-                padding: '1rem', backgroundColor: product.stock > 0 ? 'var(--color-primary-600)' : '#e5e7eb',
-                color: product.stock > 0 ? 'white' : '#9ca3af',
-                borderRadius: '8px', fontWeight: 700, fontSize: '1.1rem', textDecoration: 'none',
-                pointerEvents: product.stock > 0 ? 'auto' : 'none'
-              }}
-            >
-              {product.stock > 0 ? 'Tiến hành đặt mua' : 'Hết hàng'}
-            </Link>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button 
+                onClick={() => {
+                  addToCart(product, 1);
+                  toast.success('Đã thêm vào giỏ hàng', { icon: '🛒' });
+                }}
+                disabled={product.stock <= 0}
+                style={{
+                  flex: 1, padding: '1rem', 
+                  backgroundColor: 'white', color: 'var(--color-primary-600)',
+                  border: '2px solid var(--color-primary-600)',
+                  borderRadius: '8px', fontWeight: 700, fontSize: '1.1rem',
+                  cursor: product.stock > 0 ? 'pointer' : 'not-allowed',
+                  opacity: product.stock > 0 ? 1 : 0.5,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
+                }}
+              >
+                <ShoppingCart size={20} /> Thêm vào giỏ
+              </button>
+
+              <Link 
+                href={`/marketplace/${product._id}/checkout`}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '1rem', backgroundColor: product.stock > 0 ? 'var(--color-primary-600)' : '#e5e7eb',
+                  color: product.stock > 0 ? 'white' : '#9ca3af',
+                  borderRadius: '8px', fontWeight: 700, fontSize: '1.1rem', textDecoration: 'none',
+                  pointerEvents: product.stock > 0 ? 'auto' : 'none'
+                }}
+              >
+                {product.stock > 0 ? 'Mua ngay' : 'Hết hàng'}
+              </Link>
+            </div>
           </div>
         </div>
       </Card>

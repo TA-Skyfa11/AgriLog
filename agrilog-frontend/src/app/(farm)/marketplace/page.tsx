@@ -21,15 +21,24 @@ export default function FarmMarketplacePage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('ALL');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const loadProducts = async () => {
     try {
       const query = new URLSearchParams();
       if (search) query.append('search', search);
       if (category !== 'ALL') query.append('category', category);
+      query.append('page', page.toString());
+      query.append('limit', '6');
       
       const res = await fetchAPI(`/products?${query.toString()}`);
-      if (res.success) setProducts(res.data);
+      if (res.success) {
+        setProducts(res.data);
+        if (res.pagination) {
+          setTotalPages(res.pagination.totalPages || 1);
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -38,11 +47,15 @@ export default function FarmMarketplacePage() {
   };
 
   useEffect(() => {
+    setPage(1); // Reset page when search or category changes
+  }, [search, category]);
+
+  useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       loadProducts();
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [search, category]);
+  }, [search, category, page]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -84,13 +97,13 @@ export default function FarmMarketplacePage() {
           <p style={{ color: 'var(--color-text-muted)' }}>Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm.</p>
         </Card>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
           {products.map(p => (
             <Link key={p._id} href={`/marketplace/${p._id}`} style={{ textDecoration: 'none' }}>
               <Card style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%', transition: 'transform 0.2s', cursor: 'pointer' }} className="hover:shadow-lg">
-                <div style={{ height: '180px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ height: '180px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
                   {p.images && p.images.length > 0 ? (
-                    <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : (
                     <div style={{ color: '#9ca3af', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                       <ShoppingCart size={32} />
@@ -135,6 +148,34 @@ export default function FarmMarketplacePage() {
               </Card>
             </Link>
           ))}
+        </div>
+      )}
+
+      {!loading && totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem', marginTop: '2rem' }}>
+          <button 
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            style={{ 
+              padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid var(--color-border)', 
+              backgroundColor: page === 1 ? '#f3f4f6' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer' 
+            }}
+          >
+            Trước
+          </button>
+          <span style={{ fontWeight: 600, color: 'var(--color-text-main)' }}>
+            Trang {page} / {totalPages}
+          </span>
+          <button 
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            style={{ 
+              padding: '0.5rem 1rem', borderRadius: '6px', border: '1px solid var(--color-border)', 
+              backgroundColor: page === totalPages ? '#f3f4f6' : 'white', cursor: page === totalPages ? 'not-allowed' : 'pointer' 
+            }}
+          >
+            Sau
+          </button>
         </div>
       )}
     </div>

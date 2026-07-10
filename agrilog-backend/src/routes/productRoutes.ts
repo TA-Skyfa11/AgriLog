@@ -9,6 +9,9 @@ import { Role } from '../models/User';
 
 const router = express.Router();
 
+// Public marketplace for landing page
+router.get('/public', getApprovedProducts);
+
 router.use(protect);
 
 // Company CRUD

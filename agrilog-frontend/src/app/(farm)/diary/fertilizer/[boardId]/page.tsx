@@ -116,8 +116,10 @@ export default function FertilizerDiaryDetailPage() {
       }
       if (materialsRes.success) setMaterials(materialsRes.data);
       if (profileRes.success) setUserPlan(profileRes.data.plan || 'BASIC');
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      if (error.message !== 'Board not found') {
+        console.error(error);
+      }
     } finally {
       setLoading(false);
     }
