@@ -24,10 +24,13 @@ export default function FarmMarketplacePage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
   const loadProducts = async () => {
+    setLoading(true);
     try {
       const query = new URLSearchParams();
-      if (search) query.append('search', search);
+      if (debouncedSearch) query.append('search', debouncedSearch);
       if (category !== 'ALL') query.append('category', category);
       query.append('page', page.toString());
       query.append('limit', '6');
@@ -47,15 +50,19 @@ export default function FarmMarketplacePage() {
   };
 
   useEffect(() => {
-    setPage(1); // Reset page when search or category changes
-  }, [search, category]);
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
 
   useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      loadProducts();
-    }, 500);
-    return () => clearTimeout(delayDebounceFn);
-  }, [search, category, page]);
+    setPage(1); 
+  }, [debouncedSearch, category]);
+
+  useEffect(() => {
+    loadProducts();
+  }, [debouncedSearch, category, page]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>

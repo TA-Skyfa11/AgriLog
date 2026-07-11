@@ -46,15 +46,31 @@ export default function DashboardPage() {
         }
       };
 
-      const [cBoardsRes, fBoardsRes, pBoardsRes, tasksRes, inventoryRes, weatherRes, profileRes] = await Promise.all([
+      const [cBoardsRes, fBoardsRes, pBoardsRes, tasksRes, inventoryRes, profileRes] = await Promise.all([
         fetchSafe('/cultivation-boards'),
         fetchSafe('/fertilizer-boards'),
         fetchSafe('/pesticide-boards'),
         fetchSafe('/tasks'),
         fetchSafe('/materials'),
-        fetchSafe('/weather'),
         fetchSafe('/farm/profile')
       ]);
+
+      fetchSafe('/weather').then(weatherRes => {
+        if (weatherRes.success && weatherRes.data) {
+          const wData = weatherRes.data;
+          setWeather({
+            temp: wData.temp + '°',
+            condition: wData.desc,
+            icon: wData.desc.toLowerCase(),
+            humidity: wData.humidity,
+            wind: wData.wind,
+            chanceOfRain: wData.chanceOfRain,
+            hourly: wData.hourly || []
+          });
+        } else {
+          setWeather(prev => ({ ...prev, condition: 'Lỗi tải thời tiết' }));
+        }
+      });
 
       if (profileRes.success && profileRes.data) {
         setUserName(profileRes.data.user?.name || profileRes.data.farmName || 'Admin');
@@ -117,18 +133,7 @@ export default function DashboardPage() {
 
       setStats({ boardsCount, tasksToday, tasksCompleted, inventoryCount, inventoryAlerts });
 
-      if (weatherRes.success && weatherRes.data) {
-        const wData = weatherRes.data;
-        setWeather({
-          temp: wData.temp + '°',
-          condition: wData.desc,
-          icon: wData.desc.toLowerCase(),
-          humidity: wData.humidity,
-          wind: wData.wind,
-          chanceOfRain: wData.chanceOfRain,
-          hourly: wData.hourly || []
-        });
-      }
+
 
     } catch (error) {
       console.error(error);

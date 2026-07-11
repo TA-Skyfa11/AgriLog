@@ -9,8 +9,7 @@ import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, FileText, Download, Printer, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+
 
 const AutoResizeTextarea = (props: any) => {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -496,11 +495,14 @@ export default function CultivationDiaryDetailPage() {
     document.body.removeChild(link);
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = async () => {
     if (userPlan === 'BASIC') {
       alert('Gói cước Basic không hỗ trợ xuất file PDF. Vui lòng nâng cấp gói cước.');
       return;
     }
+    
+    const { default: jsPDF } = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
     
     const doc = new jsPDF('landscape');
     

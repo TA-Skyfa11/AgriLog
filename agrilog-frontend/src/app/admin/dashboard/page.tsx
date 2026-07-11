@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Download, PlusCircle, CheckCircle, ShoppingCart, UserPlus, Package, MessageSquare, AlertTriangle, CloudRain, TreePine } from 'lucide-react';
+import { Download, PlusCircle, CheckCircle, ShoppingCart, UserPlus, Package, MessageSquare, AlertTriangle, TreePine } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card } from '@/components/ui/Card';
 import styles from '@/css/Dashboard.module.css';
@@ -13,31 +13,14 @@ export default function DashboardPage() {
   const [chartTab, setChartTab] = useState<'users' | 'orders'>('users');
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [weather, setWeather] = useState({ 
-    temp: '--', condition: 'Đang tải...', 
-    humidity: '--', wind: '--', chanceOfRain: '--'
-  });
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [statsRes, weatherRes] = await Promise.all([
-          fetchAPI('/admin/dashboard'),
-          fetchAPI('/weather')
-        ]);
+        const statsRes = await fetchAPI('/admin/dashboard');
         
         if (statsRes.success) {
           setStats(statsRes.data);
-        }
-        
-        if (weatherRes.success && weatherRes.data) {
-          setWeather({
-            temp: weatherRes.data.temp,
-            condition: weatherRes.data.desc,
-            humidity: weatherRes.data.humidity,
-            wind: weatherRes.data.wind,
-            chanceOfRain: weatherRes.data.chanceOfRain
-          });
         }
       } catch (error) {
         console.error('Error fetching admin dashboard stats:', error);
@@ -151,23 +134,6 @@ export default function DashboardPage() {
         </div>
 
         <div className={styles.rightCol}>
-          <Card className={`${styles.card} ${styles.weatherWidget}`}>
-            <div className={styles.weatherContent}>
-              <div className={styles.weatherHeader}>
-                <div>
-                  <div className={styles.weatherLabel}>Thời tiết hệ thống</div>
-                  <div className={styles.weatherLoc}>Hà Nội</div>
-                </div>
-                <CloudRain className={styles.weatherIcon} size={24} />
-              </div>
-              <div className={styles.weatherTempBox}>
-                <div className={styles.weatherTemp}>{weather.temp}°C</div>
-                <div className={styles.weatherCond}>{weather.condition}</div>
-              </div>
-            </div>
-            <TreePine className={styles.weatherBg} size={120} />
-          </Card>
-
           <Card>
             <h3 className={styles.sectionTitle}>
               Hoạt động gần đây
