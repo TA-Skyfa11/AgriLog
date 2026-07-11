@@ -270,7 +270,7 @@ export default function PesticideDiaryDetailPage() {
     const colName = prompt('Nhập tên cột mới:');
     if (!colName || !colName.trim()) return;
     
-    const plan = profile?.plan || 'BASIC';
+    const plan = userPlan || 'BASIC';
     const limits: Record<string, number> = {
       FREE: 0,
       BASIC: 10,
@@ -379,33 +379,32 @@ export default function PesticideDiaryDetailPage() {
       alert('Gói cước Basic không hỗ trợ xuất file Excel. Vui lòng nâng cấp gói cước.');
       return;
     }
-    const headers = ['STT', 'Ngày sử dụng', 'Tên thuốc', 'Hoạt chất', 'Mục tiêu phòng trừ', 'Liều lượng', 'Thời gian cách ly', 'Người thực hiện', 'Ghi chú'];
-    const csvRows = [headers.join(',')];
+    
+    import('xlsx').then((XLSX) => {
+      const customCols = board?.customColumns || [];
+      const data = entries.map((e, idx) => {
+        const rowData: any = {
+          'STT': idx + 1,
+          'Ngày sử dụng': e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
+          'Tên thuốc': e.materialName || '—',
+          'Hoạt chất': e.activeIngredient || '—',
+          'Mục tiêu phòng trừ': e.targetPest || '—',
+          'Liều lượng': e.quantity || '—',
+          'Thời gian cách ly': e.phiDays || 0,
+          'Người thực hiện': e.performer || '—',
+          'Ghi chú': e.notes || '—'
+        };
+        customCols.forEach((col: string) => {
+          rowData[col] = e.customValues?.[col] || '—';
+        });
+        return rowData;
+      });
 
-    entries.forEach((e, idx) => {
-      const formattedDate = format(new Date(e.date), 'dd/MM/yyyy');
-      const row = [
-        idx + 1,
-        formattedDate,
-        `"${(e.materialName || '—').replace(/"/g, '""')}"`,
-        `"${(e.activeIngredient || '—').replace(/"/g, '""')}"`,
-        `"${(e.targetPest || '—').replace(/"/g, '""')}"`,
-        `"${(e.quantity || '—').replace(/"/g, '""')}"`,
-        e.phiDays || 0,
-        `"${(e.performer || '—').replace(/"/g, '""')}"`,
-        `"${(e.notes || '—').replace(/"/g, '""')}"`
-      ];
-      csvRows.push(row.join(','));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Thuốc BVTV');
+      XLSX.writeFile(wb, `${board?.name || 'nhat_ky'}_thuoc_bvtv.xlsx`);
     });
-
-    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${board?.name || 'nhat_ky'}_thuoc_bvtv.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const exportToPDF = async () => {

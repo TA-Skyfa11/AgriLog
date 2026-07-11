@@ -536,43 +536,29 @@ export default function CultivationDiaryDetailPage() {
       alert('Gói cước Basic không hỗ trợ xuất file Excel. Vui lòng nâng cấp gói cước.');
       return;
     }
-    const customCols = board?.customColumns || [];
-    const headers = [
-      'STT', 
-      'Ngày', 
-      'Giai đoạn', 
-      'Hoạt động', 
-      'Người thực hiện', 
-      'Chi phí (VNĐ)', 
-      'Ghi chú',
-      ...customCols
-    ];
-    const csvRows = [headers.join(',')];
+    
+    import('xlsx').then((XLSX) => {
+      const customCols = board?.customColumns || [];
+      const data = entries.map((e, idx) => {
+        const rowData: any = {
+          'STT': idx + 1,
+          'Ngày': e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
+          'Giai đoạn': e.stage || '—',
+          'Hoạt động': e.activityName || '—',
+          'Người thực hiện': e.performer || '—',
+          'Ghi chú': e.notes || '—'
+        };
+        customCols.forEach((col: string) => {
+          rowData[col] = e.customValues?.[col] || '—';
+        });
+        return rowData;
+      });
 
-    entries.forEach((e, idx) => {
-      const formattedDate = format(new Date(e.date), 'dd/MM/yyyy');
-      const row = [
-        idx + 1,
-        formattedDate,
-        `"${(e.stage || '—').replace(/"/g, '""')}"`,
-        `"${(e.activityName || '—').replace(/"/g, '""')}"`,
-        `"${(e.performer || '—').replace(/"/g, '""')}"`,
-        e.cost || 0,
-        `"${(e.notes || '—').replace(/"/g, '""')}"`,
-        ...customCols.map((col: string) => `"${(e.customValues?.[col] || '—').replace(/"/g, '""')}"`)
-      ];
-      csvRows.push(row.join(','));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Canh tác');
+      XLSX.writeFile(wb, `${board?.name || 'nhat_ky'}_canh_tac.xlsx`);
     });
-
-    // UTF-8 BOM to display Vietnamese characters correctly in Excel
-    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `${board?.name || 'nhat_ky'}_canh_tac.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const exportToPDF = async () => {
