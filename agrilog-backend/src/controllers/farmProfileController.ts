@@ -31,13 +31,13 @@ export const updateFarmProfile = async (req: AuthRequest, res: Response) => {
     
     if (!profile) {
       profile = new FarmProfile({ user: req.user?._id, ...req.body });
-      if (req.body.plan && req.body.plan !== 'BASIC') {
+      if (req.body.plan && req.body.plan !== 'FREE') {
         profile.planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       }
     } else {
       if (req.body.plan && req.body.plan !== profile.plan) {
-        const planValues = { BASIC: 1, STANDARD: 2, PREMIUM: 3 };
-        const currentVal = planValues[profile.plan as keyof typeof planValues] || 1;
+        const planValues = { FREE: 0, BASIC: 1, STANDARD: 2, PREMIUM: 3 };
+        const currentVal = planValues[profile.plan as keyof typeof planValues] || 0;
         const newVal = planValues[req.body.plan as keyof typeof planValues] || 1;
         
         if (newVal > currentVal) {

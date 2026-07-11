@@ -15,18 +15,15 @@ const seedMarketplace = async () => {
     await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/agrilog');
     console.log('MongoDB Connected for Seeding Marketplace...');
 
-    // Clear existing marketplace data
-    await CompanyProfile.deleteMany();
-    await Product.deleteMany();
-    await Order.deleteMany();
-    await CommissionSetting.deleteMany();
-
     // 1. Commission Setting
-    await CommissionSetting.create({
-      rate: 5,
-      description: 'Mức hoa hồng mặc định 5%',
-    });
-    console.log('Created Commission Setting: 5%');
+    const existingCommission = await CommissionSetting.findOne({ rate: 5 });
+    if (!existingCommission) {
+      await CommissionSetting.create({
+        rate: 5,
+        description: 'Mức hoa hồng mặc định 5%',
+      });
+      console.log('Created Commission Setting: 5%');
+    }
 
     // 2. Create Company
     const salt = await bcrypt.genSalt(10);
@@ -42,15 +39,18 @@ const seedMarketplace = async () => {
       });
     }
 
-    await CompanyProfile.create({
-      user: companyUser._id,
-      companyName: 'Công ty Phân bón Bình Điền',
-      address: '123 Đường Điện Biên Phủ, TP.HCM',
-      contactPhone: '0901234567',
-      businessType: 'Sản xuất phân bón & vật tư nông nghiệp',
-      taxCode: '0312345678',
-    });
-    console.log('Created Company: company@agrilog.com');
+    const existingCompanyProfile = await CompanyProfile.findOne({ taxCode: '0312345678' });
+    if (!existingCompanyProfile) {
+      await CompanyProfile.create({
+        user: companyUser._id,
+        companyName: 'Công ty Phân bón Bình Điền',
+        address: '123 Đường Điện Biên Phủ, TP.HCM',
+        contactPhone: '0901234567',
+        businessType: 'Sản xuất phân bón & vật tư nông nghiệp',
+        taxCode: '0312345678',
+      });
+      console.log('Created Company Profile: Công ty Phân bón Bình Điền');
+    }
 
     // 3. Create Farm
     const farmPassword = await bcrypt.hash('123456', salt);
@@ -61,6 +61,10 @@ const seedMarketplace = async () => {
         passwordHash: farmPassword,
         role: Role.FARM,
       });
+    }
+
+    const existingFarmProfile = await FarmProfile.findOne({ user: farmUser._id });
+    if (!existingFarmProfile) {
       await FarmProfile.create({
         user: farmUser._id,
         farmName: 'Nông trại Xanh Tâm Bình',
@@ -69,8 +73,8 @@ const seedMarketplace = async () => {
         mainCropType: 'Rau sạch thủy canh',
         areaSqm: 5000,
       });
+      console.log('Created Farm Profile: Nông trại Xanh Tâm Bình');
     }
-    console.log('Created/Found Farm: farm@gmail.com');
 
     // 4. Create Products
     const productsToInsert = [
@@ -222,35 +226,50 @@ const seedMarketplace = async () => {
       }
     ];
 
-    const insertedProducts = await Product.insertMany(productsToInsert);
-    console.log(`Created ${insertedProducts.length} Products`);
+    let newProductsCount = 0;
+    for (const p of productsToInsert) {
+      const existingProduct = await Product.findOne({ name: p.name, company: companyUser._id });
+      if (!existingProduct) {
+        await Product.create(p);
+        newProductsCount++;
+      }
+    }
+    console.log(`Created ${newProductsCount} new Products`);
 
     // 5. Create Order
-    const approvedProduct = insertedProducts[0]; // Phân bón NPK
-    
-    await Order.create({
-      farm: farmUser._id,
-      company: companyUser._id,
-      items: [
-        {
-          product: approvedProduct._id,
-          productName: approvedProduct.name,
-          quantity: 2,
-          priceAtPurchase: approvedProduct.price,
-        }
-      ],
-      totalAmount: approvedProduct.price * 2, // 500,000
-      commissionRate: 5,
-      commissionAmount: (approvedProduct.price * 2) * 0.05, // 25,000
-      status: OrderStatus.PENDING,
-      note: 'Giao giờ hành chính',
-    });
-    
-    // Decrease stock
-    approvedProduct.stock -= 2;
-    await approvedProduct.save();
+    const approvedProduct = await Product.findOne({ name: 'Phân bón NPK Phú Mỹ 15-15-15', company: companyUser._id });
+    if (approvedProduct) {
+      const existingOrder = await Order.findOne({ 
+        farm: farmUser._id, 
+        company: companyUser._id, 
+        'items.product': approvedProduct._id 
+      });
 
-    console.log('Created Sample Order (Total: 500k, Commission: 25k)');
+      if (!existingOrder) {
+        await Order.create({
+          farm: farmUser._id,
+          company: companyUser._id,
+          items: [
+            {
+              product: approvedProduct._id,
+              productName: approvedProduct.name,
+              quantity: 2,
+              priceAtPurchase: approvedProduct.price,
+            }
+          ],
+          totalAmount: approvedProduct.price * 2,
+          commissionRate: 5,
+          commissionAmount: (approvedProduct.price * 2) * 0.05,
+          status: OrderStatus.PENDING,
+          note: 'Giao giờ hành chính',
+        });
+        
+        // Decrease stock
+        approvedProduct.stock -= 2;
+        await approvedProduct.save();
+        console.log('Created Sample Order');
+      }
+    }
 
     console.log('✅ Marketplace Seeding Completed Successfully!');
     process.exit();

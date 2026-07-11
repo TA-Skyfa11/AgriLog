@@ -11,6 +11,16 @@ import { Order } from '../models/Order';
 
 import { CompanyProfile } from '../models/CompanyProfile';
 
+import { CultivationEntry } from '../models/CultivationEntry';
+import { FertilizerEntry } from '../models/FertilizerEntry';
+import { PesticideEntry } from '../models/PesticideEntry';
+import { Task } from '../models/Task';
+import { Material } from '../models/Material';
+import { UploadLog } from '../models/UploadLog';
+import { Notification } from '../models/Notification';
+import { LoginHistory } from '../models/LoginHistory';
+
+
 export const getUsers = async (req: AuthRequest, res: Response) => {
   try {
     const { role, status } = req.query;
@@ -285,6 +295,67 @@ export const updateCommissionSetting = async (req: AuthRequest, res: Response) =
     await setting.save();
 
     res.json({ success: true, data: setting, message: `Đã cập nhật mức hoa hồng thành ${rate}%` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
+
+export const deleteUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Người dùng không tồn tại' });
+    }
+    if (user.role === Role.ADMIN) {
+      return res.status(403).json({ success: false, message: 'Không thể xóa tài khoản Admin' });
+    }
+
+    if (user.role === Role.FARM) {
+      const profile = await FarmProfile.findOne({ user: user._id });
+      if (profile) {
+        // Find boards
+        const cBoards = await CultivationBoard.find({ farmProfile: profile._id });
+        const fBoards = await FertilizerBoard.find({ farmProfile: profile._id });
+        const pBoards = await PesticideBoard.find({ farmProfile: profile._id });
+
+        const cBoardIds = cBoards.map(b => b._id);
+        const fBoardIds = fBoards.map(b => b._id);
+        const pBoardIds = pBoards.map(b => b._id);
+
+        // Delete entries
+        await CultivationEntry.deleteMany({ cultivationBoard: { $in: cBoardIds } });
+        await FertilizerEntry.deleteMany({ fertilizerBoard: { $in: fBoardIds } });
+        await PesticideEntry.deleteMany({ pesticideBoard: { $in: pBoardIds } });
+
+        // Delete boards
+        await CultivationBoard.deleteMany({ farmProfile: profile._id });
+        await FertilizerBoard.deleteMany({ farmProfile: profile._id });
+        await PesticideBoard.deleteMany({ farmProfile: profile._id });
+
+        // Delete tasks, materials, upload logs
+        await Task.deleteMany({ farmProfile: profile._id });
+        await Material.deleteMany({ farmProfile: profile._id });
+        await UploadLog.deleteMany({ farmProfile: profile._id });
+
+        await FarmProfile.findByIdAndDelete(profile._id);
+      }
+      await Order.deleteMany({ farm: user._id });
+    } else if (user.role === Role.COMPANY) {
+      await CompanyProfile.findOneAndDelete({ user: user._id });
+      await Product.deleteMany({ company: user._id });
+      await Order.deleteMany({ company: user._id });
+    }
+
+    // Common relations
+    await Notification.deleteMany({ user: user._id });
+    await LoginHistory.deleteMany({ user: user._id });
+
+    // Finally delete user
+    await User.findByIdAndDelete(user._id);
+
+    res.json({ success: true, message: 'Xóa tài khoản thành công' });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
   }

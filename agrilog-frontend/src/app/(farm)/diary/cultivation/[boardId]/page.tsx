@@ -42,6 +42,85 @@ const AutoResizeTextarea = (props: any) => {
   );
 };
 
+const STAGE_OPTIONS = [
+  'Chuẩn bị đất',
+  'Gieo hạt/Trồng cây',
+  'Nảy mầm/Đâm chồi',
+  'Phát triển thân lá',
+  'Ra hoa',
+  'Đậu quả/Kết hạt',
+  'Chín/Thu hoạch'
+];
+
+const ACTIVITY_OPTIONS = [
+  'Làm đất',
+  'Ngâm ủ hạt giống',
+  'Gieo hạt',
+  'Bón lót',
+  'Bón thúc',
+  'Tưới nước',
+  'Phun thuốc',
+  'Làm cỏ',
+  'Cắt tỉa/Bấm ngọn',
+  'Thu hoạch'
+];
+
+const DropdownWithOther = ({ value, options, onChange, onBlur, placeholder, className, style, maxLength }: any) => {
+  const isOther = value && !options.includes(value) && value !== '';
+  const [showInput, setShowInput] = React.useState(isOther);
+
+  React.useEffect(() => {
+    setShowInput(value && !options.includes(value) && value !== '');
+  }, [value, options]);
+
+  if (showInput) {
+    return (
+      <AutoResizeTextarea 
+        style={style}
+        className={className}
+        value={value || ''}
+        maxLength={maxLength}
+        onChange={(e: any) => {
+          onChange(e.target.value);
+        }}
+        onBlur={() => {
+          if (!value || value.trim() === '') {
+            setShowInput(false);
+            onChange('');
+          }
+          if (onBlur) onBlur();
+        }}
+        placeholder="Nhập khác..."
+        autoFocus
+      />
+    );
+  }
+
+  return (
+    <select 
+      style={style} 
+      className={className}
+      value={value || ''} 
+      onChange={(e) => {
+        if (e.target.value === 'Khác') {
+          setShowInput(true);
+          onChange('');
+        } else {
+          setShowInput(false);
+          onChange(e.target.value);
+        }
+      }}
+      onBlur={() => {
+        if (!showInput && onBlur) onBlur();
+      }}
+    >
+      <option value="">{placeholder}</option>
+      {options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+      <option value="Khác">Khác</option>
+    </select>
+  );
+};
+
 export default function CultivationDiaryDetailPage() {
   const { boardId } = useParams();
   const router = useRouter();
@@ -159,8 +238,8 @@ export default function CultivationDiaryDetailPage() {
     setEntries(newEntries);
   };
 
-  const handleBlurSave = async (index: number) => {
-    const entry = entries[index];
+  const handleBlurSave = async (index: number, updatedEntry?: any) => {
+    const entry = updatedEntry || entries[index];
     if (!entry.activityName || entry.activityName.trim() === '') return; // Don't save if activityName is empty
     
     setSavingId(entry._id || `new-${index}`);
@@ -319,11 +398,12 @@ export default function CultivationDiaryDetailPage() {
     // Dynamic limit check based on current user plan
     const plan = profile?.plan || 'BASIC';
     const limits: Record<string, number> = {
+      FREE: 0,
       BASIC: 10,
       STANDARD: 15,
       PREMIUM: 25
     };
-    const maxColumns = limits[plan] || 10;
+    const maxColumns = limits[plan] !== undefined ? limits[plan] : 10;
     
     // Limit only applies to custom columns
     const currentCustomColumns = board.customColumns?.length || 0;
@@ -580,7 +660,7 @@ export default function CultivationDiaryDetailPage() {
           <button className={styles.spreadsheetBtn} style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }} onClick={handleDeleteBoard}>
             🗑️ Xóa bảng
           </button>
-          <button className={styles.spreadsheetBtn} onClick={handleAddColumn}>
+          <button className={styles.spreadsheetBtn} onClick={handleAddColumn} disabled={userPlan === 'FREE'} style={{ opacity: userPlan === 'FREE' ? 0.5 : 1, cursor: userPlan === 'FREE' ? 'not-allowed' : 'pointer' }} title={userPlan === 'FREE' ? 'Gói Miễn phí không hỗ trợ thêm cột mới' : ''}>
             + Thêm cột
           </button>
           <button className={styles.spreadsheetBtn} onClick={exportToPDF} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
@@ -604,8 +684,7 @@ export default function CultivationDiaryDetailPage() {
             Cây trồng: <strong>{board.cropType}</strong> | 
             Diện tích: <strong>{board.areaSqm} m²</strong> | 
             Khu vực: <strong>{board.areaText || '—'}</strong> | 
-            Ngày bắt đầu: {format(new Date(board.startDate), 'dd/MM/yyyy')} |
-            Gói hiện tại: <strong>{profile?.plan || 'BASIC'}</strong>
+            Ngày bắt đầu: {format(new Date(board.startDate), 'dd/MM/yyyy')}
           </p>
         </div>
         <div style={{ fontSize: '0.875rem', fontWeight: 700, padding: '0.5rem 1rem', borderRadius: '9999px', backgroundColor: board.status === 'ACTIVE' ? '#dcfce7' : '#fee2e2', color: board.status === 'ACTIVE' ? '#15803d' : '#b91c1c' }}>
@@ -624,13 +703,13 @@ export default function CultivationDiaryDetailPage() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th style={{ width: '50px' }}>#</th>
-              <th>Ngày</th>
-              <th>Giai đoạn sinh trưởng</th>
-              <th>Hoạt động canh tác</th>
-              <th>Người thực hiện</th>
-              <th>Thời tiết</th>
-              <th>Ghi chú/Quan sát</th>
+              <th style={{ width: '40px', textAlign: 'center' }}>#</th>
+              <th style={{ width: '130px' }}>Ngày</th>
+              <th style={{ width: '160px' }}>Giai đoạn sinh trưởng</th>
+              <th style={{ width: '160px' }}>Hoạt động canh tác</th>
+              <th style={{ width: '120px' }}>Người thực hiện</th>
+              <th style={{ width: '120px' }}>Thời tiết</th>
+              <th style={{ minWidth: '140px' }}>Ghi chú/Quan sát</th>
               {/* Dynamic columns inserted here */}
               {customCols.map((col: string) => (
                 <th key={col}>
@@ -670,23 +749,27 @@ export default function CultivationDiaryDetailPage() {
                     />
                   </td>
                   <td>
-                    <AutoResizeTextarea 
+                    <DropdownWithOther
                       style={inlineInputStyle}
+                      options={STAGE_OPTIONS}
                       value={entry.stage || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'stage', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'stage', val)}
                       onBlur={() => handleBlurSave(index)}
                       placeholder="—"
                       className={styles.inlineInputHover}
+                      maxLength={50}
                     />
                   </td>
                   <td style={{ color: 'var(--color-primary-700)', fontWeight: 600 }}>
-                    <AutoResizeTextarea 
+                    <DropdownWithOther
                       style={inlineInputStyle}
+                      options={ACTIVITY_OPTIONS}
                       value={entry.activityName || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'activityName', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'activityName', val)}
                       onBlur={() => handleBlurSave(index)}
                       placeholder="Tên hoạt động..."
                       className={styles.inlineInputHover}
+                      maxLength={100}
                     />
                   </td>
                   <td>
@@ -697,6 +780,7 @@ export default function CultivationDiaryDetailPage() {
                       onBlur={() => handleBlurSave(index)}
                       placeholder="—"
                       className={styles.inlineInputHover}
+                      maxLength={50}
                     />
                   </td>
                   <td>
@@ -707,6 +791,7 @@ export default function CultivationDiaryDetailPage() {
                       onBlur={() => handleBlurSave(index)}
                       placeholder="—"
                       className={styles.inlineInputHover}
+                      maxLength={50}
                     />
                   </td>
                   <td style={{ color: 'var(--color-text-muted)' }}>
@@ -730,6 +815,7 @@ export default function CultivationDiaryDetailPage() {
                         onBlur={() => handleBlurSave(index)}
                         placeholder="—"
                         className={styles.inlineInputHover}
+                        maxLength={100}
                       />
                     </td>
                   ))}

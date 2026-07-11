@@ -270,11 +270,18 @@ export default function PesticideDiaryDetailPage() {
     const colName = prompt('Nhập tên cột mới:');
     if (!colName || !colName.trim()) return;
     
-    const maxColumns = 5;
+    const plan = profile?.plan || 'BASIC';
+    const limits: Record<string, number> = {
+      FREE: 0,
+      BASIC: 10,
+      STANDARD: 15,
+      PREMIUM: 25
+    };
+    const maxColumns = limits[plan] !== undefined ? limits[plan] : 10;
     const currentCustomColumns = board.customColumns?.length || 0;
 
     if (currentCustomColumns >= maxColumns) {
-      alert(`Bạn chỉ cho phép thêm tối đa ${maxColumns} cột tùy chỉnh.`);
+      alert(`Gói dịch vụ ${plan} của bạn chỉ cho phép thêm tối đa ${maxColumns} cột tùy chỉnh. Vui lòng nâng cấp gói dịch vụ để thêm!`);
       return;
     }
 
@@ -490,7 +497,7 @@ export default function PesticideDiaryDetailPage() {
           <button className={styles.spreadsheetBtn} style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }} onClick={handleDeleteBoard}>
             🗑️ Xóa bảng
           </button>
-          <button className={styles.spreadsheetBtn} onClick={handleAddNewColumn}>
+          <button className={styles.spreadsheetBtn} onClick={handleAddNewColumn} disabled={userPlan === 'FREE'} style={{ opacity: userPlan === 'FREE' ? 0.5 : 1, cursor: userPlan === 'FREE' ? 'not-allowed' : 'pointer' }} title={userPlan === 'FREE' ? 'Gói Miễn phí không hỗ trợ thêm cột mới' : ''}>
             + Thêm cột
           </button>
           <button className={styles.spreadsheetBtn} onClick={exportToPDF} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>

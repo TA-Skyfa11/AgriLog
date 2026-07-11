@@ -10,7 +10,7 @@ import {
   Home, Leaf, FlaskConical, ShieldAlert, Package, 
   ShoppingBag, Calendar, BarChart2, CreditCard, 
   User, Settings, Search, Sun, Bell, ShoppingCart, LogOut, Check, X,
-  Building, PackagePlus, ClipboardList, PieChart
+  Building, PackagePlus, ClipboardList, PieChart, Menu, ChevronLeft
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi, enUS } from 'date-fns/locale';
@@ -36,6 +36,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const [showNotifications, setShowNotifications] = React.useState(false);
   const [showCart, setShowCart] = React.useState(false);
   const [time, setTime] = React.useState(new Date());
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
 
   React.useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000);
@@ -196,10 +197,20 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
 
   return (
     <div className={styles.layout}>
-      <aside className={styles.sidebar}>
-        <div className={styles.brand}>
-          <div className={styles.brandIcon}><Leaf size={24} color="white" /></div>
-          AgriLog {role === 'ADMIN' ? 'Admin' : ''}
+      <aside className={`${styles.sidebar} ${isSidebarCollapsed ? styles.collapsed : ''}`}>
+        <div className={styles.brand} style={{ justifyContent: isSidebarCollapsed ? 'center' : 'space-between', padding: isSidebarCollapsed ? '0' : '0 1.5rem' }}>
+          {!isSidebarCollapsed && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div className={styles.brandIcon}><Leaf size={24} color="white" /></div>
+              <span>AgriLog {role === 'ADMIN' ? 'Admin' : ''}</span>
+            </div>
+          )}
+          <button 
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', padding: isSidebarCollapsed ? '1rem' : '0' }}
+          >
+             {isSidebarCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
+          </button>
         </div>
         <nav className={styles.nav}>
           {links.map((link) => {
@@ -212,26 +223,32 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
                 key={link.href}
                 href={link.href}
                 className={`${styles.navItem} ${isActive ? styles.active : ''}`}
+                style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', padding: isSidebarCollapsed ? '0.75rem 0' : '0.75rem 1.25rem' }}
+                title={isSidebarCollapsed ? link.label : ''}
               >
                 {link.icon}
-                <span style={{ marginLeft: '12px' }}>{link.label}</span>
+                {!isSidebarCollapsed && <span style={{ marginLeft: '12px' }}>{link.label}</span>}
               </Link>
             );
           })}
         </nav>
-        <div className={styles.userProfileBottom}>
+        <div className={styles.userProfileBottom} style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', padding: isSidebarCollapsed ? '1.25rem 0' : '1.25rem 1rem' }}>
           <div className={styles.avatar}>{userInitials}</div>
-          <div className={styles.userInfoText}>
-            <div className={styles.userName}>{userName}</div>
-            <div className={styles.userRole}>{role === 'FARM' ? 'Quản lý nông trại' : role === 'ADMIN' ? 'Admin' : 'Doanh nghiệp'}</div>
-          </div>
-          <button className={styles.logoutBtn} title={t('logout')} onClick={handleLogout}>
-            <LogOut size={20} />
-          </button>
+          {!isSidebarCollapsed && (
+            <div className={styles.userInfoText}>
+              <div className={styles.userName}>{userName}</div>
+              <div className={styles.userRole}>{role === 'FARM' ? 'Quản lý nông trại' : role === 'ADMIN' ? 'Admin' : 'Doanh nghiệp'}</div>
+            </div>
+          )}
+          {!isSidebarCollapsed && (
+            <button className={styles.logoutBtn} title={t('logout')} onClick={handleLogout}>
+              <LogOut size={20} />
+            </button>
+          )}
         </div>
       </aside>
       
-      <main className={styles.main}>
+      <main className={`${styles.main} ${isSidebarCollapsed ? styles.collapsed : ''}`}>
         <header className={styles.header}>
           <div className={styles.searchBar}>
             <Search size={20} color="#9ca3af" />

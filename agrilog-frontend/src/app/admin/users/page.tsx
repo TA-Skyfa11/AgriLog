@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Filter, UserPlus, Shield, Sprout, Ban, Building, KeyRound, Briefcase, Lock, Unlock } from 'lucide-react';
+import { Filter, UserPlus, Shield, Sprout, Ban, Building, KeyRound, Briefcase, Lock, Unlock, Trash2 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import styles from '@/css/Users.module.css';
@@ -124,6 +124,21 @@ export default function UsersPage() {
       }
     } catch (err: any) {
       alert(err.message || 'Có lỗi xảy ra');
+    }
+  };
+
+  const handleDeleteUser = async (userId: string, email: string) => {
+    if (!confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN tài khoản ${email} và TẤT CẢ dữ liệu liên quan? Hành động này không thể hoàn tác!`)) return;
+    try {
+      const res = await fetchAPI(`/admin/users/${userId}`, { method: 'DELETE' });
+      if (res.success) {
+        alert('Xóa tài khoản thành công!');
+        loadUsers();
+      } else {
+        alert(res.message || 'Xóa tài khoản thất bại');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Có lỗi xảy ra khi xóa tài khoản');
     }
   };
 
@@ -267,6 +282,19 @@ export default function UsersPage() {
                     >
                       <KeyRound size={14} /> Đặt lại MK
                     </button>
+                    <button
+                      onClick={() => handleDeleteUser(row.user._id, row.user.email)}
+                      style={{
+                        padding: '0.35rem 0.75rem', fontSize: '0.8rem', fontWeight: 500,
+                        border: '1px solid var(--color-error)', borderRadius: '6px',
+                        background: '#fef2f2', cursor: 'pointer', display: 'flex',
+                        alignItems: 'center', gap: '0.35rem', color: 'var(--color-error)',
+                        transition: 'all 0.2s',
+                      }}
+                      title="Xóa tài khoản vĩnh viễn"
+                    >
+                      <Trash2 size={14} /> Xóa
+                    </button>
                   </td>
                 </tr>
               )
@@ -389,7 +417,7 @@ export default function UsersPage() {
 
             {!resetUserAllowed && (
               <div style={{ padding: '1rem', background: '#fef2f2', color: '#b91c1c', borderRadius: '6px', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
-                <strong>Lưu ý:</strong> Tài khoản này chưa bật tùy chọn <em>"Cho phép Admin đặt lại mật khẩu"</em> trong cài đặt bảo mật. 
+                <strong>Lưu ý:</strong> Tài khoản này chưa bật tùy chọn <em>&quot;Cho phép Admin đặt lại mật khẩu&quot;</em> trong cài đặt bảo mật. 
                 Bạn không thể đặt lại mật khẩu trừ khi chủ tài khoản kích hoạt tính năng này.
               </div>
             )}

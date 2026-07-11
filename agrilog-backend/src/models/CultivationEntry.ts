@@ -11,6 +11,7 @@ export interface ICultivationEntry extends Document {
   notes?: string; // Ghi chú
   imageUrls?: string[]; // Hình ảnh
   customValues?: any; // Dữ liệu cột tùy chỉnh
+  isCompleted?: boolean; // Hoàn thành
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +28,7 @@ const cultivationEntrySchema = new Schema<ICultivationEntry>(
     notes: { type: String },
     imageUrls: [{ type: String }],
     customValues: { type: Schema.Types.Mixed, default: {} },
+    isCompleted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

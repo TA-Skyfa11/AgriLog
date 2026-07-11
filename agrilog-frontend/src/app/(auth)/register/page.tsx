@@ -1,11 +1,15 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { fetchAPI } from '@/lib/api';
 import styles from '@/css/login.module.css'; // Reusing the same styles
+import billingStyles from '@/css/billing.module.css';
+import { Check, X, CheckCircle2 } from 'lucide-react';
+
+const QR_BASE_URL = 'https://api.vietqr.io/image/970422-88020305666999-CYu443p.jpg?accountName=NGUYEN%20TUNG%20ANH';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -34,6 +38,13 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Step 3: Billing
+  const [packages, setPackages] = useState<any[]>([]);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedPkg, setSelectedPkg] = useState<any>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+
   const handleStep1Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -58,7 +69,6 @@ export default function RegisterPage() {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
 
-        // Move to step 2 instead of redirecting
         setStep(2);
       }
     } catch (err: unknown) {
@@ -69,6 +79,17 @@ export default function RegisterPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPackages = async () => {
+    try {
+      const pkgRes = await fetchAPI('/services');
+      if (pkgRes.success) {
+        setPackages(pkgRes.data);
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
 
@@ -101,7 +122,8 @@ export default function RegisterPage() {
         });
 
         if (data.success) {
-          router.push('/dashboard');
+          await loadPackages();
+          setStep(3); // Go to billing
         }
       } else {
         const data = await fetchAPI('/company/profile', {
@@ -130,6 +152,136 @@ export default function RegisterPage() {
     }
   };
 
+  // Step 3 Actions
+  useEffect(() => {
+    if (!showSuccess) return;
+    if (countdown <= 0) {
+      router.push(role === 'FARM' ? '/dashboard' : '/company/dashboard');
+      return;
+    }
+    const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [showSuccess, countdown, router, role]);
+
+  const handleSkipBilling = () => {
+    // Farm profile is already FREE by default in the backend
+    router.push('/dashboard');
+  };
+
+  const handleSelectPlan = (pkg: any) => {
+    setSelectedPkg(pkg);
+    setShowQRModal(true);
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!selectedPkg) return;
+
+    try {
+      const res = await fetchAPI('/farm/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          plan: selectedPkg.code,
+          farmName // required field in PUT
+        }),
+      });
+      if (res.success) {
+        setShowQRModal(false);
+        setShowSuccess(true);
+        setCountdown(5);
+      }
+    } catch (error) {
+      alert('Có lỗi xảy ra khi xử lý thanh toán');
+    }
+  };
+
+  const renderStep3 = () => {
+    if (showSuccess) {
+      return (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', padding: '2rem', animation: 'fadeIn 0.5s ease',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            width: '80px', height: '80px', borderRadius: '50%',
+            background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 0 12px rgba(34,197,94,0.15)', animation: 'scaleIn 0.5s ease',
+            marginBottom: '1rem'
+          }}>
+            <CheckCircle2 size={40} color="white" />
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-main)', margin: '0 0 1rem 0' }}>
+            Thanh toán thành công!
+          </h2>
+          <p style={{ color: 'var(--color-text-muted)' }}>
+            Bạn đã đăng ký gói <strong style={{ color: 'var(--color-primary-600)' }}>{selectedPkg?.name}</strong>.
+          </p>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
+            Tự động chuyển hướng sau {countdown}s
+          </p>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className={styles.button}
+            style={{ marginTop: '1rem' }}
+          >
+            Về trang chính ngay
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ padding: '1rem' }}>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 800, textAlign: 'center', marginBottom: '0.5rem', color: 'var(--color-text-main)' }}>
+          Chọn gói dịch vụ
+        </h2>
+        <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
+          Bạn có thể nâng cấp để mở rộng tính năng, hoặc bỏ qua để dùng bản miễn phí.
+        </p>
+
+        <div className={billingStyles.pricingGrid} style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+          {packages.map((pkg) => (
+            <div key={pkg._id} className={`${billingStyles.pricingCard} ${pkg.code === 'STANDARD' ? billingStyles.popular : ''}`} style={{ padding: '1.5rem' }}>
+              {pkg.code === 'STANDARD' && <div className={billingStyles.popularBadge} style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem' }}>Phổ biến nhất</div>}
+              <div className={billingStyles.planName} style={{ fontSize: '1rem' }}>{pkg.name}</div>
+              <div className={billingStyles.planPrice} style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>
+                {pkg.price.toLocaleString('vi-VN')} <span>/ tháng</span>
+              </div>
+              <div className={billingStyles.featureList} style={{ gap: '0.5rem', marginBottom: '1.5rem' }}>
+                {pkg.features && pkg.features.map((feature: string, idx: number) => (
+                  <div key={idx} className={billingStyles.featureItem} style={{ fontSize: '0.75rem' }}><Check size={14} color="#16a34a" /> {feature}</div>
+                ))}
+              </div>
+              <button 
+                className={`${billingStyles.button} ${pkg.code === 'STANDARD' ? billingStyles.btnSolid : billingStyles.btnOutline}`}
+                style={{ padding: '0.5rem', fontSize: '0.875rem' }}
+                onClick={() => handleSelectPlan(pkg)}
+                disabled={!pkg.isActive}
+              >
+                Chọn gói
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <button 
+          onClick={handleSkipBilling}
+          style={{
+            width: '100%', marginTop: '1.5rem', padding: '0.875rem',
+            background: 'transparent', border: '1px solid var(--color-border)',
+            color: 'var(--color-text-muted)', borderRadius: '8px', cursor: 'pointer',
+            fontWeight: 600, transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-bg)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+        >
+          Bỏ qua, dùng bản miễn phí (Free)
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className={styles.splitContainer}>
       <div className={styles.imageSection}>
@@ -146,19 +298,21 @@ export default function RegisterPage() {
       </div>
 
       <div className={styles.formSection}>
-        <div className={styles.card}>
-          <div className={styles.header}>
-            <h1 className={styles.title}>{step === 1 ? 'Đăng ký' : (role === 'FARM' ? 'Thiết lập Nông trại' : 'Thiết lập Doanh nghiệp')}</h1>
-            <p className={styles.subtitle}>
-              {step === 1 
-                ? 'Khởi tạo tài khoản mới' 
-                : 'Cung cấp thông tin để chúng tôi thiết lập không gian cho bạn'}
-            </p>
-          </div>
+        <div className={styles.card} style={step === 3 ? { maxWidth: '800px', width: '100%' } : {}}>
+          {step < 3 && (
+            <div className={styles.header}>
+              <h1 className={styles.title}>{step === 1 ? 'Đăng ký' : (role === 'FARM' ? 'Thiết lập Nông trại' : 'Thiết lập Doanh nghiệp')}</h1>
+              <p className={styles.subtitle}>
+                {step === 1 
+                  ? 'Khởi tạo tài khoản mới' 
+                  : 'Cung cấp thông tin để chúng tôi thiết lập không gian cho bạn'}
+              </p>
+            </div>
+          )}
           
           {error && <div style={{ color: 'var(--color-error)', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: '8px' }}>{error}</div>}
 
-          {step === 1 ? (
+          {step === 1 && (
             <form className={styles.form} onSubmit={handleStep1Submit}>
               <div className={styles.formGroup} style={{ marginBottom: '1.5rem' }}>
                 <label className={styles.label}>Loại tài khoản</label>
@@ -231,12 +385,13 @@ export default function RegisterPage() {
                 {loading ? 'Đang xử lý...' : 'Đăng ký & Tiếp tục'}
               </button>
             </form>
-          ) : (
+          )}
+
+          {step === 2 && (
             <form className={styles.form} onSubmit={handleStep2Submit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 {role === 'FARM' ? (
                   <>
-                    {/* FARM PROFILE */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                       <div className={styles.formGroup}>
                         <label className={styles.label} htmlFor="farmName">Tên Nông Trại <span style={{ color: 'red' }}>*</span></label>
@@ -265,14 +420,13 @@ export default function RegisterPage() {
                         <input id="address" type="text" className={styles.input} placeholder="Tỉnh/Thành phố..." value={address} onChange={(e) => setAddress(e.target.value)} />
                       </div>
                       <div className={styles.formGroup}>
-                        <label className={styles.label} htmlFor="mainCropType">Cây trồng chính</label>
-                        <input id="mainCropType" type="text" className={styles.input} placeholder="Ví dụ: Nhãn lồng" value={mainCropType} onChange={(e) => setMainCropType(e.target.value)} />
+                        <label className={styles.label} htmlFor="mainCropType">Tên người dùng</label>
+                        <input id="mainCropType" type="text" className={styles.input} placeholder="Ví dụ: Nguyễn Văn A" value={mainCropType} onChange={(e) => setMainCropType(e.target.value)} />
                       </div>
                     </div>
                   </>
                 ) : (
                   <>
-                    {/* COMPANY PROFILE */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                       <div className={styles.formGroup}>
                         <label className={styles.label} htmlFor="companyName">Tên Doanh Nghiệp <span style={{ color: 'red' }}>*</span></label>
@@ -315,6 +469,8 @@ export default function RegisterPage() {
             </form>
           )}
 
+          {step === 3 && renderStep3()}
+
           {step === 1 && (
             <div className={styles.footer}>
               Đã có tài khoản?{' '}
@@ -325,6 +481,50 @@ export default function RegisterPage() {
           )}
         </div>
       </div>
+
+      {/* QR Modal Step 3 */}
+      {showQRModal && selectedPkg && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center',
+          alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(6px)'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--color-surface, #fff)', borderRadius: '20px',
+            padding: '2.5rem', width: '100%', maxWidth: '480px', position: 'relative'
+          }}>
+            <button 
+              onClick={() => setShowQRModal(false)}
+              style={{ position: 'absolute', top: '1rem', right: '1rem', border: 'none', background: 'transparent', cursor: 'pointer' }}
+            >
+              <X size={20} />
+            </button>
+
+            <h2 style={{ textAlign: 'center', fontSize: '1.5rem', fontWeight: 800 }}>Thanh toán gói {selectedPkg.name}</h2>
+            <div style={{ textAlign: 'center', color: '#16a34a', fontSize: '1.75rem', fontWeight: 800, margin: '1rem 0' }}>
+              {selectedPkg.price.toLocaleString('vi-VN')} VNĐ
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '1rem 0' }}>
+              <img
+                src={`${QR_BASE_URL}&amount=${selectedPkg.price}`}
+                alt="QR thanh toán"
+                style={{ width: '220px', height: '220px', borderRadius: '8px' }}
+              />
+            </div>
+
+            <button
+              onClick={handleConfirmPayment}
+              style={{
+                width: '100%', padding: '1rem', background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                color: 'white', border: 'none', borderRadius: '9999px', fontWeight: 700, cursor: 'pointer'
+              }}
+            >
+              ✓ Tôi đã thanh toán xong
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

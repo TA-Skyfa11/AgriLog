@@ -15,6 +15,11 @@
   left: 0;
   height: 100vh;
   z-index: 10;
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 80px;
 }
 
 .brand {
@@ -129,6 +134,11 @@
   margin-left: 260px;
   display: flex;
   flex-direction: column;
+  transition: margin-left 0.3s ease;
+}
+
+.main.collapsed {
+  margin-left: 80px;
 }
 
 .header {

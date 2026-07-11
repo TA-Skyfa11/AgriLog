@@ -456,7 +456,7 @@ export default function FertilizerDiaryDetailPage() {
           <button className={styles.spreadsheetBtn} style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }} onClick={handleDeleteBoard}>
             🗑️ Xóa bảng
           </button>
-          <button className={styles.spreadsheetBtn} onClick={() => alert('Thêm cột mới hiện tại là mock')}>
+          <button className={styles.spreadsheetBtn} onClick={() => alert('Thêm cột mới hiện tại là mock')} disabled={userPlan === 'FREE'} style={{ opacity: userPlan === 'FREE' ? 0.5 : 1, cursor: userPlan === 'FREE' ? 'not-allowed' : 'pointer' }} title={userPlan === 'FREE' ? 'Gói Miễn phí không hỗ trợ thêm cột mới' : ''}>
             + Thêm cột
           </button>
           <button className={styles.spreadsheetBtn} onClick={exportToPDF} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
