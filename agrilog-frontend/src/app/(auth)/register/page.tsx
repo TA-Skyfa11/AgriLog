@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { fetchAPI } from '@/lib/api';
-import styles from '@/css/login.module.css'; // Reusing the same styles
+import styles from '@/css/login.module.css';
 import billingStyles from '@/css/billing.module.css';
 import { Check, X, CheckCircle2 } from 'lucide-react';
 
@@ -14,73 +14,32 @@ const QR_BASE_URL = 'https://api.vietqr.io/image/970422-88020305666999-CYu443p.j
 export default function RegisterPage() {
   const router = useRouter();
   
-  // Step management
   const [step, setStep] = useState(1);
   const [role, setRole] = useState('FARM'); // FARM or COMPANY
   
-  // Step 1: Account
+  // Account
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
-  // Step 2: Farm Profile
-  const [farmName, setFarmName] = useState('');
+  // Profile
+  const [profileName, setProfileName] = useState(''); // Maps to farmName or companyName
+  const [contactPhone, setContactPhone] = useState('');
   const [address, setAddress] = useState('');
   const [areaSqm, setAreaSqm] = useState('');
-  const [mainCropType, setMainCropType] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-
-  // Step 2: Company Profile
-  const [companyName, setCompanyName] = useState('');
   const [taxCode, setTaxCode] = useState('');
   const [businessType, setBusinessType] = useState('');
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Step 3: Billing
+  // Billing
   const [packages, setPackages] = useState<any[]>([]);
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<any>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [countdown, setCountdown] = useState(5);
-
-  const handleStep1Submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (password !== confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const data = await fetchAPI('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ email, password, role }),
-      });
-
-      if (data.success) {
-        document.cookie = `token=${data.token}; path=/; max-age=2592000`; // 30 days
-        document.cookie = `role=${data.user.role}; path=/; max-age=2592000`;
-        
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-
-        setStep(2);
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Đăng ký thất bại. Vui lòng kiểm tra lại.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadPackages = async () => {
     try {
@@ -93,66 +52,79 @@ export default function RegisterPage() {
     }
   };
 
-  const handleStep2Submit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (role === 'FARM' && !farmName.trim()) {
-      setError('Vui lòng nhập Tên Nông Trại');
+    if (password !== confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp');
       return;
     }
-    if (role === 'COMPANY' && !companyName.trim()) {
-      setError('Vui lòng nhập Tên Doanh Nghiệp');
+
+    if (!profileName.trim()) {
+      setError(role === 'FARM' ? 'Vui lòng nhập Tên Nông Trại' : 'Vui lòng nhập Tên Doanh Nghiệp');
       return;
     }
 
     setLoading(true);
 
     try {
-      if (role === 'FARM') {
-        const data = await fetchAPI('/farm/profile', {
-          method: 'PUT',
-          body: JSON.stringify({
-            farmName,
-            address,
-            areaSqm: areaSqm ? Number(areaSqm) : undefined,
-            mainCropType,
-            contactPhone
-          }),
-        });
+      const registerData = await fetchAPI('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password, role }),
+      });
 
-        if (data.success) {
-          await loadPackages();
-          setStep(3); // Go to billing
-        }
-      } else {
-        const data = await fetchAPI('/company/profile', {
-          method: 'PUT',
-          body: JSON.stringify({
-            companyName,
-            address,
-            contactPhone,
-            taxCode,
-            businessType
-          }),
-        });
+      if (registerData.success) {
+        document.cookie = `token=${registerData.token}; path=/; max-age=2592000`; // 30 days
+        document.cookie = `role=${registerData.user.role}; path=/; max-age=2592000`;
+        
+        localStorage.setItem('token', registerData.token);
+        localStorage.setItem('user', JSON.stringify(registerData.user));
+        localStorage.removeItem('cart'); // Clear cart on new account
 
-        if (data.success) {
-          router.push('/company/dashboard');
+        // Now setup profile
+        if (role === 'FARM') {
+          const profileData = await fetchAPI('/farm/profile', {
+            method: 'PUT',
+            body: JSON.stringify({
+              farmName: profileName,
+              address,
+              areaSqm: areaSqm ? Number(areaSqm) : undefined,
+              contactPhone
+            }),
+          });
+          if (profileData.success) {
+            await loadPackages();
+            setStep(2); // Go to billing
+          }
+        } else {
+          const profileData = await fetchAPI('/company/profile', {
+            method: 'PUT',
+            body: JSON.stringify({
+              companyName: profileName,
+              address,
+              contactPhone,
+              taxCode,
+              businessType
+            }),
+          });
+          if (profileData.success) {
+            router.push('/company/dashboard');
+          }
         }
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Cập nhật hồ sơ thất bại.');
+        setError('Đăng ký thất bại. Vui lòng kiểm tra lại.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // Step 3 Actions
+  // Billing Actions
   useEffect(() => {
     if (!showSuccess) return;
     if (countdown <= 0) {
@@ -164,7 +136,6 @@ export default function RegisterPage() {
   }, [showSuccess, countdown, router, role]);
 
   const handleSkipBilling = () => {
-    // Farm profile is already FREE by default in the backend
     router.push('/dashboard');
   };
 
@@ -181,7 +152,7 @@ export default function RegisterPage() {
         method: 'PUT',
         body: JSON.stringify({
           plan: selectedPkg.code,
-          farmName // required field in PUT
+          farmName: profileName // required field in PUT
         }),
       });
       if (res.success) {
@@ -194,7 +165,7 @@ export default function RegisterPage() {
     }
   };
 
-  const renderStep3 = () => {
+  const renderBillingStep = () => {
     if (showSuccess) {
       return (
         <div style={{
@@ -298,191 +269,122 @@ export default function RegisterPage() {
       </div>
 
       <div className={styles.formSection}>
-        <div className={styles.card} style={step === 3 ? { maxWidth: '800px', width: '100%' } : {}}>
-          {step < 3 && (
-            <div className={styles.header}>
-              <h1 className={styles.title}>{step === 1 ? 'Đăng ký' : (role === 'FARM' ? 'Thiết lập Nông trại' : 'Thiết lập Doanh nghiệp')}</h1>
-              <p className={styles.subtitle}>
-                {step === 1 
-                  ? 'Khởi tạo tài khoản mới' 
-                  : 'Cung cấp thông tin để chúng tôi thiết lập không gian cho bạn'}
-              </p>
-            </div>
-          )}
-          
-          {error && <div style={{ color: 'var(--color-error)', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: '8px' }}>{error}</div>}
-
+        <div className={styles.card} style={step === 2 ? { maxWidth: '800px', width: '100%' } : { maxHeight: '90vh', overflowY: 'auto', paddingRight: '1rem' }}>
           {step === 1 && (
-            <form className={styles.form} onSubmit={handleStep1Submit}>
-              <div className={styles.formGroup} style={{ marginBottom: '1.5rem' }}>
-                <label className={styles.label}>Loại tài khoản</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
-                  <div 
-                    onClick={() => setRole('FARM')}
-                    style={{ 
-                      padding: '1rem', border: `2px solid ${role === 'FARM' ? 'var(--color-primary-500)' : 'var(--color-border)'}`, 
-                      borderRadius: '8px', cursor: 'pointer', textAlign: 'center',
-                      backgroundColor: role === 'FARM' ? 'var(--color-primary-50)' : 'transparent'
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, color: role === 'FARM' ? 'var(--color-primary-700)' : 'var(--color-text-main)' }}>Nông trại</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>Quản lý canh tác</div>
-                  </div>
-                  <div 
-                    onClick={() => setRole('COMPANY')}
-                    style={{ 
-                      padding: '1rem', border: `2px solid ${role === 'COMPANY' ? 'var(--color-primary-500)' : 'var(--color-border)'}`, 
-                      borderRadius: '8px', cursor: 'pointer', textAlign: 'center',
-                      backgroundColor: role === 'COMPANY' ? 'var(--color-primary-50)' : 'transparent'
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, color: role === 'COMPANY' ? 'var(--color-primary-700)' : 'var(--color-text-main)' }}>Doanh nghiệp</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>Bán vật tư nông nghiệp</div>
+            <>
+              <div className={styles.header}>
+                <h1 className={styles.title}>Đăng ký Tài Khoản</h1>
+                <p className={styles.subtitle}>Điền đầy đủ thông tin để tham gia nền tảng</p>
+              </div>
+              
+              {error && <div style={{ color: 'var(--color-error)', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: '8px' }}>{error}</div>}
+
+              <form className={styles.form} onSubmit={handleSubmit}>
+                <div className={styles.formGroup} style={{ marginBottom: '1.5rem' }}>
+                  <label className={styles.label}>Loại tài khoản</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+                    <div 
+                      onClick={() => setRole('FARM')}
+                      style={{ 
+                        padding: '1rem', border: `2px solid ${role === 'FARM' ? 'var(--color-primary-500)' : 'var(--color-border)'}`, 
+                        borderRadius: '8px', cursor: 'pointer', textAlign: 'center',
+                        backgroundColor: role === 'FARM' ? 'var(--color-primary-50)' : 'transparent'
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, color: role === 'FARM' ? 'var(--color-primary-700)' : 'var(--color-text-main)' }}>Nông trại</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>Quản lý canh tác</div>
+                    </div>
+                    <div 
+                      onClick={() => setRole('COMPANY')}
+                      style={{ 
+                        padding: '1rem', border: `2px solid ${role === 'COMPANY' ? 'var(--color-primary-500)' : 'var(--color-border)'}`, 
+                        borderRadius: '8px', cursor: 'pointer', textAlign: 'center',
+                        backgroundColor: role === 'COMPANY' ? 'var(--color-primary-50)' : 'transparent'
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, color: role === 'COMPANY' ? 'var(--color-primary-700)' : 'var(--color-text-main)' }}>Doanh nghiệp</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>Bán vật tư nông nghiệp</div>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="email">Email</label>
-                <input
-                  id="email"
-                  type="email"
-                  className={styles.input}
-                  placeholder="nhap@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="password">Mật khẩu</label>
-                <input
-                  id="password"
-                  type="password"
-                  className={styles.input}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="name">Họ và tên <span style={{ color: 'red' }}>*</span></label>
+                  <input id="name" type="text" className={styles.input} placeholder="Nguyễn Văn A" value={name} onChange={(e) => setName(e.target.value)} required />
+                </div>
 
-              <div className={styles.formGroup}>
-                <label className={styles.label} htmlFor="confirmPassword">Xác nhận mật khẩu</label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  className={styles.input}
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                />
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="email">Email <span style={{ color: 'red' }}>*</span></label>
+                  <input id="email" type="email" className={styles.input} placeholder="nhap@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                </div>
+                
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="password">Mật khẩu <span style={{ color: 'red' }}>*</span></label>
+                  <input id="password" type="password" className={styles.input} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="confirmPassword">Xác nhận mật khẩu <span style={{ color: 'red' }}>*</span></label>
+                  <input id="confirmPassword" type="password" className={styles.input} placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                </div>
+
+                <hr style={{ margin: '1.5rem 0', borderColor: 'var(--color-border)', borderTop: 'none' }} />
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem 1rem' }}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label} htmlFor="profileName">{role === 'FARM' ? 'Tên Nông Trại' : 'Tên Doanh Nghiệp'} <span style={{ color: 'red' }}>*</span></label>
+                    <input id="profileName" type="text" className={styles.input} placeholder={role === 'FARM' ? "Ví dụ: Nông trại Xanh" : "Ví dụ: Cty Bình Điền"} value={profileName} onChange={(e) => setProfileName(e.target.value)} required />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.label} htmlFor="contactPhone">Số điện thoại</label>
+                    <input id="contactPhone" type="tel" className={styles.input} placeholder="0987654321" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+                  </div>
+                  
+                  <div className={styles.formGroup}>
+                    <label className={styles.label} htmlFor="address">Địa chỉ</label>
+                    <input id="address" type="text" className={styles.input} placeholder="Tỉnh/Thành phố..." value={address} onChange={(e) => setAddress(e.target.value)} />
+                  </div>
+
+                  {role === 'FARM' ? (
+                    <div className={styles.formGroup}>
+                      <label className={styles.label} htmlFor="areaSqm">Diện tích tổng (m²)</label>
+                      <input id="areaSqm" type="number" className={styles.input} placeholder="Ví dụ: 5000" value={areaSqm} onChange={(e) => setAreaSqm(e.target.value)} />
+                    </div>
+                  ) : (
+                    <div className={styles.formGroup}>
+                      <label className={styles.label} htmlFor="taxCode">Mã số thuế</label>
+                      <input id="taxCode" type="text" className={styles.input} placeholder="Ví dụ: 0312345678" value={taxCode} onChange={(e) => setTaxCode(e.target.value)} />
+                    </div>
+                  )}
+
+                  {role === 'COMPANY' && (
+                    <div className={styles.formGroup} style={{ gridColumn: '1 / span 2' }}>
+                      <label className={styles.label} htmlFor="businessType">Loại hình kinh doanh</label>
+                      <input id="businessType" type="text" className={styles.input} placeholder="Ví dụ: Sản xuất phân bón, thuốc BVTV" value={businessType} onChange={(e) => setBusinessType(e.target.value)} />
+                    </div>
+                  )}
+                </div>
+
+                <button type="submit" className={styles.button} disabled={loading} style={{ marginTop: '1rem' }}>
+                  {loading ? 'Đang xử lý...' : 'Đăng ký & Bắt đầu sử dụng'}
+                </button>
+              </form>
+
+              <div className={styles.footer}>
+                Đã có tài khoản?{' '}
+                <Link href="/login" className={styles.footerLink}>
+                  Đăng nhập ngay
+                </Link>
               </div>
-              
-              <button type="submit" className={styles.button} disabled={loading}>
-                {loading ? 'Đang xử lý...' : 'Đăng ký & Tiếp tục'}
-              </button>
-            </form>
+            </>
           )}
 
-          {step === 2 && (
-            <form className={styles.form} onSubmit={handleStep2Submit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                {role === 'FARM' ? (
-                  <>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label} htmlFor="farmName">Tên Nông Trại <span style={{ color: 'red' }}>*</span></label>
-                        <input id="farmName" type="text" className={styles.input} placeholder="Ví dụ: Nông trại Xanh" value={farmName} onChange={(e) => setFarmName(e.target.value)} required />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label} htmlFor="contactPhone">Số điện thoại</label>
-                        <input id="contactPhone" type="tel" className={styles.input} placeholder="0987654321" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label} htmlFor="areaSqm">Diện tích tổng (m²)</label>
-                        <input id="areaSqm" type="number" className={styles.input} placeholder="Ví dụ: 5000" value={areaSqm} onChange={(e) => setAreaSqm(e.target.value)} />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label}>Vai trò tài khoản</label>
-                        <input type="text" className={styles.input} value="Quản lý nông trại (Chủ sở hữu)" disabled style={{ backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' }} />
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label}>Email</label>
-                        <input type="email" className={styles.input} value={email} disabled style={{ backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' }} />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label} htmlFor="address">Địa chỉ</label>
-                        <input id="address" type="text" className={styles.input} placeholder="Tỉnh/Thành phố..." value={address} onChange={(e) => setAddress(e.target.value)} />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label} htmlFor="mainCropType">Tên người dùng</label>
-                        <input id="mainCropType" type="text" className={styles.input} placeholder="Ví dụ: Nguyễn Văn A" value={mainCropType} onChange={(e) => setMainCropType(e.target.value)} />
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label} htmlFor="companyName">Tên Doanh Nghiệp <span style={{ color: 'red' }}>*</span></label>
-                        <input id="companyName" type="text" className={styles.input} placeholder="Ví dụ: Công ty Phân bón Bình Điền" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label} htmlFor="contactPhone">Số điện thoại</label>
-                        <input id="contactPhone" type="tel" className={styles.input} placeholder="0987654321" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label} htmlFor="taxCode">Mã số thuế</label>
-                        <input id="taxCode" type="text" className={styles.input} placeholder="Ví dụ: 0312345678" value={taxCode} onChange={(e) => setTaxCode(e.target.value)} />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label}>Vai trò tài khoản</label>
-                        <input type="text" className={styles.input} value="Đại diện doanh nghiệp" disabled style={{ backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' }} />
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label}>Email</label>
-                        <input type="email" className={styles.input} value={email} disabled style={{ backgroundColor: '#f3f4f6', color: '#6b7280', cursor: 'not-allowed' }} />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label} htmlFor="address">Địa chỉ</label>
-                        <input id="address" type="text" className={styles.input} placeholder="Tỉnh/Thành phố..." value={address} onChange={(e) => setAddress(e.target.value)} />
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label className={styles.label} htmlFor="businessType">Loại hình kinh doanh</label>
-                        <input id="businessType" type="text" className={styles.input} placeholder="Ví dụ: Sản xuất phân bón, thuốc BVTV" value={businessType} onChange={(e) => setBusinessType(e.target.value)} />
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <button type="submit" className={styles.button} disabled={loading} style={{ marginTop: '0.5rem' }}>
-                {loading ? 'Đang hoàn tất...' : 'Bắt đầu sử dụng'}
-              </button>
-            </form>
-          )}
-
-          {step === 3 && renderStep3()}
-
-          {step === 1 && (
-            <div className={styles.footer}>
-              Đã có tài khoản?{' '}
-              <Link href="/login" className={styles.footerLink}>
-                Đăng nhập ngay
-              </Link>
-            </div>
-          )}
+          {step === 2 && renderBillingStep()}
         </div>
       </div>
 
-      {/* QR Modal Step 3 */}
+      {/* QR Modal Step 2 */}
       {showQRModal && selectedPkg && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,

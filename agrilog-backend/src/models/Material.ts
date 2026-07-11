@@ -6,7 +6,7 @@ export interface IMaterial extends Document {
   type: 'FERTILIZER' | 'PESTICIDE';
   quantity: number;
   unit: string;
-  pricePerUnit: number;
+  expiryDate?: Date;
   minQuantityAlert: number;
   createdAt: Date;
   updatedAt: Date;
@@ -19,7 +19,7 @@ const materialSchema = new Schema<IMaterial>(
     type: { type: String, enum: ['FERTILIZER', 'PESTICIDE'], required: true },
     quantity: { type: Number, default: 0 },
     unit: { type: String, required: true },
-    pricePerUnit: { type: Number, default: 0 },
+    expiryDate: { type: Date },
     minQuantityAlert: { type: Number, default: 10 },
   },
   { timestamps: true }

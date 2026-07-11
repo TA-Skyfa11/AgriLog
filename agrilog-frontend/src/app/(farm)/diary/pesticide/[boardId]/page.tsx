@@ -379,7 +379,7 @@ export default function PesticideDiaryDetailPage() {
       alert('Gói cước Basic không hỗ trợ xuất file Excel. Vui lòng nâng cấp gói cước.');
       return;
     }
-    const headers = ['STT', 'Ngày sử dụng', 'Tên thuốc', 'Hoạt chất', 'Mục tiêu phòng trừ', 'Liều lượng', 'Thời gian cách ly', 'Người thực hiện', 'Chi phí (VNĐ)', 'Ghi chú'];
+    const headers = ['STT', 'Ngày sử dụng', 'Tên thuốc', 'Hoạt chất', 'Mục tiêu phòng trừ', 'Liều lượng', 'Thời gian cách ly', 'Người thực hiện', 'Ghi chú'];
     const csvRows = [headers.join(',')];
 
     entries.forEach((e, idx) => {
@@ -393,7 +393,6 @@ export default function PesticideDiaryDetailPage() {
         `"${(e.quantity || '—').replace(/"/g, '""')}"`,
         e.phiDays || 0,
         `"${(e.performer || '—').replace(/"/g, '""')}"`,
-        e.cost || 0,
         `"${(e.notes || '—').replace(/"/g, '""')}"`
       ];
       csvRows.push(row.join(','));
@@ -449,7 +448,6 @@ export default function PesticideDiaryDetailPage() {
       'Lieu luong', 
       'Cach ly (ngay)', 
       'Nguoi thuc hien', 
-      'Chi phi', 
       'Ghi chu',
       ...customCols.map((c: string) => c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
     ];
@@ -463,7 +461,6 @@ export default function PesticideDiaryDetailPage() {
       (e.quantity || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
       e.phiDays || 0,
       (e.performer || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      e.cost || 0,
       (e.notes || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
       ...customCols.map((col: string) => (e.customValues?.[col] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
     ]);
@@ -612,7 +609,6 @@ export default function PesticideDiaryDetailPage() {
               <th>Liều lượng</th>
               <th>Thời gian cách ly</th>
               <th>Người thực hiện</th>
-              <th>Chi phí (VNĐ)</th>
               <th>Ghi chú</th>
               {board.customColumns?.map((col: string, idx: number) => (
                 <th key={idx}>
@@ -695,15 +691,6 @@ export default function PesticideDiaryDetailPage() {
                       style={inlineInputStyle}
                       value={entry.performer || ''}
                       onChange={(e: any) => updateLocalEntry(index, 'performer', e.target.value)}
-                      onBlur={() => handleBlurSave(index)}
-                    />
-                  </td>
-                  <td>
-                    <input 
-                      type="number" 
-                      style={inlineInputStyle}
-                      value={entry.cost || ''}
-                      onChange={(e) => updateLocalEntry(index, 'cost', e.target.value)}
                       onBlur={() => handleBlurSave(index)}
                     />
                   </td>

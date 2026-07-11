@@ -35,23 +35,31 @@ export const updateFarmProfile = async (req: AuthRequest, res: Response) => {
         profile.planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       }
     } else {
-      if (req.body.plan && req.body.plan !== profile.plan) {
+      const currentEffectivePlan = getEffectivePlan(profile);
+      if (req.body.plan && req.body.plan !== currentEffectivePlan) {
         const planValues = { FREE: 0, BASIC: 1, STANDARD: 2, PREMIUM: 3 };
-        const currentVal = planValues[profile.plan as keyof typeof planValues] || 0;
-        const newVal = planValues[req.body.plan as keyof typeof planValues] || 1;
+        const currentVal = planValues[currentEffectivePlan as keyof typeof planValues] || 0;
+        const newVal = planValues[req.body.plan as keyof typeof planValues] || 0;
         
         if (newVal > currentVal) {
+          const isNewPurchase = !profile.planExpiresAt || new Date(profile.planExpiresAt) < new Date();
           profile.planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
           
-          // Generate notification for successful purchase
-          await Notification.create({
-            user: req.user?._id,
-            title: 'Mua gói cước thành công',
-            message: `Chúc mừng bạn đã nâng cấp lên gói ${req.body.plan}. Gói cước có hiệu lực đến ngày ${profile.planExpiresAt.toLocaleDateString('vi-VN')}.`,
-            type: 'BILLING'
-          });
+          if (isNewPurchase) {
+            // Generate notification for successful purchase
+            await Notification.create({
+              user: req.user?._id,
+              title: 'Mua gói cước thành công',
+              message: `Chúc mừng bạn đã nâng cấp lên gói ${req.body.plan}. Gói cước có hiệu lực đến ngày ${profile.planExpiresAt.toLocaleDateString('vi-VN')}.`,
+              type: 'BILLING'
+            });
+          }
+          profile.previousPlan = currentEffectivePlan;
+        } else {
+          // Downgrade immediately
+          profile.planExpiresAt = undefined;
+          profile.previousPlan = undefined;
         }
-        profile.previousPlan = profile.plan;
       }
       profile.set(req.body);
     }

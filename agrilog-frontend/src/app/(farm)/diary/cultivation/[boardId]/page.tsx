@@ -669,11 +669,7 @@ export default function CultivationDiaryDetailPage() {
           <button className={styles.spreadsheetBtn} onClick={exportToExcel} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
             <Download size={16} /> Excel
           </button>
-          {board.status === 'ACTIVE' && (
-            <button className={styles.spreadsheetBtn} style={{ backgroundColor: '#10b981', color: 'white', borderColor: '#10b981' }} onClick={() => setShowHarvestModal(true)}>
-              Đánh dấu Thu hoạch
-            </button>
-          )}
+
         </div>
       </div>
 

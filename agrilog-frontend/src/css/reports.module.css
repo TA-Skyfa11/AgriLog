@@ -74,3 +74,20 @@
   color: var(--color-text-main);
   margin-bottom: 1.5rem;
 }
+
+@media print {
+  :global(.no-print) {
+    display: none !important;
+  }
+  
+  .container {
+    gap: 1rem;
+    padding: 0 !important;
+  }
+
+  .chartCard {
+    break-inside: avoid;
+    box-shadow: none;
+    border: 1px solid #e2e8f0;
+  }
+}

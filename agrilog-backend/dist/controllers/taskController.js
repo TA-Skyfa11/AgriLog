@@ -34,7 +34,7 @@ const createTask = async (req, res) => {
 exports.createTask = createTask;
 const completeTask = async (req, res) => {
     try {
-        const task = await Task_1.Task.findByIdAndUpdate(req.params.id, { status: 'COMPLETED' }, { new: true });
+        const task = await Task_1.Task.findByIdAndUpdate(req.params.id, { status: 'COMPLETED' }, { returnDocument: 'after' });
         if (!task)
             return res.status(404).json({ success: false, message: 'Task not found' });
         res.json({ success: true, data: task });

@@ -25,7 +25,7 @@ interface MainLayoutProps {
 export default function MainLayout({ children, role }: MainLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { language, t, cart, removeFromCart } = useAppContext();
+  const { language, t, cart, removeFromCart, clearCart } = useAppContext();
   
   const currentLocale = language === 'en' ? enUS : vi;
   const todayStr = format(new Date(), 'EEEE, dd/MM/yyyy', { locale: currentLocale });
@@ -162,6 +162,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
     localStorage.removeItem('user');
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
     document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    clearCart();
     router.push('/');
   };
 
@@ -299,8 +300,9 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
               )}
             </div>
             
-            <div style={{ position: 'relative' }}>
-              <button className={styles.iconBtn} onClick={() => setShowCart(!showCart)}>
+            {role === 'FARM' && (
+              <div style={{ position: 'relative' }}>
+                <button className={styles.iconBtn} onClick={() => setShowCart(!showCart)}>
                 <ShoppingCart size={20} />
                 {cart && cart.length > 0 && <span className={styles.badge}>{cart.length}</span>}
               </button>
@@ -348,6 +350,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
                 </div>
               )}
             </div>
+            )}
             <div className={styles.headerAvatar}>{userInitials}</div>
           </div>
         </header>

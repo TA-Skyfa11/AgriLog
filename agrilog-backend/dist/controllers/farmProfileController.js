@@ -33,21 +33,30 @@ const updateFarmProfile = async (req, res) => {
             }
         }
         else {
-            if (req.body.plan && req.body.plan !== profile.plan) {
+            const currentEffectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
+            if (req.body.plan && req.body.plan !== currentEffectivePlan) {
                 const planValues = { BASIC: 1, STANDARD: 2, PREMIUM: 3 };
-                const currentVal = planValues[profile.plan] || 1;
+                const currentVal = planValues[currentEffectivePlan] || 1;
                 const newVal = planValues[req.body.plan] || 1;
                 if (newVal > currentVal) {
+                    const isNewPurchase = !profile.planExpiresAt || new Date(profile.planExpiresAt) < new Date();
                     profile.planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-                    // Generate notification for successful purchase
-                    await Notification_1.Notification.create({
-                        user: req.user?._id,
-                        title: 'Mua gói cước thành công',
-                        message: `Chúc mừng bạn đã nâng cấp lên gói ${req.body.plan}. Gói cước có hiệu lực đến ngày ${profile.planExpiresAt.toLocaleDateString('vi-VN')}.`,
-                        type: 'BILLING'
-                    });
+                    if (isNewPurchase) {
+                        // Generate notification for successful purchase
+                        await Notification_1.Notification.create({
+                            user: req.user?._id,
+                            title: 'Mua gói cước thành công',
+                            message: `Chúc mừng bạn đã nâng cấp lên gói ${req.body.plan}. Gói cước có hiệu lực đến ngày ${profile.planExpiresAt.toLocaleDateString('vi-VN')}.`,
+                            type: 'BILLING'
+                        });
+                    }
+                    profile.previousPlan = currentEffectivePlan;
                 }
-                profile.previousPlan = profile.plan;
+                else {
+                    // Downgrade immediately
+                    profile.planExpiresAt = undefined;
+                    profile.previousPlan = undefined;
+                }
             }
             profile.set(req.body);
         }

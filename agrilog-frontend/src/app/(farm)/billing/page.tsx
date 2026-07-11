@@ -192,7 +192,7 @@ export default function BillingPage() {
               ))}
             </div>
             <button 
-              className={`${styles.button} ${currentPlan === pkg.code ? styles.btnDisabled : (pkg.code === 'STANDARD' ? styles.btnSolid : styles.btnOutline)}`}
+              className={`${styles.button} ${currentPlan === pkg.code ? styles.btnDisabled : styles.btnOutline}`}
               onClick={() => handleSelectPlan(pkg)}
               disabled={currentPlan === pkg.code || !pkg.isActive}
             >

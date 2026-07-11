@@ -8,9 +8,11 @@ const productController_1 = require("../controllers/productController");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const User_1 = require("../models/User");
 const router = express_1.default.Router();
+// Public marketplace for landing page
+router.get('/public', productController_1.getApprovedProducts);
 router.use(authMiddleware_1.protect);
 // Company CRUD
-router.post('/', (0, authMiddleware_1.authorize)(User_1.Role.COMPANY), productController_1.createProduct);
+router.post('/', (0, authMiddleware_1.authorize)(User_1.Role.COMPANY, User_1.Role.ADMIN), productController_1.createProduct);
 router.get('/mine', (0, authMiddleware_1.authorize)(User_1.Role.COMPANY), productController_1.getMyProducts);
 router.put('/:id', (0, authMiddleware_1.authorize)(User_1.Role.COMPANY), productController_1.updateProduct);
 router.delete('/:id', (0, authMiddleware_1.authorize)(User_1.Role.COMPANY), productController_1.deleteProduct);

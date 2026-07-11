@@ -341,7 +341,7 @@ export default function FertilizerDiaryDetailPage() {
       alert('Gói cước Basic không hỗ trợ xuất file Excel. Vui lòng nâng cấp gói cước.');
       return;
     }
-    const headers = ['STT', 'Ngày sử dụng', 'Tên phân bón', 'Nhà sản xuất', 'Liều lượng', 'Diện tích áp dụng (m²)', 'Người thực hiện', 'Chi phí (VNĐ)', 'Ghi chú'];
+    const headers = ['STT', 'Ngày sử dụng', 'Tên phân bón', 'Nhà sản xuất', 'Liều lượng', 'Diện tích áp dụng (m²)', 'Người thực hiện', 'Ghi chú'];
     const csvRows = [headers.join(',')];
 
     entries.forEach((e, idx) => {
@@ -354,7 +354,6 @@ export default function FertilizerDiaryDetailPage() {
         `"${(e.quantity || '—').replace(/"/g, '""')}"`,
         e.appliedArea || 0,
         `"${(e.performer || '—').replace(/"/g, '""')}"`,
-        e.cost || 0,
         `"${(e.notes || '—').replace(/"/g, '""')}"`
       ];
       csvRows.push(row.join(','));
@@ -408,7 +407,6 @@ export default function FertilizerDiaryDetailPage() {
       'Lieu luong', 
       'Dien tich (m2)', 
       'Nguoi thuc hien', 
-      'Chi phi', 
       'Ghi chu'
     ];
     
@@ -420,7 +418,6 @@ export default function FertilizerDiaryDetailPage() {
       (e.quantity || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
       e.appliedArea || 0,
       (e.performer || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      e.cost || 0,
       (e.notes || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     ]);
 
@@ -571,7 +568,6 @@ export default function FertilizerDiaryDetailPage() {
               <th>Liều lượng</th>
               <th>Diện tích áp dụng (m²)</th>
               <th>Người thực hiện</th>
-              <th>Chi phí (VNĐ)</th>
               <th>Ghi chú</th>
               {board.customColumns?.map((col: string, idx: number) => (
                     <th key={idx}>
@@ -655,17 +651,6 @@ export default function FertilizerDiaryDetailPage() {
                       style={inlineInputStyle}
                       value={entry.performer || ''}
                       onChange={(e: any) => updateLocalEntry(index, 'performer', e.target.value)}
-                      onBlur={() => handleBlurSave(index)}
-                      placeholder="—"
-                      className={styles.inlineInputHover}
-                    />
-                  </td>
-                  <td>
-                    <input 
-                      type="number" 
-                      style={inlineInputStyle}
-                      value={entry.cost || ''}
-                      onChange={(e) => updateLocalEntry(index, 'cost', e.target.value)}
                       onBlur={() => handleBlurSave(index)}
                       placeholder="—"
                       className={styles.inlineInputHover}

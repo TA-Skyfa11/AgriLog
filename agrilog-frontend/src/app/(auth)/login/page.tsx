@@ -31,6 +31,7 @@ export default function LoginPage() {
         
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.removeItem('cart'); // Clear cart from any previous session
 
         if (data.user.role === 'ADMIN') {
           router.push('/admin/dashboard');

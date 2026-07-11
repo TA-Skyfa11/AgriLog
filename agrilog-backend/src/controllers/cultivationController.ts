@@ -105,7 +105,7 @@ export const updateCultivationBoard = async (req: AuthRequest, res: Response) =>
     const board = await CultivationBoard.findOneAndUpdate(
       { _id: req.params.id, farmProfile: profile._id },
       req.body,
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
 
@@ -187,7 +187,7 @@ export const updateCultivationEntry = async (req: AuthRequest, res: Response) =>
       if (isLocked) return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
     }
 
-    const entry = await CultivationEntry.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const entry = await CultivationEntry.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
     if (!entry) return res.status(404).json({ success: false, message: 'Entry not found' });
     res.json({ success: true, data: entry });
   } catch (error) {

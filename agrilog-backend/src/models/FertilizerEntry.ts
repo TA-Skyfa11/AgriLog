@@ -10,7 +10,7 @@ export interface IFertilizerEntry extends Document {
   unit?: string; // Đơn vị
   appliedArea?: number; // Diện tích áp dụng (m2)
   performer?: string; // Người thực hiện
-  cost?: number; // Chi phí
+  isNotUsed?: boolean; // Không sử dụng
   notes?: string; // Ghi chú
   imageUrls?: string[]; // Hình ảnh
   createdAt: Date;
@@ -28,7 +28,7 @@ const fertilizerEntrySchema = new Schema<IFertilizerEntry>(
     unit: { type: String },
     appliedArea: { type: Number },
     performer: { type: String },
-    cost: { type: Number, default: 0 },
+    isNotUsed: { type: Boolean, default: false },
     notes: { type: String },
     imageUrls: [{ type: String }],
   },

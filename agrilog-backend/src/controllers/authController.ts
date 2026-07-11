@@ -14,7 +14,7 @@ const generateToken = (id: string, role: string) => {
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, role: requestedRole } = req.body;
+    const { email, password, role: requestedRole, name } = req.body;
     
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -29,6 +29,7 @@ export const register = async (req: Request, res: Response) => {
     const finalRole = allowedRoles.includes(requestedRole) ? requestedRole : Role.FARM;
 
     const user = await User.create({
+      name,
       email,
       passwordHash,
       role: finalRole,
@@ -51,6 +52,7 @@ export const register = async (req: Request, res: Response) => {
       token: generateToken(user._id.toString(), user.role),
       user: {
         id: user._id,
+        name: user.name,
         email: user.email,
         role: user.role,
       }
@@ -94,6 +96,7 @@ export const login = async (req: Request, res: Response) => {
       token: generateToken(user._id.toString(), user.role),
       user: {
         id: user._id,
+        name: user.name,
         email: user.email,
         role: user.role,
       }

@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.rejectProduct = exports.approveProduct = exports.getAllProductsAdmin = exports.getPendingProducts = exports.getProductDetail = exports.getApprovedProducts = exports.deleteProduct = exports.updateProduct = exports.getMyProducts = exports.createProduct = void 0;
 const Product_1 = require("../models/Product");
+const User_1 = require("../models/User");
+const Notification_1 = require("../models/Notification");
 // ===== COMPANY ENDPOINTS =====
 const createProduct = async (req, res) => {
     try {
@@ -24,6 +26,18 @@ const createProduct = async (req, res) => {
             status: filterResult.passed ? Product_1.ProductStatus.PENDING : Product_1.ProductStatus.REJECTED,
             rejectionReason: filterResult.passed ? '' : filterResult.reason,
         });
+        if (filterResult.passed) {
+            const admin = await User_1.User.findOne({ role: User_1.Role.ADMIN });
+            if (admin) {
+                await Notification_1.Notification.create({
+                    user: admin._id,
+                    title: 'Sản phẩm mới chờ duyệt',
+                    message: `Doanh nghiệp vừa thêm sản phẩm "${name}" cần được kiểm duyệt.`,
+                    type: 'SYSTEM',
+                    referenceId: product._id.toString()
+                });
+            }
+        }
         res.status(201).json({
             success: true,
             data: product,
@@ -118,10 +132,25 @@ const getApprovedProducts = async (req, res) => {
                 { description: { $regex: search, $options: 'i' } },
             ];
         }
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 6;
+        const skip = (page - 1) * limit;
+        const total = await Product_1.Product.countDocuments(filter);
         const products = await Product_1.Product.find(filter)
             .populate('company', 'email')
-            .sort({ createdAt: -1 });
-        res.json({ success: true, data: products });
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+        res.json({
+            success: true,
+            data: products,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
     }
     catch (error) {
         res.status(500).json({ success: false, message: error.message });

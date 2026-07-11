@@ -11,7 +11,7 @@ export interface IPesticideEntry extends Document {
   unit?: string; // Đơn vị
   phiDays?: number; // Thời gian cách ly (ngày)
   performer?: string; // Người thực hiện
-  cost?: number; // Chi phí
+  isNotUsed?: boolean; // Không sử dụng
   notes?: string; // Ghi chú
   imageUrls?: string[]; // Hình ảnh
   createdAt: Date;
@@ -30,7 +30,7 @@ const pesticideEntrySchema = new Schema<IPesticideEntry>(
     unit: { type: String },
     phiDays: { type: Number },
     performer: { type: String },
-    cost: { type: Number, default: 0 },
+    isNotUsed: { type: Boolean, default: false },
     notes: { type: String },
     imageUrls: [{ type: String }],
   },

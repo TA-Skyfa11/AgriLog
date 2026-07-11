@@ -8,6 +8,7 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../models/User");
 const LoginHistory_1 = require("../models/LoginHistory");
+const Notification_1 = require("../models/Notification");
 const generateToken = (id, role) => {
     return jsonwebtoken_1.default.sign({ id, role }, process.env.JWT_SECRET || 'secret_key', {
         expiresIn: '30d',
@@ -15,7 +16,7 @@ const generateToken = (id, role) => {
 };
 const register = async (req, res) => {
     try {
-        const { email, password, role: requestedRole } = req.body;
+        const { email, password, role: requestedRole, name } = req.body;
         const userExists = await User_1.User.findOne({ email });
         if (userExists) {
             return res.status(400).json({ success: false, message: 'Email này đã được đăng ký' });
@@ -26,15 +27,28 @@ const register = async (req, res) => {
         const allowedRoles = [User_1.Role.FARM, User_1.Role.COMPANY];
         const finalRole = allowedRoles.includes(requestedRole) ? requestedRole : User_1.Role.FARM;
         const user = await User_1.User.create({
+            name,
             email,
             passwordHash,
             role: finalRole,
         });
+        // Create notification for admin
+        const admin = await User_1.User.findOne({ role: User_1.Role.ADMIN });
+        if (admin) {
+            await Notification_1.Notification.create({
+                user: admin._id,
+                title: 'Người dùng mới đăng ký',
+                message: `Tài khoản ${email} vừa đăng ký vào hệ thống.`,
+                type: 'SYSTEM',
+                referenceId: user._id.toString()
+            });
+        }
         res.status(201).json({
             success: true,
             token: generateToken(user._id.toString(), user.role),
             user: {
                 id: user._id,
+                name: user.name,
                 email: user.email,
                 role: user.role,
             }
@@ -74,6 +88,7 @@ const login = async (req, res) => {
             token: generateToken(user._id.toString(), user.role),
             user: {
                 id: user._id,
+                name: user.name,
                 email: user.email,
                 role: user.role,
             }

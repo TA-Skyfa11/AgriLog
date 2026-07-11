@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateCommissionSetting = exports.getCommissionSetting = exports.adminResetPassword = exports.addUser = exports.getDashboardStats = exports.getFarms = void 0;
+exports.updateCommissionSetting = exports.getCommissionSetting = exports.adminResetPassword = exports.toggleUserLock = exports.addUser = exports.getDashboardStats = exports.getFarms = exports.getUsers = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const User_1 = require("../models/User");
 const FarmProfile_1 = require("../models/FarmProfile");
@@ -12,6 +12,46 @@ const FertilizerBoard_1 = require("../models/FertilizerBoard");
 const PesticideBoard_1 = require("../models/PesticideBoard");
 const Product_1 = require("../models/Product");
 const Order_1 = require("../models/Order");
+const CompanyProfile_1 = require("../models/CompanyProfile");
+const getUsers = async (req, res) => {
+    try {
+        const { role, status } = req.query;
+        let query = { role: { $ne: User_1.Role.ADMIN } };
+        if (role && role !== 'ALL') {
+            query.role = role;
+        }
+        if (status && status !== 'ALL') {
+            query.isActive = status === 'ACTIVE';
+        }
+        const users = await User_1.User.find(query).select('-passwordHash');
+        const results = await Promise.all(users.map(async (u) => {
+            let profile = null;
+            let boardCount = 0;
+            if (u.role === User_1.Role.FARM) {
+                profile = await FarmProfile_1.FarmProfile.findOne({ user: u._id });
+                if (profile) {
+                    const cCount = await CultivationBoard_1.CultivationBoard.countDocuments({ farmProfile: profile._id });
+                    const fCount = await FertilizerBoard_1.FertilizerBoard.countDocuments({ farmProfile: profile._id });
+                    const pCount = await PesticideBoard_1.PesticideBoard.countDocuments({ farmProfile: profile._id });
+                    boardCount = cCount + fCount + pCount;
+                }
+            }
+            else if (u.role === User_1.Role.COMPANY) {
+                profile = await CompanyProfile_1.CompanyProfile.findOne({ user: u._id });
+            }
+            return {
+                user: u,
+                profile,
+                boardCount
+            };
+        }));
+        res.json({ success: true, data: results });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.getUsers = getUsers;
 const getFarms = async (req, res) => {
     try {
         // Return list of Farm users with their profiles and board count
@@ -137,6 +177,27 @@ const addUser = async (req, res) => {
     }
 };
 exports.addUser = addUser;
+const toggleUserLock = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const user = await User_1.User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        if (user.role === User_1.Role.ADMIN) {
+            return res.status(403).json({ success: false, message: 'Cannot lock admin accounts' });
+        }
+        // Default to true if undefined
+        const currentStatus = user.isActive === false ? false : true;
+        user.isActive = !currentStatus;
+        await user.save();
+        res.json({ success: true, message: `Tài khoản đã được ${user.isActive ? 'mở khóa' : 'khóa'}` });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.toggleUserLock = toggleUserLock;
 const adminResetPassword = async (req, res) => {
     try {
         const { userId } = req.params;

@@ -26,16 +26,22 @@ const translateWeather = (enDesc) => {
         return 'Có giông bão';
     if (desc.includes('mist') || desc.includes('fog'))
         return 'Có sương mù';
+    if (desc.includes('smoke') || desc.includes('haze') || desc.includes('smoky'))
+        return 'Có khói bụi';
     return enDesc;
 };
 router.get('/', authMiddleware_1.protect, async (req, res) => {
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
         const response = await fetch('https://wttr.in/Hanoi?format=j1&lang=vi', {
             headers: {
                 'Accept-Language': 'vi',
                 'User-Agent': 'curl/7.68.0'
-            }
+            },
+            signal: controller.signal
         });
+        clearTimeout(timeoutId);
         if (response.ok) {
             const data = await response.json();
             // Parse the useful bits

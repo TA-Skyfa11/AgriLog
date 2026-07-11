@@ -45,7 +45,7 @@ const fertilizerEntrySchema = new mongoose_1.Schema({
     unit: { type: String },
     appliedArea: { type: Number },
     performer: { type: String },
-    cost: { type: Number, default: 0 },
+    isNotUsed: { type: Boolean, default: false },
     notes: { type: String },
     imageUrls: [{ type: String }],
 }, { timestamps: true });

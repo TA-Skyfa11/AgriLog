@@ -14,6 +14,7 @@ const translateWeather = (enDesc: string) => {
   if (desc.includes('rain') || desc.includes('drizzle') || desc.includes('shower')) return 'Có mưa';
   if (desc.includes('thund')) return 'Có giông bão';
   if (desc.includes('mist') || desc.includes('fog')) return 'Có sương mù';
+  if (desc.includes('smoke') || desc.includes('haze') || desc.includes('smoky')) return 'Có khói bụi';
   return enDesc;
 };
 

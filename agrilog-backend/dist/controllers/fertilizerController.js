@@ -91,7 +91,7 @@ const updateFertilizerBoard = async (req, res) => {
         if (req.body.customColumns && req.body.customColumns.length > planLimits.columns) {
             return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.columns} cột tùy chỉnh.` });
         }
-        const board = await FertilizerBoard_1.FertilizerBoard.findOneAndUpdate({ _id: req.params.id, farmProfile: profile._id }, req.body, { new: true });
+        const board = await FertilizerBoard_1.FertilizerBoard.findOneAndUpdate({ _id: req.params.id, farmProfile: profile._id }, req.body, { returnDocument: 'after' });
         if (!board)
             return res.status(404).json({ success: false, message: 'Board not found' });
         res.json({ success: true, data: board });
@@ -175,7 +175,7 @@ const updateFertilizerEntry = async (req, res) => {
             if (isLocked)
                 return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
         }
-        const entry = await FertilizerEntry_1.FertilizerEntry.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const entry = await FertilizerEntry_1.FertilizerEntry.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
         if (!entry)
             return res.status(404).json({ success: false, message: 'Entry not found' });
         res.json({ success: true, data: entry });

@@ -33,15 +33,16 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Material = void 0;
+exports.ServicePackage = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const materialSchema = new mongoose_1.Schema({
-    farmProfile: { type: mongoose_1.Schema.Types.ObjectId, ref: 'FarmProfile', required: true },
+const servicePackageSchema = new mongoose_1.Schema({
     name: { type: String, required: true },
-    type: { type: String, enum: ['FERTILIZER', 'PESTICIDE'], required: true },
-    quantity: { type: Number, default: 0 },
-    unit: { type: String, required: true },
-    expiryDate: { type: Date },
-    minQuantityAlert: { type: Number, default: 10 },
+    code: { type: String, required: true, unique: true, uppercase: true },
+    price: { type: Number, required: true, min: 0 },
+    description: { type: String, required: false, default: '' },
+    features: [{ type: String }],
+    maxImages: { type: Number, default: 50 },
+    maxBoards: { type: Number, default: 3 },
+    isActive: { type: Boolean, default: true },
 }, { timestamps: true });
-exports.Material = mongoose_1.default.model('Material', materialSchema);
+exports.ServicePackage = mongoose_1.default.model('ServicePackage', servicePackageSchema);
