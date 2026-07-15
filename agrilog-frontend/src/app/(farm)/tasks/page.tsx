@@ -7,6 +7,7 @@ import styles from '@/css/tasks.module.css';
 import { Plus, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays, parseISO } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { toast } from 'react-hot-toast';
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -54,7 +55,7 @@ export default function TasksPage() {
         loadTasks();
       }
     } catch (error) {
-      alert('Lỗi thêm công việc');
+      toast.error('Lỗi thêm công việc');
     }
   };
 
@@ -63,7 +64,7 @@ export default function TasksPage() {
       const res = await fetchAPI(`/tasks/${id}/complete`, { method: 'PUT' });
       if (res.success) loadTasks();
     } catch (error) {
-      alert('Lỗi cập nhật');
+      toast.error('Lỗi cập nhật');
     }
   };
 

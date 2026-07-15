@@ -121,8 +121,13 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             setNotifications(res.data);
             
             // Show toasts for unread notifications that haven't been toasted yet in this session
+            // Only toast recent notifications (e.g. less than 24 hours old) to avoid bombarding user with old notifications on login
             const toastedIds = JSON.parse(sessionStorage.getItem('toastedIds') || '[]');
-            const unread = res.data.filter((n: any) => !n.isRead && !toastedIds.includes(n._id));
+            const now = new Date().getTime();
+            const unread = res.data.filter((n: any) => {
+              const isRecent = now - new Date(n.createdAt).getTime() < 24 * 60 * 60 * 1000;
+              return !n.isRead && !toastedIds.includes(n._id) && isRecent;
+            });
             
             unread.forEach((n: any) => {
               toast(n.title + ': ' + n.message, {
@@ -251,7 +256,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
       
       <main className={`${styles.main} ${isSidebarCollapsed ? styles.collapsed : ''}`}>
         <header className={styles.header}>
-          <div className={styles.searchBar}>
+          <div className={styles.searchBar} style={{ visibility: 'hidden' }}>
             <Search size={20} color="#9ca3af" />
             <input type="text" placeholder="Tìm kiếm..." className={styles.searchInput} />
           </div>

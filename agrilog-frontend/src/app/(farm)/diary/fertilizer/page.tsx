@@ -8,6 +8,7 @@ import { fetchAPI } from '@/lib/api';
 import styles from '@/css/diary.module.css';
 import { FlaskConical, Search, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'react-hot-toast';
 
 export default function FertilizerDiaryPage() {
   const router = useRouter();
@@ -65,10 +66,10 @@ export default function FertilizerDiaryPage() {
         setShowModal(false);
         router.push(`/diary/fertilizer/${res.data._id}`);
       } else {
-        alert(res.message || 'Có lỗi xảy ra khi tạo bảng phân bón');
+        toast.error(res.message || 'Có lỗi xảy ra khi tạo bảng phân bón');
       }
     } catch (error) {
-      alert('Có lỗi xảy ra khi tạo bảng phân bón');
+      toast.error('Có lỗi xảy ra khi tạo bảng phân bón');
     }
   };
 

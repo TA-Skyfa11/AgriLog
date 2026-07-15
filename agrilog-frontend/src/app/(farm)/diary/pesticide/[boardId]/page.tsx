@@ -9,6 +9,7 @@ import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, ShieldAlert, Download, Printer, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 
 const AutoResizeTextarea = (props: any) => {
@@ -136,6 +137,27 @@ export default function PesticideDiaryDetailPage() {
   const updateLocalEntry = (index: number, field: string, value: any) => {
     const newEntries = [...entries];
     newEntries[index][field] = value;
+    setEntries(newEntries);
+  };
+
+  const handleMaterialChange = async (index: number, selectedMaterialId: string) => {
+    const availableMaterials = materials.filter((m: any) => m.type === 'PESTICIDE');
+    const selectedMaterial = availableMaterials.find((m: any) => m._id === selectedMaterialId);
+    const newEntries = [...entries];
+    if (selectedMaterial) {
+      newEntries[index].materialName = selectedMaterial.name;
+      newEntries[index].material = selectedMaterial._id;
+      newEntries[index].unit = selectedMaterial.unit;
+      if (selectedMaterial.manufacturer) {
+        newEntries[index].manufacturer = selectedMaterial.manufacturer;
+      }
+      if (selectedMaterial.activeIngredient) {
+        newEntries[index].activeIngredient = selectedMaterial.activeIngredient;
+      }
+    } else {
+      newEntries[index].materialName = '';
+      newEntries[index].material = undefined;
+    }
     setEntries(newEntries);
   };
 
@@ -645,12 +667,23 @@ export default function PesticideDiaryDetailPage() {
                     />
                   </td>
                   <td>
-                    <AutoResizeTextarea 
-                      style={inlineInputStyle}
-                      value={entry.materialName || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'materialName', e.target.value)}
-                      onBlur={() => handleBlurSave(index)}
-                    />
+                    {(() => {
+                      const materialOptions = materials.filter((m: any) => m.type === 'PESTICIDE').map((m: any) => {
+                        const isOutOfStock = m.quantity <= 0;
+                        const isLowStock = m.quantity > 0 && m.quantity <= (m.minQuantityAlert || 5);
+                        const isSelected = entry.material === m._id;
+                        const labelSuffix = (isOutOfStock && !isSelected) ? ' (Hết hàng)' : (isLowStock && !isSelected) ? ' (Sắp hết)' : '';
+                        return { label: m.name, value: m._id, disabled: isOutOfStock && entry.material !== m._id, suffix: labelSuffix };
+                      });
+                      return (
+                        <CustomSelect
+                          value={entry.material || ''}
+                          onChange={(val) => { handleMaterialChange(index, val); handleBlurSave(index); }}
+                          options={materialOptions}
+                          placeholder="-- Chọn thuốc --"
+                        />
+                      );
+                    })()}
                   </td>
                   <td>
                     <AutoResizeTextarea 

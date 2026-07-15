@@ -9,6 +9,7 @@ import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, FlaskConical, Download, Printer, ArrowLeft, X, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import CustomSelect from '@/components/ui/CustomSelect';
 
 
 const AutoResizeTextarea = (props: any) => {
@@ -135,6 +136,25 @@ export default function FertilizerDiaryDetailPage() {
     const newEntries = [...entries];
     newEntries[index][field] = value;
     setEntries(newEntries);
+  };
+
+  const handleMaterialChange = async (index: number, selectedMaterialId: string) => {
+    const availableMaterials = materials.filter((m: any) => m.type === 'FERTILIZER');
+    const selectedMaterial = availableMaterials.find((m: any) => m._id === selectedMaterialId);
+    const newEntries = [...entries];
+    if (selectedMaterial) {
+      newEntries[index].materialName = selectedMaterial.name;
+      newEntries[index].material = selectedMaterial._id;
+      newEntries[index].unit = selectedMaterial.unit;
+      if (selectedMaterial.manufacturer) {
+        newEntries[index].manufacturer = selectedMaterial.manufacturer;
+      }
+    } else {
+      newEntries[index].materialName = '';
+      newEntries[index].material = undefined;
+    }
+    setEntries(newEntries);
+    setTimeout(() => handleBlurSave(index), 100);
   };
 
   const handleBlurSave = async (index: number) => {
@@ -605,14 +625,23 @@ export default function FertilizerDiaryDetailPage() {
                     />
                   </td>
                   <td style={{ color: '#3b82f6', fontWeight: 600 }}>
-                    <AutoResizeTextarea 
-                      style={inlineInputStyle}
-                      value={entry.materialName || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'materialName', e.target.value)}
-                      onBlur={() => handleBlurSave(index)}
-                      placeholder="Tên phân bón..."
-                      className={styles.inlineInputHover}
-                    />
+                    {(() => {
+                      const materialOptions = materials.filter((m: any) => m.type === 'FERTILIZER').map((m: any) => {
+                        const isOutOfStock = m.quantity <= 0;
+                        const isLowStock = m.quantity > 0 && m.quantity <= (m.minQuantityAlert || 50);
+                        const isSelected = entry.material === m._id;
+                        const labelSuffix = (isOutOfStock && !isSelected) ? ' (Hết hàng)' : (isLowStock && !isSelected) ? ' (Sắp hết)' : '';
+                        return { label: m.name, value: m._id, disabled: isOutOfStock && entry.material !== m._id, suffix: labelSuffix };
+                      });
+                      return (
+                        <CustomSelect
+                          value={entry.material || ''}
+                          onChange={(val) => handleMaterialChange(index, val)}
+                          options={materialOptions}
+                          placeholder="-- Chọn phân bón --"
+                        />
+                      );
+                    })()}
                   </td>
                   <td>
                     <AutoResizeTextarea 

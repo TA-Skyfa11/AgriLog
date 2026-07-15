@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { ArrowLeft, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 
 export default function CheckoutPage() {
   const { id } = useParams() as { id: string };
@@ -26,7 +27,7 @@ export default function CheckoutPage() {
         if (res.success) {
           setProduct(res.data);
         } else {
-          alert('Không tìm thấy sản phẩm');
+          toast.error('Không tìm thấy sản phẩm');
           router.push('/marketplace');
         }
       } catch (e) {
@@ -56,10 +57,10 @@ export default function CheckoutPage() {
       if (res.success) {
         setSuccess(true);
       } else {
-        alert(res.message || 'Đặt hàng thất bại');
+        toast.error(res.message || 'Đặt hàng thất bại');
       }
     } catch (err: any) {
-      alert(err.message || 'Đặt hàng thất bại');
+      toast.error(err.message || 'Đặt hàng thất bại');
     } finally {
       setOrdering(false);
     }

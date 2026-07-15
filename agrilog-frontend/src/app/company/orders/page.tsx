@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { toast } from 'react-hot-toast';
 
 const STATUS_MAP: Record<string, { label: string; variant: string }> = {
   PENDING: { label: 'Chờ xác nhận', variant: 'warning' },
@@ -37,7 +38,7 @@ export default function CompanyOrdersPage() {
       });
       loadOrders();
     } catch (e: any) {
-      alert(e.message || 'Cập nhật thất bại');
+      toast.error(e.message || 'Cập nhật thất bại');
     }
   };
 

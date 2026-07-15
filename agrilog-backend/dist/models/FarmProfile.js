@@ -42,9 +42,9 @@ const farmProfileSchema = new mongoose_1.Schema({
     areaSqm: { type: Number, required: false },
     mainCropType: { type: String, required: false },
     contactPhone: { type: String, required: false },
-    plan: { type: String, enum: ['BASIC', 'STANDARD', 'PREMIUM'], default: 'BASIC' },
+    plan: { type: String, enum: ['FREE', 'BASIC', 'STANDARD', 'PREMIUM'], default: 'FREE' },
     planExpiresAt: { type: Date, required: false },
-    previousPlan: { type: String, enum: ['BASIC', 'STANDARD', 'PREMIUM'], required: false },
+    previousPlan: { type: String, enum: ['FREE', 'BASIC', 'STANDARD', 'PREMIUM'], required: false },
     notificationPreferences: {
         push: { type: Boolean, default: true },
         email: { type: Boolean, default: false },

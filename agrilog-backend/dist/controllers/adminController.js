@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateCommissionSetting = exports.getCommissionSetting = exports.adminResetPassword = exports.toggleUserLock = exports.addUser = exports.getDashboardStats = exports.getFarms = exports.getUsers = void 0;
+exports.deleteUser = exports.updateCommissionSetting = exports.getCommissionSetting = exports.adminResetPassword = exports.toggleUserLock = exports.addUser = exports.getDashboardStats = exports.getFarms = exports.getUsers = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const User_1 = require("../models/User");
 const FarmProfile_1 = require("../models/FarmProfile");
@@ -13,6 +13,14 @@ const PesticideBoard_1 = require("../models/PesticideBoard");
 const Product_1 = require("../models/Product");
 const Order_1 = require("../models/Order");
 const CompanyProfile_1 = require("../models/CompanyProfile");
+const CultivationEntry_1 = require("../models/CultivationEntry");
+const FertilizerEntry_1 = require("../models/FertilizerEntry");
+const PesticideEntry_1 = require("../models/PesticideEntry");
+const Task_1 = require("../models/Task");
+const Material_1 = require("../models/Material");
+const UploadLog_1 = require("../models/UploadLog");
+const Notification_1 = require("../models/Notification");
+const LoginHistory_1 = require("../models/LoginHistory");
 const getUsers = async (req, res) => {
     try {
         const { role, status } = req.query;
@@ -265,3 +273,56 @@ const updateCommissionSetting = async (req, res) => {
     }
 };
 exports.updateCommissionSetting = updateCommissionSetting;
+const deleteUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const user = await User_1.User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Người dùng không tồn tại' });
+        }
+        if (user.role === User_1.Role.ADMIN) {
+            return res.status(403).json({ success: false, message: 'Không thể xóa tài khoản Admin' });
+        }
+        if (user.role === User_1.Role.FARM) {
+            const profile = await FarmProfile_1.FarmProfile.findOne({ user: user._id });
+            if (profile) {
+                // Find boards
+                const cBoards = await CultivationBoard_1.CultivationBoard.find({ farmProfile: profile._id });
+                const fBoards = await FertilizerBoard_1.FertilizerBoard.find({ farmProfile: profile._id });
+                const pBoards = await PesticideBoard_1.PesticideBoard.find({ farmProfile: profile._id });
+                const cBoardIds = cBoards.map(b => b._id);
+                const fBoardIds = fBoards.map(b => b._id);
+                const pBoardIds = pBoards.map(b => b._id);
+                // Delete entries
+                await CultivationEntry_1.CultivationEntry.deleteMany({ cultivationBoard: { $in: cBoardIds } });
+                await FertilizerEntry_1.FertilizerEntry.deleteMany({ fertilizerBoard: { $in: fBoardIds } });
+                await PesticideEntry_1.PesticideEntry.deleteMany({ pesticideBoard: { $in: pBoardIds } });
+                // Delete boards
+                await CultivationBoard_1.CultivationBoard.deleteMany({ farmProfile: profile._id });
+                await FertilizerBoard_1.FertilizerBoard.deleteMany({ farmProfile: profile._id });
+                await PesticideBoard_1.PesticideBoard.deleteMany({ farmProfile: profile._id });
+                // Delete tasks, materials, upload logs
+                await Task_1.Task.deleteMany({ farmProfile: profile._id });
+                await Material_1.Material.deleteMany({ farmProfile: profile._id });
+                await UploadLog_1.UploadLog.deleteMany({ farmProfile: profile._id });
+                await FarmProfile_1.FarmProfile.findByIdAndDelete(profile._id);
+            }
+            await Order_1.Order.deleteMany({ farm: user._id });
+        }
+        else if (user.role === User_1.Role.COMPANY) {
+            await CompanyProfile_1.CompanyProfile.findOneAndDelete({ user: user._id });
+            await Product_1.Product.deleteMany({ company: user._id });
+            await Order_1.Order.deleteMany({ company: user._id });
+        }
+        // Common relations
+        await Notification_1.Notification.deleteMany({ user: user._id });
+        await LoginHistory_1.LoginHistory.deleteMany({ user: user._id });
+        // Finally delete user
+        await User_1.User.findByIdAndDelete(user._id);
+        res.json({ success: true, message: 'Xóa tài khoản thành công' });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.deleteUser = deleteUser;

@@ -6,6 +6,8 @@ import { fetchAPI } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { CheckCircle, XCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+import { useDialog } from '@/context/DialogContext';
 
 const CATEGORY_LABELS: Record<string, string> = {
   FERTILIZER: 'Phân bón',
@@ -16,6 +18,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function AdminMarketplacePage() {
+  const dialog = useDialog();
+
   const [activeTab, setActiveTab] = useState('pending'); // pending, all
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,11 +44,11 @@ export default function AdminMarketplacePage() {
   }, [activeTab]);
 
   const handleApprove = async (id: string) => {
-    if (!confirm('Duyệt sản phẩm này lên Marketplace?')) return;
+    if (!(await dialog.confirm('Duyệt sản phẩm này lên Marketplace?'))) return;
     try {
       await fetchAPI(`/products/${id}/approve`, { method: 'PUT' });
       loadProducts();
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const handleReject = async (e: React.FormEvent) => {
@@ -58,7 +62,7 @@ export default function AdminMarketplacePage() {
       setRejectModal(null);
       setRejectReason('');
       loadProducts();
-    } catch (e: any) { alert(e.message); }
+    } catch (e: any) { toast.error(e.message); }
   };
 
   return (

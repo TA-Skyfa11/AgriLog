@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AppProvider } from '@/context/AppProvider';
+import { DialogProvider } from '@/context/DialogContext';
 import "../css/globals.css";
 const inter = Inter({
   variable: "--font-inter",
@@ -22,7 +23,9 @@ export default function RootLayout({
     <html lang="vi" className={inter.variable}>
       <body className={inter.className}>
         <AppProvider>
-          {children}
+          <DialogProvider>
+            {children}
+          </DialogProvider>
         </AppProvider>
       </body>
     </html>

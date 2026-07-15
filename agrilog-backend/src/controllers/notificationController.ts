@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/authMiddleware';
 import { Notification } from '../models/Notification';
 import { Task } from '../models/Task';
 import { FarmProfile } from '../models/FarmProfile';
+import { Material } from '../models/Material';
 
 export const getNotifications = async (req: AuthRequest, res: Response) => {
   try {
@@ -66,6 +67,36 @@ export const getNotifications = async (req: AuthRequest, res: Response) => {
               title: 'Gói cước đã hết hạn',
               message: `Gói cước ${profile.plan} của bạn đã hết hạn. Hệ thống đã tự động chuyển về gói BASIC.`,
               type: 'BILLING',
+              referenceId: refId
+            });
+          }
+        }
+      }
+      // 3. Check for low/out-of-stock materials
+      const materials = await Material.find({ farmProfile: profile._id });
+      for (const material of materials) {
+        const threshold = material.minQuantityAlert || (material.type === 'FERTILIZER' ? 50 : 5);
+        if (material.quantity <= 0) {
+          const refId = `mat_out_${material._id}`;
+          const exists = await Notification.findOne({ user: userId, referenceId: refId });
+          if (!exists) {
+            await Notification.create({
+              user: userId,
+              title: 'Vật tư đã hết hàng',
+              message: `Vật tư "${material.name}" đã hết hàng trong kho. Vui lòng nhập thêm.`,
+              type: 'SYSTEM',
+              referenceId: refId
+            });
+          }
+        } else if (material.quantity <= threshold) {
+          const refId = `mat_low_${material._id}_${material.quantity}`;
+          const exists = await Notification.findOne({ user: userId, referenceId: refId });
+          if (!exists) {
+            await Notification.create({
+              user: userId,
+              title: 'Vật tư sắp hết',
+              message: `Vật tư "${material.name}" chỉ còn ${material.quantity} ${material.unit || ''}. Hãy chuẩn bị nhập thêm.`,
+              type: 'SYSTEM',
               referenceId: refId
             });
           }

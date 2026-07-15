@@ -28,16 +28,16 @@ const updateFarmProfile = async (req, res) => {
         let profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
         if (!profile) {
             profile = new FarmProfile_1.FarmProfile({ user: req.user?._id, ...req.body });
-            if (req.body.plan && req.body.plan !== 'BASIC') {
+            if (req.body.plan && req.body.plan !== 'FREE') {
                 profile.planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
             }
         }
         else {
             const currentEffectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
             if (req.body.plan && req.body.plan !== currentEffectivePlan) {
-                const planValues = { BASIC: 1, STANDARD: 2, PREMIUM: 3 };
-                const currentVal = planValues[currentEffectivePlan] || 1;
-                const newVal = planValues[req.body.plan] || 1;
+                const planValues = { FREE: 0, BASIC: 1, STANDARD: 2, PREMIUM: 3 };
+                const currentVal = planValues[currentEffectivePlan] || 0;
+                const newVal = planValues[req.body.plan] || 0;
                 if (newVal > currentVal) {
                     const isNewPurchase = !profile.planExpiresAt || new Date(profile.planExpiresAt) < new Date();
                     profile.planExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);

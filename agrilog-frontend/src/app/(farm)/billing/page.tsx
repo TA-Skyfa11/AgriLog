@@ -6,6 +6,7 @@ import styles from '@/css/billing.module.css';
 import { Check, X, CheckCircle2 } from 'lucide-react';
 import { fetchAPI } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 
 const QR_BASE_URL = 'https://api.vietqr.io/image/970422-88020305666999-CYu443p.jpg?accountName=NGUYEN%20TUNG%20ANH';
 
@@ -82,7 +83,7 @@ export default function BillingPage() {
         loadData();
       }
     } catch (error) {
-      alert('Có lỗi xảy ra khi xử lý thanh toán');
+      toast.error('Có lỗi xảy ra khi xử lý thanh toán');
     }
   };
 

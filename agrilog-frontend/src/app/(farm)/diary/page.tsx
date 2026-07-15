@@ -10,6 +10,7 @@ import { fetchAPI } from '@/lib/api';
 import styles from '@/css/diary.module.css';
 import { Leaf, Search, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'react-hot-toast';
 
 export default function DiaryBoardsPage() {
   const router = useRouter();
@@ -66,10 +67,10 @@ export default function DiaryBoardsPage() {
         setShowModal(false);
         router.push(`/diary/cultivation/${res.data._id}`);
       } else {
-        alert(res.message || 'Có lỗi xảy ra khi tạo bảng canh tác');
+        toast.error(res.message || 'Có lỗi xảy ra khi tạo bảng canh tác');
       }
     } catch (error: any) {
-      alert('Lỗi catch: ' + error.message);
+      toast.error('Lỗi catch: ' + error.message);
     }
   };
 

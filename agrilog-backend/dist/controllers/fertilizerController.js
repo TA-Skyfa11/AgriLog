@@ -4,6 +4,7 @@ exports.deleteFertilizerEntry = exports.updateFertilizerEntry = exports.createFe
 const FarmProfile_1 = require("../models/FarmProfile");
 const FertilizerBoard_1 = require("../models/FertilizerBoard");
 const FertilizerEntry_1 = require("../models/FertilizerEntry");
+const Material_1 = require("../models/Material");
 const boardUtils_1 = require("../utils/boardUtils");
 const getFertilizerBoards = async (req, res) => {
     try {
@@ -150,11 +151,31 @@ const createFertilizerEntry = async (req, res) => {
             if (isLocked)
                 return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
         }
+        let numValue = 0;
+        if (req.body.material && req.body.quantity) {
+            const quantityStr = String(req.body.quantity);
+            const quantityMatch = quantityStr.match(/[\d.]+/);
+            if (quantityMatch) {
+                numValue = parseFloat(quantityMatch[0]);
+                if (!isNaN(numValue) && numValue > 0) {
+                    const material = await Material_1.Material.findById(req.body.material);
+                    if (material && material.quantity < numValue) {
+                        return res.status(400).json({ success: false, message: `Số lượng vật tư trong kho không đủ. Kho hiện tại chỉ còn ${material.quantity} ${material.unit || ''}.` });
+                    }
+                }
+                else {
+                    numValue = 0;
+                }
+            }
+        }
         const entry = new FertilizerEntry_1.FertilizerEntry({
             ...req.body,
             fertilizerBoard: req.params.boardId,
         });
         await entry.save();
+        if (numValue > 0) {
+            await Material_1.Material.findByIdAndUpdate(req.body.material, { $inc: { quantity: -numValue } });
+        }
         res.status(201).json({ success: true, data: entry });
     }
     catch (error) {
@@ -175,9 +196,55 @@ const updateFertilizerEntry = async (req, res) => {
             if (isLocked)
                 return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
         }
+        const oldMaterialId = entryCheck.material?.toString();
+        const newMaterialId = req.body.material;
+        let oldQuantityNum = 0;
+        if (entryCheck.quantity) {
+            const match = String(entryCheck.quantity).match(/[\d.]+/);
+            if (match)
+                oldQuantityNum = parseFloat(match[0]) || 0;
+        }
+        let newQuantityNum = 0;
+        if (req.body.quantity) {
+            const match = String(req.body.quantity).match(/[\d.]+/);
+            if (match)
+                newQuantityNum = parseFloat(match[0]) || 0;
+        }
+        // Validation for new material usage
+        if (oldMaterialId && newMaterialId && oldMaterialId === newMaterialId) {
+            const diff = newQuantityNum - oldQuantityNum;
+            if (diff > 0) {
+                const material = await Material_1.Material.findById(newMaterialId);
+                if (material && material.quantity < diff) {
+                    return res.status(400).json({ success: false, message: `Số lượng vật tư trong kho không đủ. Kho hiện tại chỉ còn ${material.quantity} ${material.unit || ''}.` });
+                }
+            }
+        }
+        else {
+            if (newMaterialId && newQuantityNum > 0) {
+                const material = await Material_1.Material.findById(newMaterialId);
+                if (material && material.quantity < newQuantityNum) {
+                    return res.status(400).json({ success: false, message: `Số lượng vật tư trong kho không đủ. Kho hiện tại chỉ còn ${material.quantity} ${material.unit || ''}.` });
+                }
+            }
+        }
         const entry = await FertilizerEntry_1.FertilizerEntry.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
         if (!entry)
             return res.status(404).json({ success: false, message: 'Entry not found' });
+        if (oldMaterialId && newMaterialId && oldMaterialId === newMaterialId) {
+            const diff = newQuantityNum - oldQuantityNum;
+            if (diff !== 0) {
+                await Material_1.Material.findByIdAndUpdate(newMaterialId, { $inc: { quantity: -diff } });
+            }
+        }
+        else {
+            if (oldMaterialId && oldQuantityNum > 0) {
+                await Material_1.Material.findByIdAndUpdate(oldMaterialId, { $inc: { quantity: oldQuantityNum } });
+            }
+            if (newMaterialId && newQuantityNum > 0) {
+                await Material_1.Material.findByIdAndUpdate(newMaterialId, { $inc: { quantity: -newQuantityNum } });
+            }
+        }
         res.json({ success: true, data: entry });
     }
     catch (error) {
@@ -201,6 +268,15 @@ const deleteFertilizerEntry = async (req, res) => {
         const entry = await FertilizerEntry_1.FertilizerEntry.findByIdAndDelete(req.params.id);
         if (!entry)
             return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chép.' });
+        if (entry.material && entry.quantity) {
+            const match = String(entry.quantity).match(/[\d.]+/);
+            if (match) {
+                const numValue = parseFloat(match[0]);
+                if (!isNaN(numValue) && numValue > 0) {
+                    await Material_1.Material.findByIdAndUpdate(entry.material, { $inc: { quantity: numValue } });
+                }
+            }
+        }
         res.json({ success: true, message: 'Xóa ghi chép thành công.' });
     }
     catch (error) {

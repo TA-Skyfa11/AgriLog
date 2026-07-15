@@ -7,8 +7,12 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import styles from '@/css/Users.module.css';
 import { fetchAPI } from '@/lib/api';
+import { toast } from 'react-hot-toast';
+import { useDialog } from '@/context/DialogContext';
 
 export default function UsersPage() {
+  const dialog = useDialog();
+
   const [farmsData, setFarmsData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -81,7 +85,7 @@ export default function UsersPage() {
     }
   };
 
-  const openResetModal = (userId: string, email: string, allowAdminReset: boolean) => {
+  const openResetModal = async (userId: string, email: string, allowAdminReset: boolean) => {
     setResetUserId(userId);
     setResetUserEmail(email);
     setResetUserAllowed(allowAdminReset);
@@ -114,31 +118,31 @@ export default function UsersPage() {
   };
 
   const handleToggleLock = async (userId: string, currentStatus: boolean) => {
-    if (!confirm(`Bạn có chắc muốn ${currentStatus ? 'khóa' : 'mở khóa'} tài khoản này?`)) return;
+    if (!(await dialog.confirm(`Bạn có chắc muốn ${currentStatus ? 'khóa' : 'mở khóa'} tài khoản này?`))) return;
     try {
       const res = await fetchAPI(`/admin/users/${userId}/toggle-lock`, { method: 'PUT' });
       if (res.success) {
         loadUsers();
       } else {
-        alert(res.message || 'Thao tác thất bại');
+        toast.error(res.message || 'Thao tác thất bại');
       }
     } catch (err: any) {
-      alert(err.message || 'Có lỗi xảy ra');
+      toast.error(err.message || 'Có lỗi xảy ra');
     }
   };
 
   const handleDeleteUser = async (userId: string, email: string) => {
-    if (!confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN tài khoản ${email} và TẤT CẢ dữ liệu liên quan? Hành động này không thể hoàn tác!`)) return;
+    if (!(await dialog.confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN tài khoản ${email} và TẤT CẢ dữ liệu liên quan? Hành động này không thể hoàn tác!`))) return;
     try {
       const res = await fetchAPI(`/admin/users/${userId}`, { method: 'DELETE' });
       if (res.success) {
-        alert('Xóa tài khoản thành công!');
+        toast.success('Xóa tài khoản thành công!');
         loadUsers();
       } else {
-        alert(res.message || 'Xóa tài khoản thất bại');
+        toast.error(res.message || 'Xóa tài khoản thất bại');
       }
     } catch (err: any) {
-      alert(err.message || 'Có lỗi xảy ra khi xóa tài khoản');
+      toast.error(err.message || 'Có lỗi xảy ra khi xóa tài khoản');
     }
   };
 

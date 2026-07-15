@@ -5,6 +5,7 @@ export interface IPesticideEntry extends Document {
   date: Date;
   material?: Types.ObjectId;
   materialName?: string;
+  manufacturer?: string; // Nhà sản xuất
   activeIngredient?: string; // Hoạt chất
   targetPest?: string; // Mục tiêu phòng trừ
   quantity?: string; // Liều lượng
@@ -24,6 +25,7 @@ const pesticideEntrySchema = new Schema<IPesticideEntry>(
     date: { type: Date, required: true },
     material: { type: Schema.Types.ObjectId, ref: 'Material' },
     materialName: { type: String },
+    manufacturer: { type: String },
     activeIngredient: { type: String },
     targetPest: { type: String },
     quantity: { type: String },

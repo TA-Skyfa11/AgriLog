@@ -6,8 +6,12 @@ import { Package, Plus, Edit, Trash2, Check, X as XIcon, Save } from 'lucide-rea
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { fetchAPI } from '@/lib/api';
+import { toast } from 'react-hot-toast';
+import { useDialog } from '@/context/DialogContext';
 
 export default function ServicesPage() {
+  const dialog = useDialog();
+
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -45,7 +49,7 @@ export default function ServicesPage() {
     loadServices();
   }, []);
 
-  const handleOpenModal = (service?: any) => {
+  const handleOpenModal = async (service?: any) => {
     if (service) {
       setEditingId(service._id);
       setFormData({
@@ -106,14 +110,14 @@ export default function ServicesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa gói dịch vụ này?')) return;
+    if (!(await dialog.confirm('Bạn có chắc chắn muốn xóa gói dịch vụ này?'))) return;
     try {
       const res = await fetchAPI(`/services/${id}`, { method: 'DELETE' });
       if (res.success) {
         loadServices();
       }
     } catch (err) {
-      alert('Không thể xóa gói dịch vụ.');
+      toast.error('Không thể xóa gói dịch vụ.');
     }
   };
 

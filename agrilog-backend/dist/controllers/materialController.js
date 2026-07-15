@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMaterialLogs = exports.importMaterial = exports.getInventory = void 0;
+exports.deleteMaterial = exports.updateMaterial = exports.getMaterialLogs = exports.importMaterial = exports.getInventory = void 0;
 const Material_1 = require("../models/Material");
 const MaterialLog_1 = require("../models/MaterialLog");
 const FarmProfile_1 = require("../models/FarmProfile");
@@ -76,3 +76,35 @@ const getMaterialLogs = async (req, res) => {
     }
 };
 exports.getMaterialLogs = getMaterialLogs;
+const updateMaterial = async (req, res) => {
+    try {
+        const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile)
+            return res.status(404).json({ success: false, message: 'Profile not found' });
+        const material = await Material_1.Material.findOneAndUpdate({ _id: req.params.id, farmProfile: profile._id }, req.body, { new: true });
+        if (!material)
+            return res.status(404).json({ success: false, message: 'Material not found' });
+        res.json({ success: true, data: material });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.updateMaterial = updateMaterial;
+const deleteMaterial = async (req, res) => {
+    try {
+        const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile)
+            return res.status(404).json({ success: false, message: 'Profile not found' });
+        const material = await Material_1.Material.findOneAndDelete({ _id: req.params.id, farmProfile: profile._id });
+        if (!material)
+            return res.status(404).json({ success: false, message: 'Material not found' });
+        // Optional: Also delete related logs? Usually logs are kept or marked deleted, but we can delete them here for simplicity
+        await MaterialLog_1.MaterialLog.deleteMany({ material: material._id });
+        res.json({ success: true, message: 'Material deleted' });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.deleteMaterial = deleteMaterial;

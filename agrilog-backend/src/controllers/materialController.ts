@@ -78,3 +78,39 @@ export const getMaterialLogs = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, message: (error as Error).message });
   }
 };
+
+export const updateMaterial = async (req: AuthRequest, res: Response) => {
+  try {
+    const profile = await FarmProfile.findOne({ user: req.user?._id });
+    if (!profile) return res.status(404).json({ success: false, message: 'Profile not found' });
+
+    const material = await Material.findOneAndUpdate(
+      { _id: req.params.id, farmProfile: profile._id },
+      req.body,
+      { new: true }
+    );
+    
+    if (!material) return res.status(404).json({ success: false, message: 'Material not found' });
+    
+    res.json({ success: true, data: material });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
+export const deleteMaterial = async (req: AuthRequest, res: Response) => {
+  try {
+    const profile = await FarmProfile.findOne({ user: req.user?._id });
+    if (!profile) return res.status(404).json({ success: false, message: 'Profile not found' });
+
+    const material = await Material.findOneAndDelete({ _id: req.params.id, farmProfile: profile._id });
+    if (!material) return res.status(404).json({ success: false, message: 'Material not found' });
+
+    // Optional: Also delete related logs? Usually logs are kept or marked deleted, but we can delete them here for simplicity
+    await MaterialLog.deleteMany({ material: material._id });
+
+    res.json({ success: true, message: 'Material deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};

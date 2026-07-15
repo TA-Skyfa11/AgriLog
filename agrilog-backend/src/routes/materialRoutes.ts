@@ -1,5 +1,5 @@
 import express from 'express';
-import { getInventory, importMaterial, getMaterialLogs } from '../controllers/materialController';
+import { getInventory, importMaterial, getMaterialLogs, updateMaterial, deleteMaterial } from '../controllers/materialController';
 import { protect, authorize } from '../middleware/authMiddleware';
 import { Role } from '../models/User';
 
@@ -11,6 +11,10 @@ router.use(authorize(Role.FARM));
 router.route('/')
   .get(getInventory)
   .post(importMaterial);
+
+router.route('/:id')
+  .put(updateMaterial)
+  .delete(deleteMaterial);
 
 router.route('/logs')
   .get(getMaterialLogs);

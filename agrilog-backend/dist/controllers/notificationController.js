@@ -4,6 +4,7 @@ exports.markAllAsRead = exports.markAsRead = exports.getNotifications = void 0;
 const Notification_1 = require("../models/Notification");
 const Task_1 = require("../models/Task");
 const FarmProfile_1 = require("../models/FarmProfile");
+const Material_1 = require("../models/Material");
 const getNotifications = async (req, res) => {
     try {
         const userId = req.user?._id;
@@ -62,6 +63,37 @@ const getNotifications = async (req, res) => {
                             title: 'Gói cước đã hết hạn',
                             message: `Gói cước ${profile.plan} của bạn đã hết hạn. Hệ thống đã tự động chuyển về gói BASIC.`,
                             type: 'BILLING',
+                            referenceId: refId
+                        });
+                    }
+                }
+            }
+            // 3. Check for low/out-of-stock materials
+            const materials = await Material_1.Material.find({ farmProfile: profile._id });
+            for (const material of materials) {
+                const threshold = material.minQuantityAlert || (material.type === 'FERTILIZER' ? 50 : 5);
+                if (material.quantity <= 0) {
+                    const refId = `mat_out_${material._id}`;
+                    const exists = await Notification_1.Notification.findOne({ user: userId, referenceId: refId });
+                    if (!exists) {
+                        await Notification_1.Notification.create({
+                            user: userId,
+                            title: 'Vật tư đã hết hàng',
+                            message: `Vật tư "${material.name}" đã hết hàng trong kho. Vui lòng nhập thêm.`,
+                            type: 'SYSTEM',
+                            referenceId: refId
+                        });
+                    }
+                }
+                else if (material.quantity <= threshold) {
+                    const refId = `mat_low_${material._id}_${material.quantity}`;
+                    const exists = await Notification_1.Notification.findOne({ user: userId, referenceId: refId });
+                    if (!exists) {
+                        await Notification_1.Notification.create({
+                            user: userId,
+                            title: 'Vật tư sắp hết',
+                            message: `Vật tư "${material.name}" chỉ còn ${material.quantity} ${material.unit || ''}. Hãy chuẩn bị nhập thêm.`,
+                            type: 'SYSTEM',
                             referenceId: refId
                         });
                     }

@@ -46,5 +46,6 @@ const cultivationEntrySchema = new mongoose_1.Schema({
     notes: { type: String },
     imageUrls: [{ type: String }],
     customValues: { type: mongoose_1.Schema.Types.Mixed, default: {} },
+    isCompleted: { type: Boolean, default: false },
 }, { timestamps: true });
 exports.CultivationEntry = mongoose_1.default.model('CultivationEntry', cultivationEntrySchema);

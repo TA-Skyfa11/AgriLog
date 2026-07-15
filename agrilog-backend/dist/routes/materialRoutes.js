@@ -13,6 +13,9 @@ router.use((0, authMiddleware_1.authorize)(User_1.Role.FARM));
 router.route('/')
     .get(materialController_1.getInventory)
     .post(materialController_1.importMaterial);
+router.route('/:id')
+    .put(materialController_1.updateMaterial)
+    .delete(materialController_1.deleteMaterial);
 router.route('/logs')
     .get(materialController_1.getMaterialLogs);
 exports.default = router;

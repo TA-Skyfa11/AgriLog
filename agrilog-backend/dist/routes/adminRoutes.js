@@ -20,6 +20,8 @@ router.route('/users')
     .post(adminController_1.addUser);
 router.route('/users/:userId/toggle-lock')
     .put(adminController_1.toggleUserLock);
+router.route('/users/:userId')
+    .delete(adminController_1.deleteUser);
 router.route('/users/:userId/reset-password')
     .put(adminController_1.adminResetPassword);
 router.route('/commission')

@@ -25,7 +25,7 @@ export default function ProductDetailPage() {
         if (res.success) {
           setProduct(res.data);
         } else {
-          alert('Không tìm thấy sản phẩm');
+          toast.error('Không tìm thấy sản phẩm');
           router.push('/marketplace');
         }
       } catch (e) {

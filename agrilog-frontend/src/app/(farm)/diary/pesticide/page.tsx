@@ -8,6 +8,7 @@ import { fetchAPI } from '@/lib/api';
 import styles from '@/css/diary.module.css';
 import { ShieldAlert, Search, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'react-hot-toast';
 
 export default function PesticideDiaryPage() {
   const router = useRouter();
@@ -65,10 +66,10 @@ export default function PesticideDiaryPage() {
         setShowModal(false);
         router.push(`/diary/pesticide/${res.data._id}`);
       } else {
-        alert(res.message || 'Có lỗi xảy ra khi tạo bảng thuốc BVTV');
+        toast.error(res.message || 'Có lỗi xảy ra khi tạo bảng thuốc BVTV');
       }
     } catch (error) {
-      alert('Có lỗi xảy ra khi tạo bảng thuốc BVTV');
+      toast.error('Có lỗi xảy ra khi tạo bảng thuốc BVTV');
     }
   };
 

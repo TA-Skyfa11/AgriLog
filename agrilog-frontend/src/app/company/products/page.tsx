@@ -7,6 +7,8 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Plus, Edit, Trash2, Eye } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
+import { useDialog } from '@/context/DialogContext';
 
 const CATEGORY_LABELS: Record<string, string> = {
   FERTILIZER: 'Phân bón',
@@ -23,6 +25,8 @@ const STATUS_MAP: Record<string, { label: string; variant: string }> = {
 };
 
 export default function CompanyProductsPage() {
+  const dialog = useDialog();
+
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,12 +42,12 @@ export default function CompanyProductsPage() {
   useEffect(() => { loadProducts(); }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Bạn chắc chắn muốn xóa sản phẩm này?')) return;
+    if (!(await dialog.confirm('Bạn chắc chắn muốn xóa sản phẩm này?'))) return;
     try {
       await fetchAPI(`/products/${id}`, { method: 'DELETE' });
       loadProducts();
     } catch (e: any) {
-      alert(e.message || 'Xóa thất bại');
+      toast.error(e.message || 'Xóa thất bại');
     }
   };
 

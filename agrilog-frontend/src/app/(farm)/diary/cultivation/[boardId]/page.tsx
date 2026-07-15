@@ -9,6 +9,9 @@ import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, FileText, Download, Printer, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import CustomSelect from '@/components/ui/CustomSelect';
+import { toast } from 'react-hot-toast';
+import { useDialog } from '@/context/DialogContext';
 
 
 const AutoResizeTextarea = (props: any) => {
@@ -97,31 +100,29 @@ const DropdownWithOther = ({ value, options, onChange, onBlur, placeholder, clas
   }
 
   return (
-    <select 
-      style={style} 
+    <CustomSelect 
+      style={{ ...style, padding: 0, border: 'none', background: 'transparent' }} 
       className={className}
       value={value || ''} 
-      onChange={(e) => {
-        if (e.target.value === 'Khác') {
+      onChange={(val) => {
+        if (val === 'Khác') {
           setShowInput(true);
           onChange('');
         } else {
           setShowInput(false);
-          onChange(e.target.value);
+          onChange(val);
         }
+        if (onBlur) setTimeout(onBlur, 100);
       }}
-      onBlur={() => {
-        if (!showInput && onBlur) onBlur();
-      }}
-    >
-      <option value="">{placeholder}</option>
-      {options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
-      <option value="Khác">Khác</option>
-    </select>
+      options={[...options.map((opt: string) => ({ label: opt, value: opt })), { label: 'Khác', value: 'Khác' }]}
+      placeholder={placeholder}
+    />
   );
 };
 
 export default function CultivationDiaryDetailPage() {
+  const dialog = useDialog();
+
   const { boardId } = useParams();
   const router = useRouter();
   const [board, setBoard] = useState<any>(null);
@@ -129,13 +130,15 @@ export default function CultivationDiaryDetailPage() {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showHarvestModal, setShowHarvestModal] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [userPlan, setUserPlan] = useState('BASIC');
 
   // Define new inline input style
   const inlineInputStyle: React.CSSProperties = {
     width: '100%',
-    minWidth: '0',
+        whiteSpace: 'pre-wrap',
+    wordWrap: 'break-word',
     border: '1px solid #e5e7eb',
     background: '#f9fafb',
     padding: '6px 8px',
@@ -205,7 +208,8 @@ export default function CultivationDiaryDetailPage() {
           }));
           setEntries(initialRows);
         } else {
-          setEntries(entriesRes.data);
+          const sorted = entriesRes.data.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          setEntries(sorted);
         }
       }
       if (profileRes.success) {
@@ -228,7 +232,7 @@ export default function CultivationDiaryDetailPage() {
     loadBoardData();
   }, [boardId]);
 
-  const updateLocalEntry = (index: number, field: string, value: any, isCustom: boolean = false) => {
+  const updateLocalEntry = async (index: number, field: string, value: any, isCustom: boolean = false) => {
     const newEntries = [...entries];
     if (isCustom) {
       newEntries[index].customValues = { ...newEntries[index].customValues, [field]: value };
@@ -275,6 +279,18 @@ export default function CultivationDiaryDetailPage() {
     }
   };
 
+  
+  const handleRemoveImage = async (index: number, imageIndex: number) => {
+    if (await dialog.confirm('Bạn có chắc chắn muốn xóa ảnh này?')) {
+      const newEntries = [...entries];
+      if (newEntries[index].imageUrls) {
+        newEntries[index].imageUrls.splice(imageIndex, 1);
+        setEntries(newEntries);
+        handleBlurSave(index);
+      }
+    }
+  };
+
   const handleImageUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -307,10 +323,10 @@ export default function CultivationDiaryDetailPage() {
         // Auto save entry
         handleBlurSave(index);
       } else {
-        alert(data.message || 'Lỗi tải ảnh lên');
+        toast.error(data.message || 'Lỗi tải ảnh lên');
       }
     } catch (error) {
-      alert('Lỗi kết nối khi tải ảnh');
+      toast.error('Lỗi kết nối khi tải ảnh');
     }
   };
 
@@ -342,23 +358,23 @@ export default function CultivationDiaryDetailPage() {
     ]);
   };
 
-  const handleHarvestChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleHarvestChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setHarvestData({ ...harvestData, [e.target.name]: e.target.value });
   };
 
 
 
   const handleDeleteBoard = async () => {
-    if (confirm('Bạn có chắc chắn muốn xóa bảng này không? Toàn bộ dữ liệu sẽ bị mất vĩnh viễn.')) {
+    if (await dialog.confirm('Bạn có chắc chắn muốn xóa bảng này không? Toàn bộ dữ liệu sẽ bị mất vĩnh viễn.')) {
       try {
         const res = await fetchAPI(`/cultivation-boards/${boardId}`, { method: 'DELETE' });
         if (res.success) {
           router.push('/diary');
         } else {
-          alert('Lỗi khi xóa bảng');
+          toast.error('Lỗi khi xóa bảng');
         }
       } catch (e) {
-        alert('Lỗi kết nối khi xóa bảng');
+        toast.error('Lỗi kết nối khi xóa bảng');
       }
     }
   };
@@ -376,22 +392,22 @@ export default function CultivationDiaryDetailPage() {
       if (res.success) {
         setBoard(res.data);
         setShowEditModal(false);
-        alert('Cập nhật thông tin bảng thành công');
+        toast.success('Cập nhật thông tin bảng thành công');
       } else {
-        alert('Lỗi khi cập nhật bảng');
+        toast.error('Lỗi khi cập nhật bảng');
       }
     } catch (e) {
-      alert('Lỗi kết nối khi cập nhật bảng');
+      toast.error('Lỗi kết nối khi cập nhật bảng');
     }
   };
 
   const handleAddColumn = async () => {
-    const colName = prompt('Nhập tên cột mới cần thêm (Ví dụ: Độ ẩm đất, Nhiệt độ...):');
+    const colName = await dialog.prompt('Nhập tên cột mới cần thêm (Ví dụ: Độ ẩm đất, Nhiệt độ...):');
     if (!colName || !colName.trim()) return;
 
     const trimmedColName = colName.trim();
     if (board.customColumns?.includes(trimmedColName)) {
-      alert('Cột này đã tồn tại!');
+      toast.error('Cột này đã tồn tại!');
       return;
     }
 
@@ -409,7 +425,7 @@ export default function CultivationDiaryDetailPage() {
     const currentCustomColumns = board.customColumns?.length || 0;
 
     if (currentCustomColumns >= maxColumns) {
-      alert(`Gói dịch vụ ${plan} của bạn chỉ cho phép thêm tối đa ${maxColumns} cột tùy chỉnh. Vui lòng nâng cấp gói dịch vụ để thêm!`);
+      toast.error(`Gói dịch vụ ${plan} của bạn chỉ cho phép thêm tối đa ${maxColumns} cột tùy chỉnh. Vui lòng nâng cấp gói dịch vụ để thêm!`);
       return;
     }
 
@@ -423,24 +439,24 @@ export default function CultivationDiaryDetailPage() {
       });
 
       if (res.success) {
-        alert(`Đã thêm thành công cột "${trimmedColName}"!`);
+        toast.success(`Đã thêm thành công cột "${trimmedColName}"!`);
         loadBoardData();
       }
     } catch (error) {
-      alert('Có lỗi xảy ra khi thêm cột');
+      toast.error('Có lỗi xảy ra khi thêm cột');
     }
   };
 
   const handleEditColumn = async (oldName: string) => {
-    const newName = prompt('Nhập tên mới cho cột:', oldName);
+    const newName = await dialog.prompt('Nhập tên mới cho cột:', oldName);
     if (!newName || !newName.trim() || newName.trim() === oldName) return;
     const trimmedName = newName.trim();
     if (board.customColumns?.includes(trimmedName)) {
-      alert('Tên cột đã tồn tại!');
+      toast.error('Tên cột đã tồn tại!');
       return;
     }
     
-    if (!confirm('Đổi tên cột sẽ mất một chút thời gian để cập nhật dữ liệu cũ. Bạn có tiếp tục?')) return;
+    if (!(await dialog.confirm('Đổi tên cột sẽ mất một chút thời gian để cập nhật dữ liệu cũ. Bạn có tiếp tục?'))) return;
 
     try {
       // 1. Update board columns
@@ -462,15 +478,15 @@ export default function CultivationDiaryDetailPage() {
         });
       }
 
-      alert('Đổi tên cột thành công!');
+      toast.success('Đổi tên cột thành công!');
       loadBoardData();
     } catch (e) {
-      alert('Lỗi khi đổi tên cột');
+      toast.error('Lỗi khi đổi tên cột');
     }
   };
 
   const handleDeleteColumn = async (colName: string) => {
-    if (!confirm(`Bạn có chắc chắn muốn xóa cột "${colName}" không? Dữ liệu của cột này sẽ không còn được hiển thị.`)) return;
+    if (!(await dialog.confirm(`Bạn có chắc chắn muốn xóa cột "${colName}" không? Dữ liệu của cột này sẽ không còn được hiển thị.`))) return;
     
     try {
       const updatedColumns = board.customColumns?.filter((col: string) => col !== colName) || [];
@@ -479,11 +495,11 @@ export default function CultivationDiaryDetailPage() {
         body: JSON.stringify({ customColumns: updatedColumns })
       });
       if (res.success) {
-        alert('Xóa cột thành công!');
+        toast.success('Xóa cột thành công!');
         loadBoardData();
       }
     } catch (e) {
-      alert('Lỗi khi xóa cột');
+      toast.error('Lỗi khi xóa cột');
     }
   };
 
@@ -506,12 +522,12 @@ export default function CultivationDiaryDetailPage() {
         loadBoardData();
       }
     } catch (error) {
-      alert('Lỗi cập nhật thu hoạch');
+      toast.error('Lỗi cập nhật thu hoạch');
     }
   };
 
   const handleDeleteEntry = async (id: string, index: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa hàng này?')) return;
+    if (!(await dialog.confirm('Bạn có chắc chắn muốn xóa hàng này?'))) return;
     
     if (!id) {
       // It's a new row that hasn't been saved to DB yet
@@ -527,13 +543,13 @@ export default function CultivationDiaryDetailPage() {
         loadBoardData();
       }
     } catch (error) {
-      alert('Lỗi xóa bản ghi');
+      toast.error('Lỗi xóa bản ghi');
     }
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (userPlan === 'BASIC') {
-      alert('Gói cước Basic không hỗ trợ xuất file Excel. Vui lòng nâng cấp gói cước.');
+      toast.error('Gói cước Basic không hỗ trợ xuất file Excel. Vui lòng nâng cấp gói cước.');
       return;
     }
     
@@ -555,15 +571,31 @@ export default function CultivationDiaryDetailPage() {
       });
 
       const ws = XLSX.utils.json_to_sheet(data);
+
+      const colWidths = Object.keys(data[0] || {}).map((key) => {
+        let maxLength = key.length;
+        data.forEach((row) => {
+          const val = row[key];
+          if (val) {
+            const length = val.toString().length;
+            if (length > maxLength) maxLength = length;
+          }
+        });
+        return { wch: Math.min(Math.max(maxLength, 10), 100) + 2 };
+      });
+      ws['!cols'] = colWidths;
+
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Canh tác');
       XLSX.writeFile(wb, `${board?.name || 'nhat_ky'}_canh_tac.xlsx`);
     });
   };
 
+  
+  
   const exportToPDF = async () => {
     if (userPlan === 'BASIC') {
-      alert('Gói cước Basic không hỗ trợ xuất file PDF. Vui lòng nâng cấp gói cước.');
+      toast.error('Gói cước Basic không hỗ trợ xuất file PDF. Vui lòng nâng cấp gói cước.');
       return;
     }
     
@@ -571,20 +603,53 @@ export default function CultivationDiaryDetailPage() {
     const { default: autoTable } = await import('jspdf-autotable');
     
     const doc = new jsPDF('landscape');
+
+    // Fetch and load Roboto font for Vietnamese support
+    try {
+      const [regularRes, mediumRes] = await Promise.all([
+        fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Regular.ttf'),
+        fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Medium.ttf')
+      ]);
+      
+      const regularBuffer = await regularRes.arrayBuffer();
+      const mediumBuffer = await mediumRes.arrayBuffer();
+      
+      const regularBytes = new Uint8Array(regularBuffer);
+      let regularBinary = '';
+      for (let i = 0; i < regularBytes.byteLength; i++) {
+          regularBinary += String.fromCharCode(regularBytes[i]);
+      }
+      doc.addFileToVFS('Roboto-Regular.ttf', window.btoa(regularBinary));
+      doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+
+      const mediumBytes = new Uint8Array(mediumBuffer);
+      let mediumBinary = '';
+      for (let i = 0; i < mediumBytes.byteLength; i++) {
+          mediumBinary += String.fromCharCode(mediumBytes[i]);
+      }
+      doc.addFileToVFS('Roboto-Medium.ttf', window.btoa(mediumBinary));
+      doc.addFont('Roboto-Medium.ttf', 'Roboto', 'bold');
+
+      doc.setFont('Roboto');
+    } catch (error) {
+      console.error('Failed to load font for PDF', error);
+      doc.setFont('Roboto'); // try to fallback if partially loaded
+    }
+
     
     // Add title
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('Roboto', 'bold');
     doc.setFontSize(20);
     doc.setTextColor(22, 163, 74); // Green 600
-    doc.text(`NHAT KY CANH TAC: ${board?.name || ''}`, 14, 20);
+    doc.text(`NHẬT KÝ CANH TÁC: ${board?.name || ''}`, 14, 20);
     
     // Add info
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('Roboto', 'normal');
     doc.setFontSize(12);
     doc.setTextColor(71, 85, 105); // Slate 600
-    doc.text(`Cay trong: ${board?.cropType || ''}`, 14, 30);
-    doc.text(`Dien tich: ${board?.areaSqm || 0} m2`, 80, 30);
-    doc.text(`Ngay bat dau: ${board?.startDate ? format(new Date(board.startDate), 'dd/MM/yyyy') : ''}`, 150, 30);
+    doc.text(`Cây trồng: ${board?.cropType || ''}`, 14, 30);
+    doc.text(`Diện tích: ${board?.areaSqm || 0} m2`, 80, 30);
+    doc.text(`Ngày bắt đầu: ${board?.startDate ? format(new Date(board.startDate), 'dd/MM/yyyy') : ''}`, 150, 30);
 
     // Divider line
     doc.setDrawColor(226, 232, 240);
@@ -594,24 +659,24 @@ export default function CultivationDiaryDetailPage() {
     const customCols = board?.customColumns || [];
     const headers = [
       'STT', 
-      'Ngay', 
-      'Giai doan', 
-      'Hoat dong', 
-      'Nguoi lam', 
-      'Thoi tiet', 
-      'Ghi chu',
-      ...customCols.map((c: string) => c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+      'Ngày', 
+      'Giai đoạn', 
+      'Hoạt động', 
+      'Người làm', 
+      'Thời tiết', 
+      'Ghi chú',
+      ...customCols
     ];
     
     const data = entries.map((e, idx) => [
       idx + 1,
       e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
-      (e.stage || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      (e.activityName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      (e.performer || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      (e.weather || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      (e.notes || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      ...customCols.map((col: string) => (e.customValues?.[col] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+      e.stage || '',
+      e.activityName || '',
+      e.performer || '',
+      e.weather || '',
+      e.notes || '',
+      ...customCols.map((col: string) => e.customValues?.[col] || '')
     ]);
 
     autoTable(doc as any, {
@@ -619,7 +684,7 @@ export default function CultivationDiaryDetailPage() {
       head: [headers],
       body: data,
       theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.1 },
+      styles: { font: 'Roboto', fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.1 },
       headStyles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'center' },
       alternateRowStyles: { fillColor: [248, 250, 252] }
     });
@@ -806,9 +871,18 @@ export default function CultivationDiaryDetailPage() {
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       {entry.imageUrls?.map((url: string, i: number) => (
-                        <a key={i} href={url} target="_blank" rel="noreferrer">
+                        <div key={i} style={{ position: 'relative', display: 'inline-block', width: 'max-content' }}>
+                          <div onClick={() => setPreviewImage(url)} style={{ cursor: 'pointer' }}>
                           <img src={url} alt="Uploaded" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
-                        </a>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleRemoveImage(index, i); }}
+                            style={{ position: 'absolute', top: '-4px', right: '-4px', background: 'red', color: 'white', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', fontSize: '12px', padding: 0 }}
+                            title="Xóa ảnh"
+                          >
+                            ×
+                          </button>
+                        </div>
                       ))}
                       <label className={styles.uploadBtn} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '12px' }}>
                         <ImageIcon size={14} /> Tải lên
@@ -955,6 +1029,18 @@ export default function CultivationDiaryDetailPage() {
           </div>
         </div>
       )}
-    </div>
+    
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setPreviewImage(null)}>
+          <div style={{ position: 'relative', maxWidth: '90%', maxHeight: '90%' }}>
+            <button onClick={() => setPreviewImage(null)} style={{ position: 'absolute', top: '-40px', right: '0', background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', padding: '8px' }}>
+              <X size={32} />
+            </button>
+            <img src={previewImage} alt="Preview" style={{ maxWidth: '100%', maxHeight: '85vh', objectFit: 'contain' }} onClick={(e) => e.stopPropagation()} />
+          </div>
+        </div>
+      )}
+</div>
   );
 }

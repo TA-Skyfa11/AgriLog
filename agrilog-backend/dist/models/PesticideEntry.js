@@ -40,6 +40,7 @@ const pesticideEntrySchema = new mongoose_1.Schema({
     date: { type: Date, required: true },
     material: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Material' },
     materialName: { type: String },
+    manufacturer: { type: String },
     activeIngredient: { type: String },
     targetPest: { type: String },
     quantity: { type: String },
