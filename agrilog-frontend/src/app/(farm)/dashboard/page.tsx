@@ -215,9 +215,9 @@ export default function DashboardPage() {
                   {weather.condition}
                 </span>
               </div>
-              {weather.icon.includes('sun') || weather.icon.includes('clear') ? <Sun size={48} color="white" /> :
-               weather.icon.includes('rain') || weather.icon.includes('drizzle') || weather.icon.includes('shower') ? <CloudRain size={48} color="white" /> :
-               weather.icon.includes('partly') ? <CloudSun size={48} color="white" /> :
+              {weather.icon.includes('quang') || weather.icon.includes('nắng') ? <Sun size={48} color="white" /> :
+               weather.icon.includes('mưa') || weather.icon.includes('dông') || weather.icon.includes('bão') ? <CloudRain size={48} color="white" /> :
+               weather.icon.includes('rải rác') || weather.icon.includes('vài nơi') || weather.icon.includes('cụm') ? <CloudSun size={48} color="white" /> :
                <Cloud size={48} color="white" />}
             </div>
 

@@ -107,6 +107,7 @@ export default function PesticideDiaryDetailPage() {
             unit: '',
             phiDays: '',
             performer: '',
+            weather: '',
             cost: '',
             notes: '',
             customValues: {}
@@ -358,7 +359,20 @@ export default function PesticideDiaryDetailPage() {
     }
   };
 
-  const handleAddNewRow = () => {
+  const fetchWeather = async () => {
+    try {
+      const res = await fetchAPI('/weather');
+      if (res.success && res.data) {
+        return `${res.data.temp}°C, ${res.data.desc}`;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return '';
+  };
+
+  const handleAddNewRow = async () => {
+    const weather = await fetchWeather();
     setEntries([
       ...entries,
       {
@@ -369,6 +383,7 @@ export default function PesticideDiaryDetailPage() {
         quantity: '',
         phiDays: '',
         performer: '',
+        weather: weather,
         cost: '',
         notes: '',
         customValues: {}
@@ -414,6 +429,7 @@ export default function PesticideDiaryDetailPage() {
           'Liều lượng': e.quantity || '—',
           'Thời gian cách ly': e.phiDays || 0,
           'Người thực hiện': e.performer || '—',
+          'Thời tiết': e.weather || '—',
           'Ghi chú': e.notes || '—'
         };
         customCols.forEach((col: string) => {
@@ -469,6 +485,7 @@ export default function PesticideDiaryDetailPage() {
       'Lieu luong', 
       'Cach ly (ngay)', 
       'Nguoi thuc hien', 
+      'Thoi tiet',
       'Ghi chu',
       ...customCols.map((c: string) => c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
     ];
@@ -482,6 +499,7 @@ export default function PesticideDiaryDetailPage() {
       (e.quantity || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
       e.phiDays || 0,
       (e.performer || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      (e.weather || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
       (e.notes || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
       ...customCols.map((col: string) => (e.customValues?.[col] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
     ]);
@@ -630,6 +648,7 @@ export default function PesticideDiaryDetailPage() {
               <th>Liều lượng</th>
               <th>Thời gian cách ly</th>
               <th>Người thực hiện</th>
+              <th>Thời tiết</th>
               <th>Ghi chú</th>
               {board.customColumns?.map((col: string, idx: number) => (
                 <th key={idx}>
@@ -723,6 +742,14 @@ export default function PesticideDiaryDetailPage() {
                       style={inlineInputStyle}
                       value={entry.performer || ''}
                       onChange={(e: any) => updateLocalEntry(index, 'performer', e.target.value)}
+                      onBlur={() => handleBlurSave(index)}
+                    />
+                  </td>
+                  <td>
+                    <AutoResizeTextarea 
+                      style={inlineInputStyle}
+                      value={entry.weather || ''}
+                      onChange={(e: any) => updateLocalEntry(index, 'weather', e.target.value)}
                       onBlur={() => handleBlurSave(index)}
                     />
                   </td>

@@ -105,6 +105,7 @@ export default function FertilizerDiaryDetailPage() {
             unit: '',
             appliedArea: '',
             performer: '',
+            weather: '',
             cost: '',
             notes: '',
             customValues: {}
@@ -321,7 +322,20 @@ export default function FertilizerDiaryDetailPage() {
     }
   };
 
-  const handleAddNewRow = () => {
+  const fetchWeather = async () => {
+    try {
+      const res = await fetchAPI('/weather');
+      if (res.success && res.data) {
+        return `${res.data.temp}°C, ${res.data.desc}`;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return '';
+  };
+
+  const handleAddNewRow = async () => {
+    const weather = await fetchWeather();
     setEntries([
       ...entries,
       {
@@ -331,6 +345,7 @@ export default function FertilizerDiaryDetailPage() {
         quantity: '',
         appliedArea: '',
         performer: '',
+        weather: weather,
         cost: '',
         notes: '',
       }
@@ -373,6 +388,7 @@ export default function FertilizerDiaryDetailPage() {
           'Liều lượng': e.quantity || '—',
           'Diện tích áp dụng (m²)': e.appliedArea || 0,
           'Người thực hiện': e.performer || '—',
+          'Thời tiết': e.weather || '—',
           'Ghi chú': e.notes || '—'
         };
         customCols.forEach((col: string) => {
@@ -426,6 +442,7 @@ export default function FertilizerDiaryDetailPage() {
       'Lieu luong', 
       'Dien tich (m2)', 
       'Nguoi thuc hien', 
+      'Thoi tiet',
       'Ghi chu'
     ];
     
@@ -437,6 +454,7 @@ export default function FertilizerDiaryDetailPage() {
       (e.quantity || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
       e.appliedArea || 0,
       (e.performer || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
+      (e.weather || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
       (e.notes || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     ]);
 
@@ -587,6 +605,7 @@ export default function FertilizerDiaryDetailPage() {
               <th>Liều lượng</th>
               <th>Diện tích áp dụng (m²)</th>
               <th>Người thực hiện</th>
+              <th>Thời tiết</th>
               <th>Ghi chú</th>
               {board.customColumns?.map((col: string, idx: number) => (
                     <th key={idx}>
@@ -682,6 +701,17 @@ export default function FertilizerDiaryDetailPage() {
                       onBlur={() => handleBlurSave(index)}
                       placeholder="—"
                       className={styles.inlineInputHover}
+                    />
+                  </td>
+                  <td>
+                    <AutoResizeTextarea 
+                      style={inlineInputStyle}
+                      value={entry.weather || ''}
+                      onChange={(e: any) => updateLocalEntry(index, 'weather', e.target.value)}
+                      onBlur={() => handleBlurSave(index)}
+                      placeholder="—"
+                      className={styles.inlineInputHover}
+                      maxLength={50}
                     />
                   </td>
                   <td style={{ color: 'var(--color-text-muted)' }}>

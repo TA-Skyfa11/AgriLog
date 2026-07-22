@@ -13,6 +13,7 @@ export interface IPesticideEntry extends Document {
   phiDays?: number; // Thời gian cách ly (ngày)
   performer?: string; // Người thực hiện
   isNotUsed?: boolean; // Không sử dụng
+  weather?: string; // Thời tiết
   notes?: string; // Ghi chú
   imageUrls?: string[]; // Hình ảnh
   createdAt: Date;
@@ -33,6 +34,7 @@ const pesticideEntrySchema = new Schema<IPesticideEntry>(
     phiDays: { type: Number },
     performer: { type: String },
     isNotUsed: { type: Boolean, default: false },
+    weather: { type: String },
     notes: { type: String },
     imageUrls: [{ type: String }],
   },
