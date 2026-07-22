@@ -58,17 +58,15 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
 });
 
-// Start Server
-const startServer = async () => {
-  try {
-    await connectDB();
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
-};
+// Connect to Database
+connectDB();
 
-startServer();
+// Start Server locally
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
+
+// Export for Vercel
+export default app;

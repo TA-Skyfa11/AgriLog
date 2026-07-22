@@ -13,6 +13,8 @@ export interface IUser extends Document {
   role: Role;
   isActive: boolean;
   allowAdminReset: boolean;
+  resetPasswordToken?: string;
+  resetPasswordExpire?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +27,8 @@ const userSchema = new Schema<IUser>(
     role: { type: String, enum: Object.values(Role), default: Role.FARM },
     isActive: { type: Boolean, default: true },
     allowAdminReset: { type: Boolean, default: false },
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
   },
   { timestamps: true }
 );
