@@ -1,11 +1,18 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/authMiddleware';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { User, Role } from '../models/User';
 import { LoginHistory } from '../models/LoginHistory';
 import { Notification } from '../models/Notification';
 import crypto from 'crypto';
 import { sendEmail } from '../utils/emailService';
+
+const generateToken = (userId: string): string => {
+  return jwt.sign({ id: userId }, process.env.JWT_SECRET || 'secret_key', {
+    expiresIn: '30d',
+  });
+};
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -43,10 +50,12 @@ export const register = async (req: Request, res: Response) => {
     }
 
     (req.session as any).userId = user._id.toString();
+    const token = generateToken(user._id.toString());
 
     res.status(201).json({
       success: true,
       message: 'Đăng ký thành công',
+      token,
       user: {
         id: user._id,
         name: user.name,
@@ -127,10 +136,12 @@ export const login = async (req: Request, res: Response) => {
 
     // Set session
     (req.session as any).userId = user._id.toString();
+    const token = generateToken(user._id.toString());
 
     res.json({
       success: true,
       message: 'Đăng nhập thành công',
+      token,
       user: {
         id: user._id,
         name: user.name,
@@ -166,10 +177,12 @@ export const verifyMfa = async (req: Request, res: Response) => {
     await user.save();
 
     (req.session as any).userId = user._id.toString();
+    const token = generateToken(user._id.toString());
 
     res.json({
       success: true,
       message: 'Đăng nhập thành công',
+      token,
       user: {
         id: user._id,
         name: user.name,
