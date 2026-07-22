@@ -6,6 +6,7 @@ import { CultivationEntry } from '../models/CultivationEntry';
 import { FertilizerBoard } from '../models/FertilizerBoard';
 import { PesticideBoard } from '../models/PesticideBoard';
 import { PLAN_LIMITS, checkBoardLocked, getRetentionDate, getEffectivePlan } from '../utils/boardUtils';
+import { syncDiaryBoards } from '../utils/syncUtils';
 
 export const getCultivationBoards = async (req: AuthRequest, res: Response) => {
   try {
@@ -58,9 +59,21 @@ export const createCultivationBoard = async (req: AuthRequest, res: Response) =>
     const board = new CultivationBoard({
       ...req.body,
       farmProfile: profile._id,
+      groupId: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9), // generate simple unique ID
     });
 
     await board.save();
+    
+    // Sync to other boards
+    await syncDiaryBoards('CULTIVATION', {
+      farmProfile: board.farmProfile,
+      name: board.name,
+      cropType: board.cropType,
+      areaSqm: board.areaSqm,
+      startDate: board.startDate,
+      groupId: board.groupId as string
+    });
+
     res.status(201).json({ success: true, data: board });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });

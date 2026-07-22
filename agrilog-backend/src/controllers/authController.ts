@@ -1,17 +1,11 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/authMiddleware';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { User, Role } from '../models/User';
 import { LoginHistory } from '../models/LoginHistory';
 import { Notification } from '../models/Notification';
 import crypto from 'crypto';
 import { sendEmail } from '../utils/emailService';
-const generateToken = (id: string, role: string) => {
-  return jwt.sign({ id, role }, process.env.JWT_SECRET || 'secret_key', {
-    expiresIn: '30d',
-  });
-};
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -48,9 +42,11 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
+    (req.session as any).userId = user._id.toString();
+
     res.status(201).json({
       success: true,
-      token: generateToken(user._id.toString(), user.role),
+      message: 'Đăng ký thành công',
       user: {
         id: user._id,
         name: user.name,
@@ -73,15 +69,31 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: 'Sai email hoặc mật khẩu' });
     }
 
+    // Check account lockout
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      return res.status(403).json({ success: false, message: 'Tài khoản đang bị khóa tạm thời. Vui lòng thử lại sau 15 phút.' });
+    }
+
     if (!user.isActive) {
       return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa' });
     }
 
     const normalizedPassword = password?.trim() || '';
     const isMatch = await bcrypt.compare(normalizedPassword, user.passwordHash);
+    
     if (!isMatch) {
+      user.loginAttempts = (user.loginAttempts || 0) + 1;
+      if (user.loginAttempts >= 5) {
+        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // lock for 15 minutes
+      }
+      await user.save();
       return res.status(401).json({ success: false, message: 'Sai email hoặc mật khẩu' });
     }
+
+    // Reset login attempts on success
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
+    await user.save();
 
     // Log login history
     const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
@@ -92,9 +104,33 @@ export const login = async (req: Request, res: Response) => {
       userAgent
     });
 
+    // MFA check for Admin
+    if (user.role === Role.ADMIN) {
+      const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+      user.mfaOtp = crypto.createHash('sha256').update(otp).digest('hex');
+      user.mfaOtpExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+      await user.save();
+
+      await sendEmail({
+        to: user.email,
+        subject: 'AgriLog - Mã xác thực đăng nhập (MFA)',
+        html: `<h1>Mã xác thực của bạn là: <strong>${otp}</strong></h1><p>Mã này sẽ hết hạn sau 10 phút.</p>`
+      });
+
+      return res.json({
+        success: true,
+        message: 'Yêu cầu MFA. Vui lòng kiểm tra email để lấy mã xác thực.',
+        requiresMfa: true,
+        email: user.email
+      });
+    }
+
+    // Set session
+    (req.session as any).userId = user._id.toString();
+
     res.json({
       success: true,
-      token: generateToken(user._id.toString(), user.role),
+      message: 'Đăng nhập thành công',
       user: {
         id: user._id,
         name: user.name,
@@ -105,6 +141,55 @@ export const login = async (req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
   }
+};
+
+export const verifyMfa = async (req: Request, res: Response) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email: email.trim().toLowerCase(), role: Role.ADMIN });
+    
+    if (!user || !user.mfaOtp || !user.mfaOtpExpire) {
+      return res.status(400).json({ success: false, message: 'Không có yêu cầu xác thực MFA nào.' });
+    }
+
+    if (user.mfaOtpExpire < new Date()) {
+      return res.status(400).json({ success: false, message: 'Mã xác thực đã hết hạn.' });
+    }
+
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    if (user.mfaOtp !== hashedOtp) {
+      return res.status(400).json({ success: false, message: 'Mã xác thực không đúng.' });
+    }
+
+    user.mfaOtp = undefined;
+    user.mfaOtpExpire = undefined;
+    await user.save();
+
+    (req.session as any).userId = user._id.toString();
+
+    res.json({
+      success: true,
+      message: 'Đăng nhập thành công',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
+export const logout = (req: Request, res: Response) => {
+  req.session.destroy((err) => {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Lỗi khi đăng xuất' });
+    }
+    res.clearCookie('connect.sid');
+    res.json({ success: true, message: 'Đăng xuất thành công' });
+  });
 };
 
 export const getMe = async (req: AuthRequest, res: Response) => {

@@ -12,6 +12,7 @@ export interface ICultivationBoard extends Document {
   harvestYield?: number;
   harvestDate?: Date;
   customColumns: string[];
+  groupId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +30,7 @@ const cultivationBoardSchema = new Schema<ICultivationBoard>(
     harvestYield: { type: Number },
     harvestDate: { type: Date },
     customColumns: [{ type: String }],
+    groupId: { type: String },
   },
   { timestamps: true }
 );

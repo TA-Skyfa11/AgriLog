@@ -15,6 +15,10 @@ export interface IUser extends Document {
   allowAdminReset: boolean;
   resetPasswordToken?: string;
   resetPasswordExpire?: Date;
+  loginAttempts: number;
+  lockUntil?: Date;
+  mfaOtp?: string;
+  mfaOtpExpire?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +33,10 @@ const userSchema = new Schema<IUser>(
     allowAdminReset: { type: Boolean, default: false },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
+    loginAttempts: { type: Number, required: true, default: 0 },
+    lockUntil: { type: Date },
+    mfaOtp: { type: String },
+    mfaOtpExpire: { type: Date },
   },
   { timestamps: true }
 );

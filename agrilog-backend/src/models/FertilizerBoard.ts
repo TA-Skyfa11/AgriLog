@@ -8,6 +8,7 @@ export interface IFertilizerBoard extends Document {
   startDate: Date;
   status: 'ACTIVE' | 'CLOSED';
   description?: string;
+  groupId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +22,7 @@ const fertilizerBoardSchema = new Schema<IFertilizerBoard>(
     startDate: { type: Date, required: true },
     status: { type: String, enum: ['ACTIVE', 'CLOSED'], default: 'ACTIVE' },
     description: { type: String },
+    groupId: { type: String },
   },
   { timestamps: true }
 );
