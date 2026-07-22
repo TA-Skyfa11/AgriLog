@@ -14,7 +14,7 @@ Hệ thống bao gồm 3 vai trò chính:
 - **Nhật ký canh tác**: Các bảng ghi chép tương tác cho Gieo trồng, Phân bón, và Thuốc bảo vệ thực vật với khả năng đính kèm hình ảnh và cập nhật trực tiếp.
 - **Sàn giao dịch (Marketplace)**: Nơi các Farm có thể mua vật tư và Company có thể đăng bán sản phẩm, kèm theo hệ thống kiểm duyệt chặt chẽ của Admin.
 - **Cài đặt & Thông báo**: Quản lý hồ sơ, cấu hình thông báo (Push/Email), tuỳ chỉnh giao diện (Theme Sáng/Tối, Ngôn ngữ), và cài đặt bảo mật tài khoản.
-- **Tích hợp Thời tiết**: Hiển thị thông tin thời tiết trực tiếp trên Dashboard cho các Nông trại.
+- **Tích hợp Thời tiết (OpenWeatherMap)**: Hiển thị thông tin thời tiết, biểu đồ nhiệt độ trực tiếp trên Dashboard. Tự động lấy và ghi nhận thời tiết vào các bảng Nhật ký (Canh tác, Phân bón, Thuốc BVTV) khi thêm dữ liệu mới.
 
 ---
 
@@ -51,7 +51,9 @@ Dự án được chia làm hai phần tách biệt:
    PORT=5000
    MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/agrilog?retryWrites=true&w=majority
    JWT_SECRET=mot_chuoi_bi_mat_bat_ky_cho_jwt
-   WEATHER_API_KEY=your_weather_api_key
+   FRONTEND_URL=http://localhost:3000
+   OPENWEATHERMAP_API_KEY=your_openweathermap_api_key
+   RESEND_API_KEY=your_resend_api_key
    ```
    *(Nhớ thay đổi chuỗi `MONGO_URI` thành đường dẫn MongoDB của bạn)*
 
