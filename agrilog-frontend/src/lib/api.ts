@@ -13,6 +13,7 @@ export const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers,
+    credentials: 'include',
   });
 
   const data = await response.json();

@@ -306,6 +306,7 @@ export default function CultivationDiaryDetailPage() {
         headers: {
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: formData,
       });
       const data = await res.json();

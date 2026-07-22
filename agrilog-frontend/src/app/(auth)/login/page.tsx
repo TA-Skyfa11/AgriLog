@@ -14,6 +14,28 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // MFA state
+  const [requiresMfa, setRequiresMfa] = useState(false);
+  const [mfaEmail, setMfaEmail] = useState('');
+  const [otp, setOtp] = useState('');
+
+  const handleLoginSuccess = (data: any) => {
+    document.cookie = `token=${data.token || ''}; path=/; max-age=2592000`;
+    document.cookie = `role=${data.user.role}; path=/; max-age=2592000`;
+    
+    localStorage.setItem('token', data.token || '');
+    localStorage.setItem('user', JSON.stringify(data.user));
+    localStorage.removeItem('cart');
+
+    if (data.user.role === 'ADMIN') {
+      router.push('/admin/dashboard');
+    } else if (data.user.role === 'COMPANY') {
+      router.push('/company/dashboard');
+    } else {
+      router.push('/dashboard');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -26,19 +48,13 @@ export default function LoginPage() {
       });
 
       if (data.success) {
-        document.cookie = `token=${data.token}; path=/; max-age=2592000`; // 30 days
-        document.cookie = `role=${data.user.role}; path=/; max-age=2592000`;
-        
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        localStorage.removeItem('cart'); // Clear cart from any previous session
-
-        if (data.user.role === 'ADMIN') {
-          router.push('/admin/dashboard');
-        } else if (data.user.role === 'COMPANY') {
-          router.push('/company/dashboard');
+        if (data.requiresMfa) {
+          // Admin requires MFA - show OTP input
+          setRequiresMfa(true);
+          setMfaEmail(data.email);
         } else {
-          router.push('/dashboard');
+          // Farm/Company - login directly
+          handleLoginSuccess(data);
         }
       }
     } catch (err: unknown) {
@@ -51,6 +67,93 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  const handleVerifyMfa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const data = await fetchAPI('/auth/verify-mfa', {
+        method: 'POST',
+        body: JSON.stringify({ email: mfaEmail, otp }),
+      });
+
+      if (data.success) {
+        handleLoginSuccess(data);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Xác thực MFA thất bại. Vui lòng thử lại.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // MFA verification form
+  if (requiresMfa) {
+    return (
+      <div className={styles.splitContainer}>
+        <div className={styles.imageSection}>
+          <img 
+            src="https://images.unsplash.com/photo-1500937386664-56d1dfef3854?q=80&w=2070&auto=format&fit=crop" 
+            alt="Agriculture Field" 
+            className={styles.unsplashImage} 
+          />
+          <div className={styles.imageOverlay}></div>
+          <div className={styles.imageQuote}>
+            <h2>AgriLog.</h2>
+            <p>Nền tảng quản lý nông trại thông minh, giúp bạn theo dõi mùa màng, kiểm soát vật tư và tối ưu hóa năng suất hiệu quả.</p>
+          </div>
+        </div>
+
+        <div className={styles.formSection}>
+          <div className={styles.card}>
+            <div className={styles.header}>
+              <h1 className={styles.title}>Xác thực MFA</h1>
+              <p className={styles.subtitle}>Vui lòng kiểm tra email <strong>{mfaEmail}</strong> để lấy mã xác thực 6 chữ số.</p>
+            </div>
+            
+            {error && <div style={{ color: 'var(--color-error)', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: '8px' }}>{error}</div>}
+
+            <form className={styles.form} onSubmit={handleVerifyMfa}>
+              <div className={styles.formGroup}>
+                <label className={styles.label} htmlFor="otp">Mã xác thực (OTP)</label>
+                <input
+                  id="otp"
+                  type="text"
+                  className={styles.input}
+                  placeholder="Nhập mã 6 chữ số"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  required
+                  maxLength={6}
+                  autoFocus
+                />
+              </div>
+              
+              <button type="submit" className={styles.button} disabled={loading}>
+                {loading ? 'Đang xác thực...' : 'Xác nhận'}
+              </button>
+            </form>
+
+            <div className={styles.footer}>
+              <button 
+                onClick={() => { setRequiresMfa(false); setOtp(''); setError(''); }}
+                className={styles.footerLink}
+                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                ← Quay lại đăng nhập
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.splitContainer}>
@@ -119,3 +222,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
