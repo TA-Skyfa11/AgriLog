@@ -120,6 +120,14 @@ const DropdownWithOther = ({ value, options, onChange, onBlur, placeholder, clas
   );
 };
 
+const getSafeImageUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  const baseUrl = apiUrl.replace(/\/api$/, '');
+  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 export default function CultivationDiaryDetailPage() {
   const dialog = useDialog();
 
@@ -244,7 +252,10 @@ export default function CultivationDiaryDetailPage() {
 
   const handleBlurSave = async (index: number, updatedEntry?: any) => {
     const entry = updatedEntry || entries[index];
-    if (!entry.activityName || entry.activityName.trim() === '') return; // Don't save if activityName is empty
+    if (!entry) return;
+    
+    // For unsaved temp rows, only save if activityName has been filled
+    if (entry._id?.startsWith('temp-') && (!entry.activityName || entry.activityName.trim() === '')) return;
     
     setSavingId(entry._id || `new-${index}`);
     try {
@@ -270,6 +281,7 @@ export default function CultivationDiaryDetailPage() {
           const newEntries = [...entries];
           newEntries[index] = res.data;
           setEntries(newEntries);
+          toast.success('Đã lưu và đồng bộ sang Bón phân & Phun thuốc');
         }
       }
     } catch (error) {
@@ -315,10 +327,10 @@ export default function CultivationDiaryDetailPage() {
         if (!newEntries[index].imageUrls) {
           newEntries[index].imageUrls = [];
         }
-        // Save relative path or full URL depending on how backend sends it. 
-        // Backend sends /uploads/filename. We prepend the base API URL (without /api)
-        const baseUrl = apiUrl.replace(/\/api$/, '');
-        newEntries[index].imageUrls.push(`${baseUrl}${data.imageUrl}`);
+        const finalUrl = (data.imageUrl.startsWith('http://') || data.imageUrl.startsWith('https://'))
+          ? data.imageUrl
+          : `${apiUrl.replace(/\/api$/, '')}${data.imageUrl.startsWith('/') ? '' : '/'}${data.imageUrl}`;
+        newEntries[index].imageUrls.push(finalUrl);
         setEntries(newEntries);
         
         // Auto save entry
@@ -345,18 +357,29 @@ export default function CultivationDiaryDetailPage() {
 
   const handleAddNewRow = async () => {
     const weather = await fetchWeather();
-    setEntries([
-      ...entries,
-      {
-        date: new Date().toISOString().split('T')[0],
-        stage: '',
-        activityName: '',
-        performer: '',
-        weather: weather,
-        notes: '',
-        customValues: {}
+    const today = new Date().toISOString();
+    try {
+      const res = await fetchAPI(`/cultivation-boards/${boardId}/entries`, {
+        method: 'POST',
+        body: JSON.stringify({
+          date: today,
+          activityName: 'Chưa đặt tên',
+          weather: weather,
+          stage: '',
+          performer: '',
+          notes: '',
+          customValues: {},
+        }),
+      });
+      if (res.success) {
+        setEntries((prev) => [...prev.filter((e: any) => !e._id?.startsWith('temp-')), res.data]);
+        toast.success('Đã thêm hàng mới và tự động sinh hàng ở Bón phân & Phun thuốc');
+      } else {
+        toast.error(res.message || 'Lỗi khi thêm hàng');
       }
-    ]);
+    } catch (e: any) {
+      toast.error('Lỗi khi thêm hàng');
+    }
   };
 
   const handleHarvestChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -528,9 +551,9 @@ export default function CultivationDiaryDetailPage() {
   };
 
   const handleDeleteEntry = async (id: string, index: number) => {
-    if (!(await dialog.confirm('Bạn có chắc chắn muốn xóa hàng này?'))) return;
+    if (!(await dialog.confirm('Bạn có chắc chắn muốn xóa hàng này? Hàng đồng bộ ở các bảng khác cũng sẽ được xóa.'))) return;
     
-    if (!id) {
+    if (!id || id.startsWith('temp-')) {
       // It's a new row that hasn't been saved to DB yet
       const newEntries = [...entries];
       newEntries.splice(index, 1);
@@ -541,6 +564,7 @@ export default function CultivationDiaryDetailPage() {
     try {
       const res = await fetchAPI(`/cultivation-boards/entries/${id}`, { method: 'DELETE' });
       if (res.success) {
+        toast.success('Đã xóa hàng và đồng bộ sang các bảng liên quan');
         loadBoardData();
       }
     } catch (error) {
@@ -600,97 +624,36 @@ export default function CultivationDiaryDetailPage() {
       return;
     }
     
-    const { default: jsPDF } = await import('jspdf');
-    const { default: autoTable } = await import('jspdf-autotable');
-    
-    const doc = new jsPDF('landscape');
-
-    // Fetch and load Roboto font for Vietnamese support
+    const toastId = toast.loading('Đang khởi tạo file PDF chất lượng cao...');
     try {
-      const [regularRes, mediumRes] = await Promise.all([
-        fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Regular.ttf'),
-        fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Medium.ttf')
-      ]);
-      
-      const regularBuffer = await regularRes.arrayBuffer();
-      const mediumBuffer = await mediumRes.arrayBuffer();
-      
-      const regularBytes = new Uint8Array(regularBuffer);
-      let regularBinary = '';
-      for (let i = 0; i < regularBytes.byteLength; i++) {
-          regularBinary += String.fromCharCode(regularBytes[i]);
-      }
-      doc.addFileToVFS('Roboto-Regular.ttf', window.btoa(regularBinary));
-      doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/export/pdf/cultivation/${boardId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
 
-      const mediumBytes = new Uint8Array(mediumBuffer);
-      let mediumBinary = '';
-      for (let i = 0; i < mediumBytes.byteLength; i++) {
-          mediumBinary += String.fromCharCode(mediumBytes[i]);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Lỗi khi xuất file PDF');
       }
-      doc.addFileToVFS('Roboto-Medium.ttf', window.btoa(mediumBinary));
-      doc.addFont('Roboto-Medium.ttf', 'Roboto', 'bold');
 
-      doc.setFont('Roboto');
-    } catch (error) {
-      console.error('Failed to load font for PDF', error);
-      doc.setFont('Roboto'); // try to fallback if partially loaded
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `${board?.name || 'nhat_ky'}_canh_tac.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success('Xuất file PDF thành công!', { id: toastId });
+    } catch (error: any) {
+      toast.error(error.message || 'Không thể xuất file PDF', { id: toastId });
     }
-
-    
-    // Add title
-    doc.setFont('Roboto', 'bold');
-    doc.setFontSize(20);
-    doc.setTextColor(22, 163, 74); // Green 600
-    doc.text(`NHẬT KÝ CANH TÁC: ${board?.name || ''}`, 14, 20);
-    
-    // Add info
-    doc.setFont('Roboto', 'normal');
-    doc.setFontSize(12);
-    doc.setTextColor(71, 85, 105); // Slate 600
-    doc.text(`Cây trồng: ${board?.cropType || ''}`, 14, 30);
-    doc.text(`Diện tích: ${board?.areaSqm || 0} m2`, 80, 30);
-    doc.text(`Ngày bắt đầu: ${board?.startDate ? format(new Date(board.startDate), 'dd/MM/yyyy') : ''}`, 150, 30);
-
-    // Divider line
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.5);
-    doc.line(14, 35, 280, 35);
-
-    const customCols = board?.customColumns || [];
-    const headers = [
-      'STT', 
-      'Ngày', 
-      'Giai đoạn', 
-      'Hoạt động', 
-      'Người làm', 
-      'Thời tiết', 
-      'Ghi chú',
-      ...customCols
-    ];
-    
-    const data = entries.map((e, idx) => [
-      idx + 1,
-      e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
-      e.stage || '',
-      e.activityName || '',
-      e.performer || '',
-      e.weather || '',
-      e.notes || '',
-      ...customCols.map((col: string) => e.customValues?.[col] || '')
-    ]);
-
-    autoTable(doc as any, {
-      startY: 42,
-      head: [headers],
-      body: data,
-      theme: 'grid',
-      styles: { font: 'Roboto', fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.1 },
-      headStyles: { fillColor: [22, 163, 74], textColor: 255, fontStyle: 'bold', halign: 'center' },
-      alternateRowStyles: { fillColor: [248, 250, 252] }
-    });
-
-    doc.save(`${board?.name || 'nhat_ky'}_canh_tac.pdf`);
   };
 
   if (loading) return <div style={{ padding: '2rem' }}>Đang tải dữ liệu bảng canh tác...</div>;
@@ -873,8 +836,8 @@ export default function CultivationDiaryDetailPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       {entry.imageUrls?.map((url: string, i: number) => (
                         <div key={i} style={{ position: 'relative', display: 'inline-block', width: 'max-content' }}>
-                          <div onClick={() => setPreviewImage(url)} style={{ cursor: 'pointer' }}>
-                          <img src={url} alt="Uploaded" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
+                          <div onClick={() => setPreviewImage(getSafeImageUrl(url))} style={{ cursor: 'pointer' }}>
+                          <img src={getSafeImageUrl(url)} alt="Uploaded" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
                           </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleRemoveImage(index, i); }}

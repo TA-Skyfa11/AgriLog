@@ -13,6 +13,9 @@ router.use((0, authMiddleware_1.authorize)(User_1.Role.FARM));
 router.route('/')
     .get(taskController_1.getTasks)
     .post(taskController_1.createTask);
+router.route('/:id')
+    .put(taskController_1.updateTask)
+    .delete(taskController_1.deleteTask);
 router.route('/:id/complete')
     .put(taskController_1.completeTask);
 exports.default = router;

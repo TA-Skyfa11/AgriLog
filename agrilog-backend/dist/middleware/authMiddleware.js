@@ -7,16 +7,29 @@ exports.authorize = exports.protect = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../models/User");
 const protect = async (req, res, next) => {
-    let token;
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        token = req.headers.authorization.split(' ')[1];
+    // Try session first
+    let userId = req.session?.userId;
+    // Fallback to JWT Bearer token (for cross-origin deployments where cookies are blocked)
+    if (!userId) {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.split(' ')[1];
+            if (token) {
+                try {
+                    const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'secret_key');
+                    userId = decoded.id;
+                }
+                catch (err) {
+                    // Token invalid or expired
+                }
+            }
+        }
     }
-    if (!token) {
+    if (!userId) {
         return res.status(401).json({ success: false, message: 'Bạn cần đăng nhập để truy cập' });
     }
     try {
-        const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'secret_key');
-        const user = await User_1.User.findById(decoded.id);
+        const user = await User_1.User.findById(userId);
         if (!user) {
             return res.status(401).json({ success: false, message: 'Không tìm thấy người dùng' });
         }
@@ -27,7 +40,7 @@ const protect = async (req, res, next) => {
         next();
     }
     catch (error) {
-        return res.status(401).json({ success: false, message: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn' });
+        return res.status(500).json({ success: false, message: 'Lỗi xác thực phiên đăng nhập' });
     }
 };
 exports.protect = protect;

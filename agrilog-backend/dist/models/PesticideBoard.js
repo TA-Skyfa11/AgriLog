@@ -40,8 +40,11 @@ const pesticideBoardSchema = new mongoose_1.Schema({
     name: { type: String, required: true },
     cropType: { type: String, required: true },
     areaSqm: { type: Number, required: true },
+    areaText: { type: String },
     startDate: { type: Date, required: true },
     status: { type: String, enum: ['ACTIVE', 'CLOSED'], default: 'ACTIVE' },
     description: { type: String },
+    customColumns: [{ type: String }],
+    groupId: { type: String },
 }, { timestamps: true });
 exports.PesticideBoard = mongoose_1.default.model('PesticideBoard', pesticideBoardSchema);

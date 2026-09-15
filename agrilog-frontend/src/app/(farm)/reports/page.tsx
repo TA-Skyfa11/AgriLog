@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import styles from '@/css/reports.module.css';
 import { BarChart2, Download, Users, Briefcase, Droplet, Sprout, Package, FileSpreadsheet } from 'lucide-react';
 import { fetchAPI } from '@/lib/api';
+import { toast } from 'react-hot-toast';
 
 export default function ReportsPage() {
   const [stats, setStats] = useState<any>(null);
@@ -24,7 +25,7 @@ export default function ReportsPage() {
           setStats(res.data);
         }
       } catch (error) {
-        console.error(error);
+        console.error('Error loading stats:', error);
       } finally {
         setLoading(false);
       }
@@ -32,8 +33,37 @@ export default function ReportsPage() {
     loadStats();
   }, [selectedMonth]);
 
-  const exportToPDF = () => {
-    window.print();
+  const exportToPDF = async () => {
+    const toastId = toast.loading('Đang khởi tạo file PDF báo cáo bằng Puppeteer...');
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/export/pdf/reports?month=${selectedMonth}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Lỗi khi xuất file PDF');
+      }
+
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `Bao_cao_nong_trai_${selectedMonth}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success('Xuất file PDF thành công!', { id: toastId });
+    } catch (error: any) {
+      toast.error(error.message || 'Không thể xuất file PDF', { id: toastId });
+    }
   };
 
   const exportToExcel = () => {

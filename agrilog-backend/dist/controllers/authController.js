@@ -3,14 +3,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getLoginHistory = exports.toggleAdminReset = exports.changePassword = exports.getMe = exports.login = exports.register = void 0;
+exports.resetPassword = exports.forgotPassword = exports.getLoginHistory = exports.toggleAdminReset = exports.changePassword = exports.getMe = exports.logout = exports.verifyMfa = exports.login = exports.register = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../models/User");
 const LoginHistory_1 = require("../models/LoginHistory");
 const Notification_1 = require("../models/Notification");
-const generateToken = (id, role) => {
-    return jsonwebtoken_1.default.sign({ id, role }, process.env.JWT_SECRET || 'secret_key', {
+const crypto_1 = __importDefault(require("crypto"));
+const emailService_1 = require("../utils/emailService");
+const generateToken = (userId) => {
+    return jsonwebtoken_1.default.sign({ id: userId }, process.env.JWT_SECRET || 'secret_key', {
         expiresIn: '30d',
     });
 };
@@ -43,9 +45,12 @@ const register = async (req, res) => {
                 referenceId: user._id.toString()
             });
         }
+        req.session.userId = user._id.toString();
+        const token = generateToken(user._id.toString());
         res.status(201).json({
             success: true,
-            token: generateToken(user._id.toString(), user.role),
+            message: 'Đăng ký thành công',
+            token,
             user: {
                 id: user._id,
                 name: user.name,
@@ -67,14 +72,27 @@ const login = async (req, res) => {
         if (!user) {
             return res.status(401).json({ success: false, message: 'Sai email hoặc mật khẩu' });
         }
+        // Check account lockout
+        if (user.lockUntil && user.lockUntil > new Date()) {
+            return res.status(403).json({ success: false, message: 'Tài khoản đang bị khóa tạm thời. Vui lòng thử lại sau 15 phút.' });
+        }
         if (!user.isActive) {
             return res.status(403).json({ success: false, message: 'Tài khoản đã bị khóa' });
         }
         const normalizedPassword = password?.trim() || '';
         const isMatch = await bcryptjs_1.default.compare(normalizedPassword, user.passwordHash);
         if (!isMatch) {
+            user.loginAttempts = (user.loginAttempts || 0) + 1;
+            if (user.loginAttempts >= 5) {
+                user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // lock for 15 minutes
+            }
+            await user.save();
             return res.status(401).json({ success: false, message: 'Sai email hoặc mật khẩu' });
         }
+        // Reset login attempts on success
+        user.loginAttempts = 0;
+        user.lockUntil = undefined;
+        await user.save();
         // Log login history
         const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
         const userAgent = req.headers['user-agent'] || 'unknown';
@@ -83,9 +101,31 @@ const login = async (req, res) => {
             ipAddress,
             userAgent
         });
+        // MFA check for Admin
+        if (user.role === User_1.Role.ADMIN) {
+            const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
+            user.mfaOtp = crypto_1.default.createHash('sha256').update(otp).digest('hex');
+            user.mfaOtpExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+            await user.save();
+            await (0, emailService_1.sendEmail)({
+                to: user.email,
+                subject: 'AgriLog - Mã xác thực đăng nhập (MFA)',
+                html: `<h1>Mã xác thực của bạn là: <strong>${otp}</strong></h1><p>Mã này sẽ hết hạn sau 10 phút.</p>`
+            });
+            return res.json({
+                success: true,
+                message: 'Yêu cầu MFA. Vui lòng kiểm tra email để lấy mã xác thực.',
+                requiresMfa: true,
+                email: user.email
+            });
+        }
+        // Set session
+        req.session.userId = user._id.toString();
+        const token = generateToken(user._id.toString());
         res.json({
             success: true,
-            token: generateToken(user._id.toString(), user.role),
+            message: 'Đăng nhập thành công',
+            token,
             user: {
                 id: user._id,
                 name: user.name,
@@ -99,6 +139,52 @@ const login = async (req, res) => {
     }
 };
 exports.login = login;
+const verifyMfa = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+        const user = await User_1.User.findOne({ email: email.trim().toLowerCase(), role: User_1.Role.ADMIN });
+        if (!user || !user.mfaOtp || !user.mfaOtpExpire) {
+            return res.status(400).json({ success: false, message: 'Không có yêu cầu xác thực MFA nào.' });
+        }
+        if (user.mfaOtpExpire < new Date()) {
+            return res.status(400).json({ success: false, message: 'Mã xác thực đã hết hạn.' });
+        }
+        const hashedOtp = crypto_1.default.createHash('sha256').update(otp).digest('hex');
+        if (user.mfaOtp !== hashedOtp) {
+            return res.status(400).json({ success: false, message: 'Mã xác thực không đúng.' });
+        }
+        user.mfaOtp = undefined;
+        user.mfaOtpExpire = undefined;
+        await user.save();
+        req.session.userId = user._id.toString();
+        const token = generateToken(user._id.toString());
+        res.json({
+            success: true,
+            message: 'Đăng nhập thành công',
+            token,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+            }
+        });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.verifyMfa = verifyMfa;
+const logout = (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            return res.status(500).json({ success: false, message: 'Lỗi khi đăng xuất' });
+        }
+        res.clearCookie('connect.sid');
+        res.json({ success: true, message: 'Đăng xuất thành công' });
+    });
+};
+exports.logout = logout;
 const getMe = async (req, res) => {
     try {
         const user = await User_1.User.findById(req.user?._id).select('-passwordHash');
@@ -178,3 +264,72 @@ const getLoginHistory = async (req, res) => {
     }
 };
 exports.getLoginHistory = getLoginHistory;
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User_1.User.findOne({ email: email.trim().toLowerCase() });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Email chưa được đăng ký trong hệ thống' });
+        }
+        const resetToken = crypto_1.default.randomBytes(32).toString('hex');
+        const resetTokenHash = crypto_1.default.createHash('sha256').update(resetToken).digest('hex');
+        user.resetPasswordToken = resetTokenHash;
+        user.resetPasswordExpire = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+        await user.save();
+        // Generate reset URL (Change localhost to frontend URL in production)
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+        const message = `
+      <h1>Yêu cầu đặt lại mật khẩu</h1>
+      <p>Bạn nhận được email này vì bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu cho tài khoản AgriLog.</p>
+      <p>Vui lòng click vào đường dẫn dưới đây để đặt lại mật khẩu:</p>
+      <a href="${resetUrl}" target="_blank">${resetUrl}</a>
+      <p>Đường dẫn này sẽ hết hạn sau 15 phút.</p>
+      <p>Nếu bạn không yêu cầu, vui lòng bỏ qua email này.</p>
+    `;
+        try {
+            await (0, emailService_1.sendEmail)({
+                to: user.email,
+                subject: 'AgriLog - Đặt lại mật khẩu',
+                html: message
+            });
+            res.status(200).json({ success: true, message: 'Email khôi phục mật khẩu đã được gửi' });
+        }
+        catch (err) {
+            user.resetPasswordToken = undefined;
+            user.resetPasswordExpire = undefined;
+            await user.save();
+            return res.status(500).json({ success: false, message: 'Không thể gửi email, vui lòng thử lại sau' });
+        }
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.forgotPassword = forgotPassword;
+const resetPassword = async (req, res) => {
+    try {
+        const { token, newPassword } = req.body;
+        const resetPasswordToken = crypto_1.default.createHash('sha256').update(token).digest('hex');
+        const user = await User_1.User.findOne({
+            resetPasswordToken,
+            resetPasswordExpire: { $gt: Date.now() }
+        });
+        if (!user) {
+            return res.status(400).json({ success: false, message: 'Token không hợp lệ hoặc đã hết hạn' });
+        }
+        if (newPassword.length < 6) {
+            return res.status(400).json({ success: false, message: 'Mật khẩu phải có ít nhất 6 ký tự' });
+        }
+        const salt = await bcryptjs_1.default.genSalt(10);
+        user.passwordHash = await bcryptjs_1.default.hash(newPassword, salt);
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+        await user.save();
+        res.status(200).json({ success: true, message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới.' });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.resetPassword = resetPassword;

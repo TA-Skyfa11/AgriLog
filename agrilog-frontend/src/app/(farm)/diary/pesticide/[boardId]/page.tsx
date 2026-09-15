@@ -10,6 +10,7 @@ import { Trash2, Plus, ShieldAlert, Download, Printer, ArrowLeft, Image as Image
 import { format } from 'date-fns';
 import Link from 'next/link';
 import CustomSelect from '@/components/ui/CustomSelect';
+import { toast } from 'react-hot-toast';
 
 
 const AutoResizeTextarea = (props: any) => {
@@ -41,6 +42,14 @@ const AutoResizeTextarea = (props: any) => {
       }}
     />
   );
+};
+
+const getSafeImageUrl = (url: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  const baseUrl = apiUrl.replace(/\/api$/, '');
+  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
 export default function PesticideDiaryDetailPage() {
@@ -164,7 +173,10 @@ export default function PesticideDiaryDetailPage() {
 
   const handleBlurSave = async (index: number) => {
     const entry = entries[index];
-    if (!entry.materialName || entry.materialName.trim() === '') return;
+    if (!entry) return;
+    
+    // For unsaved temp rows, only save if something has been typed
+    if (entry._id?.startsWith('temp-') && !entry.materialName && !entry.notes && !entry.quantity && !entry.targetPest && !entry.performer) return;
     
     setSavingId(entry._id || `new-${index}`);
     try {
@@ -191,6 +203,7 @@ export default function PesticideDiaryDetailPage() {
           const newEntries = [...entries];
           newEntries[index] = res.data;
           setEntries(newEntries);
+          toast.success('Đã lưu và đồng bộ sang Canh tác & Bón phân');
         }
       }
     } catch (error) {
@@ -224,15 +237,17 @@ export default function PesticideDiaryDetailPage() {
         if (!newEntries[index].imageUrls) {
           newEntries[index].imageUrls = [];
         }
-        const baseUrl = apiUrl.replace(/\/api$/, '');
-        newEntries[index].imageUrls.push(`${baseUrl}${data.imageUrl}`);
+        const finalUrl = (data.imageUrl.startsWith('http://') || data.imageUrl.startsWith('https://'))
+          ? data.imageUrl
+          : `${apiUrl.replace(/\/api$/, '')}${data.imageUrl.startsWith('/') ? '' : '/'}${data.imageUrl}`;
+        newEntries[index].imageUrls.push(finalUrl);
         setEntries(newEntries);
         handleBlurSave(index);
       } else {
         alert(data.message || 'Lỗi tải ảnh lên');
       }
     } catch (error) {
-      alert('Có lỗi xảy ra khi thêm cột');
+      alert('Có lỗi xảy ra khi tải ảnh');
     }
   };
 
@@ -374,27 +389,38 @@ export default function PesticideDiaryDetailPage() {
 
   const handleAddNewRow = async () => {
     const weather = await fetchWeather();
-    setEntries([
-      ...entries,
-      {
-        date: new Date().toISOString().split('T')[0],
-        materialName: '',
-        activeIngredient: '',
-        targetPest: '',
-        quantity: '',
-        phiDays: '',
-        performer: '',
-        weather: weather,
-        cost: '',
-        notes: '',
-        customValues: {}
+    const today = new Date().toISOString();
+    try {
+      const res = await fetchAPI(`/pesticide-boards/${params.boardId}/entries`, {
+        method: 'POST',
+        body: JSON.stringify({
+          date: today,
+          weather: weather,
+          materialName: '',
+          activeIngredient: '',
+          targetPest: '',
+          quantity: '',
+          phiDays: 0,
+          performer: '',
+          cost: 0,
+          notes: '',
+          customValues: {},
+        }),
+      });
+      if (res.success) {
+        setEntries((prev) => [...prev.filter((e: any) => !e._id?.startsWith('temp-')), res.data]);
+        toast.success('Đã thêm hàng mới và tự động sinh hàng ở Canh tác & Bón phân');
+      } else {
+        toast.error(res.message || 'Lỗi khi thêm hàng');
       }
-    ]);
+    } catch (e: any) {
+      toast.error('Lỗi khi thêm hàng');
+    }
   };
   
   const handleDeleteEntry = async (id: string, index: number) => {
-    if (!confirm('Bạn có chắc muốn xóa hàng này?')) return;
-    if (!id) {
+    if (!confirm('Bạn có chắc muốn xóa hàng này? Hàng đồng bộ ở các bảng khác cũng sẽ được xóa.')) return;
+    if (!id || id.startsWith('temp-')) {
       const newEntries = [...entries];
       newEntries.splice(index, 1);
       setEntries(newEntries);
@@ -403,12 +429,13 @@ export default function PesticideDiaryDetailPage() {
     try {
       const res = await fetchAPI(`/pesticide-boards/entries/${id}`, { method: 'DELETE' });
       if (res.success) {
+        toast.success('Đã xóa hàng và đồng bộ sang các bảng liên quan');
         loadData();
       } else {
-        alert(res.message || 'Lỗi xóa hàng');
+        toast.error(res.message || 'Lỗi xóa hàng');
       }
     } catch (error) {
-      alert('Lỗi xóa hàng');
+      toast.error('Lỗi xóa hàng');
     }
   };
 
@@ -448,74 +475,40 @@ export default function PesticideDiaryDetailPage() {
 
   const exportToPDF = async () => {
     if (userPlan === 'BASIC') {
-      alert('Gói cước Basic không hỗ trợ xuất file PDF. Vui lòng nâng cấp gói cước.');
+      toast.error('Gói cước Basic không hỗ trợ xuất file PDF. Vui lòng nâng cấp gói cước.');
       return;
     }
     
-    const { default: jsPDF } = await import('jspdf');
-    const { default: autoTable } = await import('jspdf-autotable');
-    
-    const doc = new jsPDF('landscape');
-    
-    // Add title
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
-    doc.setTextColor(234, 88, 12); // Orange 600
-    doc.text(`NHAT KY THUOC BVTV: ${board?.name || ''}`, 14, 20);
-    
-    // Add info
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
-    doc.setTextColor(71, 85, 105); // Slate 600
-    doc.text(`Cay trong: ${board?.cropType || ''}`, 14, 30);
-    doc.text(`Dien tich: ${board?.areaSqm || 0} m2`, 80, 30);
-    doc.text(`Ngay bat dau: ${board?.startDate ? format(new Date(board.startDate), 'dd/MM/yyyy') : ''}`, 150, 30);
+    const toastId = toast.loading('Đang khởi tạo file PDF chất lượng cao...');
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/export/pdf/pesticide/${params.boardId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
 
-    // Divider line
-    doc.setDrawColor(226, 232, 240);
-    doc.setLineWidth(0.5);
-    doc.line(14, 35, 280, 35);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Lỗi khi xuất file PDF');
+      }
 
-    const customCols = board?.customColumns || [];
-    const headers = [
-      'STT', 
-      'Ngay su dung', 
-      'Ten thuoc', 
-      'Hoat chat', 
-      'Muc tieu', 
-      'Lieu luong', 
-      'Cach ly (ngay)', 
-      'Nguoi thuc hien', 
-      'Thoi tiet',
-      'Ghi chu',
-      ...customCols.map((c: string) => c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
-    ];
-    
-    const data = entries.map((e, idx) => [
-      idx + 1,
-      e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
-      (e.materialName || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      (e.activeIngredient || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      (e.targetPest || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      (e.quantity || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      e.phiDays || 0,
-      (e.performer || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      (e.weather || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      (e.notes || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''),
-      ...customCols.map((col: string) => (e.customValues?.[col] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
-    ]);
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `${board?.name || 'nhat_ky'}_thuoc_bvtv.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
 
-    autoTable(doc as any, {
-      startY: 42,
-      head: [headers],
-      body: data,
-      theme: 'grid',
-      styles: { fontSize: 8, cellPadding: 3, lineColor: [200, 200, 200], lineWidth: 0.1 },
-      headStyles: { fillColor: [234, 88, 12], textColor: 255, fontStyle: 'bold', halign: 'center' }, // #ea580c orange
-      alternateRowStyles: { fillColor: [248, 250, 252] }
-    });
-
-    doc.save(`${board?.name || 'nhat_ky'}_thuoc_bvtv.pdf`);
+      toast.success('Xuất file PDF thành công!', { id: toastId });
+    } catch (error: any) {
+      toast.error(error.message || 'Không thể xuất file PDF', { id: toastId });
+    }
   };
 
   if (loading) return <div style={{ padding: '2rem' }}>Đang tải dữ liệu bảng thuốc BVTV...</div>;
@@ -780,8 +773,8 @@ export default function PesticideDiaryDetailPage() {
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       {entry.imageUrls?.map((url: string, i: number) => (
-                        <a key={i} href={url} target="_blank" rel="noreferrer">
-                          <img src={url} alt="Uploaded" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
+                        <a key={i} href={getSafeImageUrl(url)} target="_blank" rel="noreferrer">
+                          <img src={getSafeImageUrl(url)} alt="Uploaded" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
                         </a>
                       ))}
                       <label style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '12px', background: '#e5e7eb', borderRadius: '4px' }}>

@@ -47,6 +47,7 @@ import companyRoutes from './routes/companyRoutes';
 import productRoutes from './routes/productRoutes';
 import orderRoutes from './routes/orderRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import exportRoutes from './routes/exportRoutes';
 import path from 'path';
 
 // Routes
@@ -60,6 +61,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/export', exportRoutes);
 app.use('/api/weather', weatherRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/company', companyRoutes);

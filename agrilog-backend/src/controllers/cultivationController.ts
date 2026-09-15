@@ -6,7 +6,15 @@ import { CultivationEntry } from '../models/CultivationEntry';
 import { FertilizerBoard } from '../models/FertilizerBoard';
 import { PesticideBoard } from '../models/PesticideBoard';
 import { PLAN_LIMITS, checkBoardLocked, getRetentionDate, getEffectivePlan } from '../utils/boardUtils';
-import { syncDiaryBoards } from '../utils/syncUtils';
+import {
+  syncDiaryBoards,
+  syncUpdateDiaryBoards,
+  syncDeleteDiaryBoards,
+  ensureBoardGroup,
+  syncCreateDiaryEntry,
+  syncUpdateDiaryEntry,
+  syncDeleteDiaryEntry
+} from '../utils/syncUtils';
 
 export const getCultivationBoards = async (req: AuthRequest, res: Response) => {
   try {
@@ -56,10 +64,11 @@ export const createCultivationBoard = async (req: AuthRequest, res: Response) =>
       return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.columns} cột tùy chỉnh.` });
     }
 
+    const groupId = 'gid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
     const board = new CultivationBoard({
       ...req.body,
       farmProfile: profile._id,
-      groupId: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9), // generate simple unique ID
+      groupId,
     });
 
     await board.save();
@@ -70,7 +79,9 @@ export const createCultivationBoard = async (req: AuthRequest, res: Response) =>
       name: board.name,
       cropType: board.cropType,
       areaSqm: board.areaSqm,
+      areaText: board.areaText,
       startDate: board.startDate,
+      description: board.description,
       groupId: board.groupId as string
     });
 
@@ -89,6 +100,9 @@ export const getCultivationBoardById = async (req: AuthRequest, res: Response) =
 
     const board = await CultivationBoard.findOne({ _id: req.params.id, farmProfile: profile._id });
     if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
+
+    // Ensure board is linked to a group and counterpart boards exist
+    await ensureBoardGroup(board, 'CULTIVATION');
 
     res.json({ success: true, data: board });
   } catch (error) {
@@ -122,6 +136,10 @@ export const updateCultivationBoard = async (req: AuthRequest, res: Response) =>
     );
     if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
 
+    if (board.groupId) {
+      await syncUpdateDiaryBoards(board.groupId, req.body);
+    }
+
     res.json({ success: true, data: board });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
@@ -135,10 +153,15 @@ export const deleteCultivationBoard = async (req: AuthRequest, res: Response) =>
       profile = await FarmProfile.create({ user: req.user?._id, farmName: 'Nông trại của tôi' });
     }
 
-    const board = await CultivationBoard.findOneAndDelete({ _id: req.params.id, farmProfile: profile._id });
+    const board = await CultivationBoard.findOne({ _id: req.params.id, farmProfile: profile._id });
     if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
 
-    await CultivationEntry.deleteMany({ cultivationBoard: board._id });
+    if (board.groupId) {
+      await syncDeleteDiaryBoards(board.groupId);
+    } else {
+      await CultivationBoard.findByIdAndDelete(board._id);
+      await CultivationEntry.deleteMany({ cultivationBoard: board._id });
+    }
 
     res.json({ success: true, message: 'Board deleted' });
   } catch (error) {
@@ -159,7 +182,7 @@ export const getCultivationEntries = async (req: AuthRequest, res: Response) => 
     const entries = await CultivationEntry.find({ 
       cultivationBoard: req.params.boardId,
       date: { $gte: retentionDate }
-    }).sort({ date: -1 });
+    }).sort({ date: 1, createdAt: 1 });
     res.json({ success: true, data: entries });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
@@ -177,11 +200,21 @@ export const createCultivationEntry = async (req: AuthRequest, res: Response) =>
       if (isLocked) return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
     }
 
+    // Ensure board belongs to a group
+    await ensureBoardGroup(board, 'CULTIVATION');
+
+    const entryGroupId = req.body.entryGroupId || ('eid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9));
+
     const entry = new CultivationEntry({
       ...req.body,
       cultivationBoard: req.params.boardId,
+      entryGroupId,
     });
     await entry.save();
+
+    // Automatically sync row to Fertilizer and Pesticide boards
+    await syncCreateDiaryEntry('CULTIVATION', board, entry);
+
     res.status(201).json({ success: true, data: entry });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
@@ -202,6 +235,16 @@ export const updateCultivationEntry = async (req: AuthRequest, res: Response) =>
 
     const entry = await CultivationEntry.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
     if (!entry) return res.status(404).json({ success: false, message: 'Entry not found' });
+
+    // Sync date, performer, weather to linked entries
+    if (entry.entryGroupId && (req.body.date || req.body.performer || req.body.weather)) {
+      await syncUpdateDiaryEntry(entry.entryGroupId, {
+        date: req.body.date,
+        performer: req.body.performer,
+        weather: req.body.weather,
+      });
+    }
+
     res.json({ success: true, data: entry });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
@@ -220,8 +263,12 @@ export const deleteCultivationEntry = async (req: AuthRequest, res: Response) =>
       if (isLocked) return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
     }
 
-    const entry = await CultivationEntry.findByIdAndDelete(req.params.id);
-    if (!entry) return res.status(404).json({ success: false, message: 'Entry not found' });
+    if (entryCheck.entryGroupId) {
+      await syncDeleteDiaryEntry(entryCheck.entryGroupId);
+    } else {
+      await CultivationEntry.findByIdAndDelete(req.params.id);
+    }
+
     res.json({ success: true, message: 'Entry deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });

@@ -40,6 +40,7 @@ const cultivationBoardSchema = new mongoose_1.Schema({
     name: { type: String, required: true },
     cropType: { type: String, required: true },
     areaSqm: { type: Number, required: true },
+    areaText: { type: String },
     startDate: { type: Date, required: true },
     status: { type: String, enum: ['ACTIVE', 'HARVESTED', 'CANCELLED'], default: 'ACTIVE' },
     description: { type: String },
@@ -47,5 +48,6 @@ const cultivationBoardSchema = new mongoose_1.Schema({
     harvestYield: { type: Number },
     harvestDate: { type: Date },
     customColumns: [{ type: String }],
+    groupId: { type: String },
 }, { timestamps: true });
 exports.CultivationBoard = mongoose_1.default.model('CultivationBoard', cultivationBoardSchema);

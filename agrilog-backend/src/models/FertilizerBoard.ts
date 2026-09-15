@@ -5,9 +5,11 @@ export interface IFertilizerBoard extends Document {
   name: string;
   cropType: string;
   areaSqm: number;
+  areaText?: string;
   startDate: Date;
   status: 'ACTIVE' | 'CLOSED';
   description?: string;
+  customColumns?: string[];
   groupId?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -19,9 +21,11 @@ const fertilizerBoardSchema = new Schema<IFertilizerBoard>(
     name: { type: String, required: true },
     cropType: { type: String, required: true },
     areaSqm: { type: Number, required: true },
+    areaText: { type: String },
     startDate: { type: Date, required: true },
     status: { type: String, enum: ['ACTIVE', 'CLOSED'], default: 'ACTIVE' },
     description: { type: String },
+    customColumns: [{ type: String }],
     groupId: { type: String },
   },
   { timestamps: true }

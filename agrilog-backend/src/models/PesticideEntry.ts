@@ -14,8 +14,11 @@ export interface IPesticideEntry extends Document {
   performer?: string; // Người thực hiện
   isNotUsed?: boolean; // Không sử dụng
   weather?: string; // Thời tiết
+  cost?: number; // Chi phí
   notes?: string; // Ghi chú
   imageUrls?: string[]; // Hình ảnh
+  customValues?: any; // Dữ liệu cột tùy chỉnh
+  entryGroupId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,8 +38,11 @@ const pesticideEntrySchema = new Schema<IPesticideEntry>(
     performer: { type: String },
     isNotUsed: { type: Boolean, default: false },
     weather: { type: String },
+    cost: { type: Number, default: 0 },
     notes: { type: String },
     imageUrls: [{ type: String }],
+    customValues: { type: Schema.Types.Mixed, default: {} },
+    entryGroupId: { type: String },
   },
   { timestamps: true }
 );

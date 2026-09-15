@@ -20,48 +20,81 @@ export const createTask = async (req: AuthRequest, res: Response) => {
     const profile = await FarmProfile.findOne({ user: req.user?._id });
     if (!profile) return res.status(404).json({ success: false, message: 'Profile not found' });
 
-    const { recurrence, recurrenceCustomDays, recurrenceEndDate, dueDate, ...rest } = req.body;
+    const { recurrence, recurrenceCustomDays, recurrenceEndDate, dueDate, title, notes, priority, ...rest } = req.body;
     const baseDate = new Date(dueDate);
 
-    // Create the first task
+    // Create the base task
     const task = await Task.create({
-      ...req.body,
+      title,
+      notes,
+      priority: priority || 'MEDIUM',
+      status: 'PENDING',
+      recurrence: recurrence || 'NONE',
+      recurrenceCustomDays: Number(recurrenceCustomDays) || undefined,
+      recurrenceEndDate: recurrenceEndDate ? new Date(recurrenceEndDate) : undefined,
       farmProfile: profile._id,
       dueDate: baseDate,
+      ...rest,
     });
-    
+
     // Generate recurrent tasks
-    if (recurrence && recurrence !== 'NONE' && recurrenceEndDate) {
-      const endRecurrence = new Date(recurrenceEndDate);
-      let nextDate = new Date(baseDate);
+    if (recurrence && recurrence !== 'NONE') {
+      let endRecurrence: Date;
+      if (recurrenceEndDate) {
+        endRecurrence = new Date(recurrenceEndDate);
+      } else {
+        // Default end date: 3 months from baseDate
+        endRecurrence = new Date(baseDate);
+        endRecurrence.setMonth(endRecurrence.getMonth() + 3);
+      }
+
       const generatedTasks = [];
-      
+      const customDays = Math.max(1, Number(recurrenceCustomDays) || 1);
+      const originalDay = baseDate.getDate();
+      let step = 1;
+
       while (true) {
+        let nextDate: Date;
+
         if (recurrence === 'DAILY') {
-          nextDate.setDate(nextDate.getDate() + 1);
+          nextDate = new Date(baseDate);
+          nextDate.setDate(baseDate.getDate() + step);
         } else if (recurrence === 'WEEKLY') {
-          nextDate.setDate(nextDate.getDate() + 7);
+          nextDate = new Date(baseDate);
+          nextDate.setDate(baseDate.getDate() + (step * 7));
         } else if (recurrence === 'MONTHLY') {
-          nextDate.setMonth(nextDate.getMonth() + 1);
-        } else if (recurrence === 'CUSTOM' && recurrenceCustomDays) {
-          nextDate.setDate(nextDate.getDate() + recurrenceCustomDays);
+          let targetMonth = baseDate.getMonth() + step;
+          const targetYear = baseDate.getFullYear() + Math.floor(targetMonth / 12);
+          targetMonth = ((targetMonth % 12) + 12) % 12;
+          const maxDaysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+          const safeDay = Math.min(originalDay, maxDaysInMonth);
+          nextDate = new Date(targetYear, targetMonth, safeDay, baseDate.getHours(), baseDate.getMinutes());
+        } else if (recurrence === 'CUSTOM') {
+          nextDate = new Date(baseDate);
+          nextDate.setDate(baseDate.getDate() + (step * customDays));
+        } else {
+          break;
         }
 
         if (nextDate > endRecurrence) break;
-        
-        // Prevent infinite loops / too many tasks (limit to 100)
-        if (generatedTasks.length >= 100) break;
+        if (generatedTasks.length >= 100) break; // Safety cap
 
         generatedTasks.push({
-          ...rest,
+          title,
+          notes,
+          priority: priority || 'MEDIUM',
           farmProfile: profile._id,
-          dueDate: new Date(nextDate),
+          dueDate: nextDate,
           status: 'PENDING',
-          recurrence: 'NONE', // generated tasks are single instances
-          parentTaskId: task._id
+          recurrence,
+          recurrenceCustomDays: Number(recurrenceCustomDays) || undefined,
+          recurrenceEndDate: endRecurrence,
+          parentTaskId: task._id,
         });
+
+        step++;
       }
-      
+
       if (generatedTasks.length > 0) {
         await Task.insertMany(generatedTasks);
       }
@@ -73,12 +106,64 @@ export const createTask = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const updateTask = async (req: AuthRequest, res: Response) => {
+  try {
+    const profile = await FarmProfile.findOne({ user: req.user?._id });
+    if (!profile) return res.status(404).json({ success: false, message: 'Profile not found' });
+
+    const task = await Task.findOne({ _id: req.params.id, farmProfile: profile._id });
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    if (req.body.title !== undefined) task.title = req.body.title;
+    if (req.body.dueDate !== undefined) task.dueDate = new Date(req.body.dueDate);
+    if (req.body.status !== undefined) task.status = req.body.status;
+    if (req.body.priority !== undefined) task.priority = req.body.priority;
+    if (req.body.notes !== undefined) task.notes = req.body.notes;
+
+    await task.save();
+    res.json({ success: true, data: task });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
 export const completeTask = async (req: AuthRequest, res: Response) => {
   try {
-    const task = await Task.findByIdAndUpdate(req.params.id, { status: 'COMPLETED' }, { returnDocument: 'after' });
+    const profile = await FarmProfile.findOne({ user: req.user?._id });
+    if (!profile) return res.status(404).json({ success: false, message: 'Profile not found' });
+
+    const task = await Task.findOne({ _id: req.params.id, farmProfile: profile._id });
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
-    
+
+    task.status = task.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
+    await task.save();
+
     res.json({ success: true, data: task });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
+export const deleteTask = async (req: AuthRequest, res: Response) => {
+  try {
+    const profile = await FarmProfile.findOne({ user: req.user?._id });
+    if (!profile) return res.status(404).json({ success: false, message: 'Profile not found' });
+
+    const task = await Task.findOne({ _id: req.params.id, farmProfile: profile._id });
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    const deleteSeries = req.query.deleteSeries === 'true';
+    if (deleteSeries && (task.parentTaskId || task.recurrence !== 'NONE')) {
+      const rootId = task.parentTaskId || task._id;
+      await Task.deleteMany({
+        farmProfile: profile._id,
+        $or: [{ _id: rootId }, { parentTaskId: rootId }],
+      });
+      res.json({ success: true, message: 'Đã xóa toàn bộ chuỗi công việc lặp lại' });
+    } else {
+      await Task.findByIdAndDelete(task._id);
+      res.json({ success: true, message: 'Đã xóa công việc' });
+    }
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
   }

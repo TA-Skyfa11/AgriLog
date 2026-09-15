@@ -7,12 +7,33 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const db_1 = require("./config/db");
+const express_session_1 = __importDefault(require("express-session"));
+const connect_mongo_1 = __importDefault(require("connect-mongo"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 // Middleware
-app.use((0, cors_1.default)());
+app.use((0, cors_1.default)({
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    credentials: true
+}));
 app.use(express_1.default.json());
+app.use((0, express_session_1.default)({
+    secret: process.env.JWT_SECRET || 'secret_key',
+    resave: false,
+    saveUninitialized: false,
+    store: connect_mongo_1.default.create({
+        mongoUrl: process.env.MONGO_URI || 'mongodb://localhost:27017/agrilog',
+        collectionName: 'sessions'
+    }),
+    cookie: {
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    }
+}));
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const farmRoutes_1 = __importDefault(require("./routes/farmRoutes"));
 const cultivationRoutes_1 = __importDefault(require("./routes/cultivationRoutes"));
@@ -54,17 +75,11 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
 });
+// Connect to Database
+(0, db_1.connectDB)();
 // Start Server
-const startServer = async () => {
-    try {
-        await (0, db_1.connectDB)();
-        app.listen(PORT, () => {
-            console.log(`Server is running on port ${PORT}`);
-        });
-    }
-    catch (error) {
-        console.error('Failed to start server:', error);
-        process.exit(1);
-    }
-};
-startServer();
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
+// Export for Vercel
+exports.default = app;

@@ -12,6 +12,7 @@ export interface ICultivationEntry extends Document {
   imageUrls?: string[]; // Hình ảnh
   customValues?: any; // Dữ liệu cột tùy chỉnh
   isCompleted?: boolean; // Hoàn thành
+  entryGroupId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,7 +22,7 @@ const cultivationEntrySchema = new Schema<ICultivationEntry>(
     cultivationBoard: { type: Schema.Types.ObjectId, ref: 'CultivationBoard', required: true },
     date: { type: Date, required: true },
     stage: { type: String },
-    activityName: { type: String, required: true },
+    activityName: { type: String, default: 'Chưa đặt tên' },
     performer: { type: String },
     weather: { type: String },
     cost: { type: Number, default: 0 },
@@ -29,6 +30,7 @@ const cultivationEntrySchema = new Schema<ICultivationEntry>(
     imageUrls: [{ type: String }],
     customValues: { type: Schema.Types.Mixed, default: {} },
     isCompleted: { type: Boolean, default: false },
+    entryGroupId: { type: String },
   },
   { timestamps: true }
 );

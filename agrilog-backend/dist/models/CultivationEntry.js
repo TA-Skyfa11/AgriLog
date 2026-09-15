@@ -39,7 +39,7 @@ const cultivationEntrySchema = new mongoose_1.Schema({
     cultivationBoard: { type: mongoose_1.Schema.Types.ObjectId, ref: 'CultivationBoard', required: true },
     date: { type: Date, required: true },
     stage: { type: String },
-    activityName: { type: String, required: true },
+    activityName: { type: String, default: 'Chưa đặt tên' },
     performer: { type: String },
     weather: { type: String },
     cost: { type: Number, default: 0 },
@@ -47,5 +47,6 @@ const cultivationEntrySchema = new mongoose_1.Schema({
     imageUrls: [{ type: String }],
     customValues: { type: mongoose_1.Schema.Types.Mixed, default: {} },
     isCompleted: { type: Boolean, default: false },
+    entryGroupId: { type: String },
 }, { timestamps: true });
 exports.CultivationEntry = mongoose_1.default.model('CultivationEntry', cultivationEntrySchema);

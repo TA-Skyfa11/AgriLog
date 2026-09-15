@@ -48,7 +48,11 @@ const pesticideEntrySchema = new mongoose_1.Schema({
     phiDays: { type: Number },
     performer: { type: String },
     isNotUsed: { type: Boolean, default: false },
+    weather: { type: String },
+    cost: { type: Number, default: 0 },
     notes: { type: String },
     imageUrls: [{ type: String }],
+    customValues: { type: mongoose_1.Schema.Types.Mixed, default: {} },
+    entryGroupId: { type: String },
 }, { timestamps: true });
 exports.PesticideEntry = mongoose_1.default.model('PesticideEntry', pesticideEntrySchema);

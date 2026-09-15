@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1132.0",
     "axios": "^1.18.1",
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.2.0",
@@ -27,6 +28,7 @@
     "mongodb": "^7.5.0",
     "mongoose": "^9.7.3",
     "multer": "^2.2.0",
+    "puppeteer": "^24.43.1",
     "resend": "^6.18.0"
   },
   "devDependencies": {

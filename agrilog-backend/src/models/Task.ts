@@ -5,6 +5,7 @@ export interface ITask extends Document {
   title: string;
   dueDate: Date;
   status: 'PENDING' | 'COMPLETED';
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
   notes?: string;
   recurrence?: 'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'CUSTOM';
   recurrenceCustomDays?: number;
@@ -20,6 +21,7 @@ const taskSchema = new Schema<ITask>(
     title: { type: String, required: true },
     dueDate: { type: Date, required: true },
     status: { type: String, enum: ['PENDING', 'COMPLETED'], default: 'PENDING' },
+    priority: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH'], default: 'MEDIUM' },
     notes: { type: String },
     recurrence: { type: String, enum: ['NONE', 'DAILY', 'WEEKLY', 'MONTHLY', 'CUSTOM'], default: 'NONE' },
     recurrenceCustomDays: { type: Number },

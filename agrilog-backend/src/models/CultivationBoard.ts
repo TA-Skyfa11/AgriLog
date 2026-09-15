@@ -5,6 +5,7 @@ export interface ICultivationBoard extends Document {
   name: string;
   cropType: string;
   areaSqm: number;
+  areaText?: string;
   startDate: Date;
   status: 'ACTIVE' | 'HARVESTED' | 'CANCELLED';
   description?: string;
@@ -23,6 +24,7 @@ const cultivationBoardSchema = new Schema<ICultivationBoard>(
     name: { type: String, required: true },
     cropType: { type: String, required: true },
     areaSqm: { type: Number, required: true },
+    areaText: { type: String },
     startDate: { type: Date, required: true },
     status: { type: String, enum: ['ACTIVE', 'HARVESTED', 'CANCELLED'], default: 'ACTIVE' },
     description: { type: String },

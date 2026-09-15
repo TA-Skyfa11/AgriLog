@@ -1,5 +1,5 @@
 import express from 'express';
-import { getTasks, createTask, completeTask } from '../controllers/taskController';
+import { getTasks, createTask, updateTask, deleteTask, completeTask } from '../controllers/taskController';
 import { protect, authorize } from '../middleware/authMiddleware';
 import { Role } from '../models/User';
 
@@ -11,6 +11,10 @@ router.use(authorize(Role.FARM));
 router.route('/')
   .get(getTasks)
   .post(createTask);
+
+router.route('/:id')
+  .put(updateTask)
+  .delete(deleteTask);
 
 router.route('/:id/complete')
   .put(completeTask);

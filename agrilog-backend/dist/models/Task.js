@@ -40,6 +40,11 @@ const taskSchema = new mongoose_1.Schema({
     title: { type: String, required: true },
     dueDate: { type: Date, required: true },
     status: { type: String, enum: ['PENDING', 'COMPLETED'], default: 'PENDING' },
+    priority: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH'], default: 'MEDIUM' },
     notes: { type: String },
+    recurrence: { type: String, enum: ['NONE', 'DAILY', 'WEEKLY', 'MONTHLY', 'CUSTOM'], default: 'NONE' },
+    recurrenceCustomDays: { type: Number },
+    recurrenceEndDate: { type: Date },
+    parentTaskId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Task' },
 }, { timestamps: true });
 exports.Task = mongoose_1.default.model('Task', taskSchema);

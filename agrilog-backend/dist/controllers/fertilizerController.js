@@ -6,6 +6,7 @@ const FertilizerBoard_1 = require("../models/FertilizerBoard");
 const FertilizerEntry_1 = require("../models/FertilizerEntry");
 const Material_1 = require("../models/Material");
 const boardUtils_1 = require("../utils/boardUtils");
+const syncUtils_1 = require("../utils/syncUtils");
 const getFertilizerBoards = async (req, res) => {
     try {
         let profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
@@ -48,11 +49,24 @@ const createFertilizerBoard = async (req, res) => {
         if (req.body.customColumns && req.body.customColumns.length > planLimits.columns) {
             return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.columns} cột tùy chỉnh.` });
         }
+        const groupId = 'gid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
         const board = new FertilizerBoard_1.FertilizerBoard({
             ...req.body,
             farmProfile: profile._id,
+            groupId,
         });
         await board.save();
+        // Sync to other boards
+        await (0, syncUtils_1.syncDiaryBoards)('FERTILIZER', {
+            farmProfile: board.farmProfile,
+            name: board.name,
+            cropType: board.cropType,
+            areaSqm: board.areaSqm,
+            areaText: board.areaText,
+            startDate: board.startDate,
+            description: board.description,
+            groupId: board.groupId
+        });
         res.status(201).json({ success: true, data: board });
     }
     catch (error) {
@@ -69,6 +83,8 @@ const getFertilizerBoardById = async (req, res) => {
         const board = await FertilizerBoard_1.FertilizerBoard.findOne({ _id: req.params.id, farmProfile: profile._id });
         if (!board)
             return res.status(404).json({ success: false, message: 'Board not found' });
+        // Ensure board is linked to a group and counterpart boards exist
+        await (0, syncUtils_1.ensureBoardGroup)(board, 'FERTILIZER');
         res.json({ success: true, data: board });
     }
     catch (error) {
@@ -95,6 +111,9 @@ const updateFertilizerBoard = async (req, res) => {
         const board = await FertilizerBoard_1.FertilizerBoard.findOneAndUpdate({ _id: req.params.id, farmProfile: profile._id }, req.body, { returnDocument: 'after' });
         if (!board)
             return res.status(404).json({ success: false, message: 'Board not found' });
+        if (board.groupId) {
+            await (0, syncUtils_1.syncUpdateDiaryBoards)(board.groupId, req.body);
+        }
         res.json({ success: true, data: board });
     }
     catch (error) {
@@ -108,10 +127,16 @@ const deleteFertilizerBoard = async (req, res) => {
         if (!profile) {
             profile = await FarmProfile_1.FarmProfile.create({ user: req.user?._id, farmName: 'Nông trại của tôi' });
         }
-        const board = await FertilizerBoard_1.FertilizerBoard.findOneAndDelete({ _id: req.params.id, farmProfile: profile._id });
+        const board = await FertilizerBoard_1.FertilizerBoard.findOne({ _id: req.params.id, farmProfile: profile._id });
         if (!board)
             return res.status(404).json({ success: false, message: 'Board not found' });
-        await FertilizerEntry_1.FertilizerEntry.deleteMany({ fertilizerBoard: board._id });
+        if (board.groupId) {
+            await (0, syncUtils_1.syncDeleteDiaryBoards)(board.groupId);
+        }
+        else {
+            await FertilizerBoard_1.FertilizerBoard.findByIdAndDelete(board._id);
+            await FertilizerEntry_1.FertilizerEntry.deleteMany({ fertilizerBoard: board._id });
+        }
         res.json({ success: true, message: 'Board deleted' });
     }
     catch (error) {
@@ -131,7 +156,7 @@ const getFertilizerEntries = async (req, res) => {
         const entries = await FertilizerEntry_1.FertilizerEntry.find({
             fertilizerBoard: req.params.boardId,
             date: { $gte: retentionDate }
-        }).sort({ date: -1 });
+        }).sort({ date: 1, createdAt: 1 });
         res.json({ success: true, data: entries });
     }
     catch (error) {
@@ -168,14 +193,20 @@ const createFertilizerEntry = async (req, res) => {
                 }
             }
         }
+        // Ensure board belongs to a group
+        await (0, syncUtils_1.ensureBoardGroup)(board, 'FERTILIZER');
+        const entryGroupId = req.body.entryGroupId || ('eid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9));
         const entry = new FertilizerEntry_1.FertilizerEntry({
             ...req.body,
             fertilizerBoard: req.params.boardId,
+            entryGroupId,
         });
         await entry.save();
         if (numValue > 0) {
             await Material_1.Material.findByIdAndUpdate(req.body.material, { $inc: { quantity: -numValue } });
         }
+        // Automatically sync row to Cultivation and Pesticide boards
+        await (0, syncUtils_1.syncCreateDiaryEntry)('FERTILIZER', board, entry);
         res.status(201).json({ success: true, data: entry });
     }
     catch (error) {
@@ -245,6 +276,14 @@ const updateFertilizerEntry = async (req, res) => {
                 await Material_1.Material.findByIdAndUpdate(newMaterialId, { $inc: { quantity: -newQuantityNum } });
             }
         }
+        // Sync date, performer, weather to linked entries
+        if (entry.entryGroupId && (req.body.date || req.body.performer || req.body.weather)) {
+            await (0, syncUtils_1.syncUpdateDiaryEntry)(entry.entryGroupId, {
+                date: req.body.date,
+                performer: req.body.performer,
+                weather: req.body.weather,
+            });
+        }
         res.json({ success: true, data: entry });
     }
     catch (error) {
@@ -276,6 +315,10 @@ const deleteFertilizerEntry = async (req, res) => {
                     await Material_1.Material.findByIdAndUpdate(entry.material, { $inc: { quantity: numValue } });
                 }
             }
+        }
+        // Delete linked entries across boards
+        if (entryCheck.entryGroupId) {
+            await (0, syncUtils_1.syncDeleteDiaryEntry)(entryCheck.entryGroupId);
         }
         res.json({ success: true, message: 'Xóa ghi chép thành công.' });
     }

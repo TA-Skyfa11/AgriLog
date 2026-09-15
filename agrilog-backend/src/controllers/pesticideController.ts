@@ -9,7 +9,15 @@ import { CultivationBoard } from '../models/CultivationBoard';
 import { FertilizerBoard } from '../models/FertilizerBoard';
 
 import { PLAN_LIMITS, checkBoardLocked, getRetentionDate, getEffectivePlan } from '../utils/boardUtils';
-import { syncDiaryBoards } from '../utils/syncUtils';
+import {
+  syncDiaryBoards,
+  syncUpdateDiaryBoards,
+  syncDeleteDiaryBoards,
+  ensureBoardGroup,
+  syncCreateDiaryEntry,
+  syncUpdateDiaryEntry,
+  syncDeleteDiaryEntry
+} from '../utils/syncUtils';
 
 export const getPesticideBoards = async (req: AuthRequest, res: Response) => {
   try {
@@ -59,10 +67,11 @@ export const createPesticideBoard = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.columns} cột tùy chỉnh.` });
     }
 
+    const groupId = 'gid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
     const board = new PesticideBoard({
       ...req.body,
       farmProfile: profile._id,
-      groupId: new Date().getTime().toString() + Math.random().toString(36).substring(2, 9),
+      groupId,
     });
 
     await board.save();
@@ -73,7 +82,9 @@ export const createPesticideBoard = async (req: AuthRequest, res: Response) => {
       name: board.name,
       cropType: board.cropType,
       areaSqm: board.areaSqm,
+      areaText: board.areaText,
       startDate: board.startDate,
+      description: board.description,
       groupId: board.groupId as string
     });
 
@@ -92,6 +103,9 @@ export const getPesticideBoardById = async (req: AuthRequest, res: Response) => 
 
     const board = await PesticideBoard.findOne({ _id: req.params.id, farmProfile: profile._id });
     if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
+
+    // Ensure board is linked to a group and counterpart boards exist
+    await ensureBoardGroup(board, 'PESTICIDE');
 
     res.json({ success: true, data: board });
   } catch (error) {
@@ -124,6 +138,10 @@ export const updatePesticideBoard = async (req: AuthRequest, res: Response) => {
     );
     if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
 
+    if (board.groupId) {
+      await syncUpdateDiaryBoards(board.groupId, req.body);
+    }
+
     res.json({ success: true, data: board });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
@@ -140,7 +158,12 @@ export const deletePesticideBoard = async (req: AuthRequest, res: Response) => {
     const board = await PesticideBoard.findOneAndDelete({ _id: req.params.id, farmProfile: profile._id });
     if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
 
-    await PesticideEntry.deleteMany({ pesticideBoard: board._id });
+    if (board.groupId) {
+      await syncDeleteDiaryBoards(board.groupId);
+    } else {
+      await PesticideBoard.findByIdAndDelete(board._id);
+      await PesticideEntry.deleteMany({ pesticideBoard: board._id });
+    }
 
     res.json({ success: true, message: 'Board deleted' });
   } catch (error) {
@@ -161,7 +184,7 @@ export const getPesticideEntries = async (req: AuthRequest, res: Response) => {
     const entries = await PesticideEntry.find({ 
       pesticideBoard: req.params.boardId,
       date: { $gte: retentionDate }
-    }).sort({ date: -1 });
+    }).sort({ date: 1, createdAt: 1 });
     res.json({ success: true, data: entries });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
@@ -196,15 +219,24 @@ export const createPesticideEntry = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Ensure board belongs to a group
+    await ensureBoardGroup(board, 'PESTICIDE');
+
+    const entryGroupId = req.body.entryGroupId || ('eid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9));
+
     const entry = new PesticideEntry({
       ...req.body,
       pesticideBoard: req.params.boardId,
+      entryGroupId,
     });
     await entry.save();
 
     if (numValue > 0) {
       await Material.findByIdAndUpdate(req.body.material, { $inc: { quantity: -numValue } });
     }
+
+    // Automatically sync row to Cultivation and Fertilizer boards
+    await syncCreateDiaryEntry('PESTICIDE', board, entry);
 
     res.status(201).json({ success: true, data: entry });
   } catch (error) {
@@ -274,6 +306,15 @@ export const updatePesticideEntry = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Sync date, performer, weather to linked entries
+    if (entry.entryGroupId && (req.body.date || req.body.performer || req.body.weather)) {
+      await syncUpdateDiaryEntry(entry.entryGroupId, {
+        date: req.body.date,
+        performer: req.body.performer,
+        weather: req.body.weather,
+      });
+    }
+
     res.json({ success: true, data: entry });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
@@ -303,6 +344,11 @@ export const deletePesticideEntry = async (req: AuthRequest, res: Response) => {
           await Material.findByIdAndUpdate(entry.material, { $inc: { quantity: numValue } });
         }
       }
+    }
+
+    // Delete linked entries across boards
+    if (entryCheck.entryGroupId) {
+      await syncDeleteDiaryEntry(entryCheck.entryGroupId);
     }
 
     res.json({ success: true, message: 'Xóa ghi chép thành công.' });
