@@ -131,7 +131,8 @@ const getSafeImageUrl = (url: string) => {
 export default function CultivationDiaryDetailPage() {
   const dialog = useDialog();
 
-  const { boardId } = useParams();
+  const params = useParams();
+  const boardId = params?.boardId as string;
   const router = useRouter();
   const [board, setBoard] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -175,6 +176,7 @@ export default function CultivationDiaryDetailPage() {
   });
 
   const loadBoardData = async () => {
+    if (!boardId) return;
     try {
       const [boardRes, entriesRes, profileRes] = await Promise.all([
         fetchAPI(`/cultivation-boards/${boardId}`),
@@ -237,7 +239,9 @@ export default function CultivationDiaryDetailPage() {
   useEffect(() => {
     const plan = localStorage.getItem('userPlan') || 'BASIC';
     setUserPlan(plan);
-    loadBoardData();
+    if (boardId) {
+      loadBoardData();
+    }
   }, [boardId]);
 
   const updateLocalEntry = async (index: number, field: string, value: any, isCustom: boolean = false) => {
