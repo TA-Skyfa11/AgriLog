@@ -1,44 +1,67 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styles from '@/css/billing.module.css';
-import { Check, X, CheckCircle2 } from 'lucide-react';
+import {
+  Check,
+  X,
+  CheckCircle2,
+  Copy,
+  Clock,
+  RefreshCw,
+  Zap,
+  ShieldCheck,
+  Crown,
+  Calendar,
+  AlertTriangle,
+} from 'lucide-react';
 import { fetchAPI } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-
-const QR_BASE_URL = 'https://api.vietqr.io/image/970422-88020305666999-CYu443p.jpg?accountName=NGUYEN%20TUNG%20ANH';
 
 export default function BillingPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [packages, setPackages] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // QR Payment Modal state
+  // SePay QR Payment Modal state
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<any>(null);
+  const [paymentData, setPaymentData] = useState<any>(null);
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(900); // 15 phút (900s)
 
   // Success screen state
   const [showSuccess, setShowSuccess] = useState(false);
   const [countdown, setCountdown] = useState(5);
 
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
   const loadData = async () => {
     try {
-      const [profileRes, pkgRes] = await Promise.all([
+      const [profileRes, pkgRes, historyRes] = await Promise.all([
         fetchAPI('/farm/profile'),
-        fetchAPI('/services')
+        fetchAPI('/services'),
+        fetchAPI('/payment/history').catch(() => ({ success: false, data: [] })),
       ]);
-      
+
       if (profileRes.success) {
         setProfile(profileRes.data);
       }
       if (pkgRes.success) {
         setPackages(pkgRes.data);
       }
+      if (historyRes.success) {
+        setHistory(historyRes.data);
+      }
     } catch (error) {
-      console.error(error);
+      console.error('Lỗi tải dữ liệu gói cước:', error);
     } finally {
       setLoading(false);
     }
@@ -48,92 +71,217 @@ export default function BillingPage() {
     loadData();
   }, []);
 
-  // Countdown timer for success screen
+  // Đếm ngược màn hình thành công
   useEffect(() => {
     if (!showSuccess) return;
     if (countdown <= 0) {
       router.push('/dashboard');
       return;
     }
-    const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(timer);
   }, [showSuccess, countdown, router]);
 
-  const handleSelectPlan = (pkg: any) => {
+  // Đếm ngược thời gian hiệu lực của đơn thanh toán (15 phút)
+  useEffect(() => {
+    if (!showQRModal || !paymentData) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          toast.error('Lệnh thanh toán đã hết hạn');
+          setShowQRModal(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [showQRModal, paymentData]);
+
+  const handlePaymentSuccess = React.useCallback(() => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    setShowQRModal(false);
+    setShowSuccess(true);
+    setCountdown(5);
+    toast.success('Thanh toán thành công! Gói cước đã được kích hoạt.');
+    loadData();
+  }, []);
+
+  // Polling tự động kiểm tra trạng thái thanh toán mỗi 2.5s
+  useEffect(() => {
+    if (!showQRModal || !paymentData?.paymentCode) {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      return;
+    }
+
+    const checkStatus = async () => {
+      try {
+        const res = await fetchAPI(`/payment/status/${paymentData.paymentCode}`);
+        if (res.success && res.data?.status === 'SUCCESS') {
+          handlePaymentSuccess();
+        }
+      } catch {
+        // Bỏ qua lỗi polling thông thường
+      }
+    };
+
+    pollingRef.current = setInterval(checkStatus, 2500);
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [showQRModal, paymentData, handlePaymentSuccess]);
+
+  // Khởi tạo giao dịch thanh toán SePay
+  const handleSelectPlan = async (pkg: any) => {
     if (profile?.plan === pkg.code) return;
     setSelectedPkg(pkg);
-    setShowQRModal(true);
-  };
-
-  const handleConfirmPayment = async () => {
-    if (!selectedPkg) return;
+    setIsCreatingPayment(true);
 
     try {
-      const res = await fetchAPI('/farm/profile', {
-        method: 'PUT',
-        body: JSON.stringify({
-          plan: selectedPkg.code,
-          farmName: profile?.farmName || 'Nông trại mẫu'
-        }),
+      const res = await fetchAPI('/payment/create', {
+        method: 'POST',
+        body: JSON.stringify({ packageCode: pkg.code }),
       });
-      if (res.success) {
-        setShowQRModal(false);
-        setShowSuccess(true);
-        setCountdown(5);
-        loadData();
+
+      if (res.success && res.data) {
+        setPaymentData(res.data);
+        setTimeLeft(900); // 15 phút
+        setShowQRModal(true);
+      } else {
+        toast.error(res.message || 'Không thể tạo giao dịch thanh toán');
       }
     } catch (error) {
-      toast.error('Có lỗi xảy ra khi xử lý thanh toán');
+      toast.error('Có lỗi xảy ra khi tạo giao dịch thanh toán');
+      console.error(error);
+    } finally {
+      setIsCreatingPayment(false);
     }
   };
 
-  if (loading) return <div style={{ padding: '2rem' }}>Đang tải thông tin gói...</div>;
+  // Kiểm tra chủ động trạng thái qua SePay API
+  const handleCheckStatusNow = async () => {
+    if (!paymentData?.paymentCode) return;
+    setIsCheckingPayment(true);
 
-  const currentPlan = profile?.plan || 'BASIC';
+    try {
+      const res = await fetchAPI(`/payment/status/${paymentData.paymentCode}`);
+      if (res.success) {
+        if (res.data?.status === 'SUCCESS') {
+          handlePaymentSuccess();
+        } else if (res.data?.status === 'EXPIRED') {
+          toast.error('Giao dịch này đã hết hạn');
+          setShowQRModal(false);
+        } else {
+          toast('Hệ thống chưa nhận được tiền chuyển khoản. Vui lòng thử lại sau vài giây.', {
+            icon: '⏳',
+          });
+        }
+      }
+    } catch {
+      toast.error('Không thể kiểm tra trạng thái lúc này');
+    } finally {
+      setIsCheckingPayment(false);
+    }
+  };
+
+  // Nút mô phỏng thanh toán (Dev/Test mode)
+  const handleSimulatePayment = async () => {
+    if (!paymentData?.paymentCode) return;
+    setIsSimulating(true);
+
+    try {
+      const res = await fetchAPI('/payment/dev-simulate', {
+        method: 'POST',
+        body: JSON.stringify({ paymentCode: paymentData.paymentCode }),
+      });
+
+      if (res.success) {
+        handlePaymentSuccess();
+      } else {
+        toast.error(res.message || 'Mô phỏng thất bại');
+      }
+    } catch {
+      toast.error('Lỗi khi mô phỏng thanh toán');
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
+  // Hàm sao chép thông tin
+  const handleCopy = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    toast.success(`Đã sao chép ${fieldName}`);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  if (loading) return <div style={{ padding: '2rem' }}>Đang tải thông tin gói cước...</div>;
+
+  const currentPlan = profile?.plan || 'FREE';
 
   // ─── Success Screen ───────────────────────────────────────
   if (showSuccess) {
     return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '70vh',
-        gap: '1.5rem',
-        textAlign: 'center',
-        padding: '2rem',
-        animation: 'fadeIn 0.5s ease'
-      }}>
-        <div style={{
-          width: '100px',
-          height: '100px',
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+      <div
+        style={{
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 0 0 12px rgba(34,197,94,0.15), 0 0 0 24px rgba(34,197,94,0.07)',
-          animation: 'scaleIn 0.5s ease'
-        }}>
+          minHeight: '70vh',
+          gap: '1.5rem',
+          textAlign: 'center',
+          padding: '2rem',
+          animation: 'fadeIn 0.5s ease',
+        }}
+      >
+        <div
+          style={{
+            width: '100px',
+            height: '100px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 0 0 12px rgba(34,197,94,0.15), 0 0 0 24px rgba(34,197,94,0.07)',
+            animation: 'scaleIn 0.5s ease',
+          }}
+        >
           <CheckCircle2 size={56} color="white" />
         </div>
         <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--color-text-main)', margin: 0 }}>
-          Thanh toán thành công!
+          Thanh toán thành công qua SePay!
         </h1>
-        <p style={{ fontSize: '1.125rem', color: 'var(--color-text-muted)', maxWidth: '480px', lineHeight: 1.6 }}>
-          Bạn đã nâng cấp thành công lên gói <strong style={{ color: 'var(--color-primary-600)' }}>{selectedPkg?.name}</strong>. 
-          Tất cả các tính năng mới đã được kích hoạt cho tài khoản của bạn.
+        <p style={{ fontSize: '1.125rem', color: 'var(--color-text-muted)', maxWidth: '520px', lineHeight: 1.6 }}>
+          Bạn đã nâng cấp thành công lên gói{' '}
+          <strong style={{ color: 'var(--color-primary-600)' }}>
+            {selectedPkg?.name || paymentData?.packageName}
+          </strong>
+          . Hệ thống đã tự động kích hoạt tất cả đặc quyền và thời hạn 30 ngày cho nông trại của bạn!
         </p>
-        <div style={{
-          padding: '0.75rem 1.5rem',
-          background: 'var(--color-bg)',
-          borderRadius: '9999px',
-          fontSize: '0.875rem',
-          color: 'var(--color-text-muted)',
-          fontWeight: 600
-        }}>
-          Tự động chuyển hướng sau <span style={{ color: 'var(--color-primary-600)', fontWeight: 800 }}>{countdown}s</span>
+        <div
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: 'var(--color-bg)',
+            borderRadius: '9999px',
+            fontSize: '0.875rem',
+            color: 'var(--color-text-muted)',
+            fontWeight: 600,
+          }}
+        >
+          Tự động chuyển hướng về trang chủ sau{' '}
+          <span style={{ color: 'var(--color-primary-600)', fontWeight: 800 }}>{countdown}s</span>
         </div>
         <button
           onClick={() => router.push('/dashboard')}
@@ -148,12 +296,18 @@ export default function BillingPage() {
             fontSize: '1rem',
             cursor: 'pointer',
             transition: 'transform 0.2s, box-shadow 0.2s',
-            boxShadow: '0 4px 14px rgba(22,163,74,0.3)'
+            boxShadow: '0 4px 14px rgba(22,163,74,0.3)',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(22,163,74,0.4)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(22,163,74,0.3)'; }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(22,163,74,0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 14px rgba(22,163,74,0.3)';
+          }}
         >
-          Về trang chính ngay
+          Về trang quản trị ngay
         </button>
 
         <style>{`
@@ -174,13 +328,48 @@ export default function BillingPage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Gói Dịch Vụ &amp; Thanh Toán</h1>
-        <p className={styles.subtitle}>Nâng cấp gói dịch vụ để mở rộng thêm cột thông tin và số lượng bảng nhật ký</p>
+        <h1 className={styles.title}>Gói Dịch Vụ &amp; Thanh Toán SePay</h1>
+        <p className={styles.subtitle}>
+          Nâng cấp gói dịch vụ để mở rộng thêm số lượng bảng nhật ký và tính năng nâng cao
+        </p>
       </div>
 
+      {/* Banner thông báo gói cước hiện tại */}
+      {profile && (
+        <div className={styles.activePlanBanner}>
+          <div className={styles.activePlanInfo}>
+            <div className={styles.activePlanIcon}>
+              <Crown size={22} />
+            </div>
+            <div className={styles.activePlanText}>
+              <h3>
+                Nông trại hiện đang dùng: <strong>Gói {currentPlan}</strong>
+              </h3>
+              <p>
+                {currentPlan === 'FREE'
+                  ? 'Gói miễn phí với tính năng ghi chép cơ bản.'
+                  : `Tất cả các tính năng của gói ${currentPlan} đang hoạt động bình thường.`}
+              </p>
+            </div>
+          </div>
+          {profile.planExpiresAt && currentPlan !== 'FREE' && (
+            <div className={styles.activePlanExpiry}>
+              <Calendar size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-2px' }} />
+              Hạn dùng: {new Date(profile.planExpiresAt).toLocaleDateString('vi-VN')}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Grid danh sách các gói dịch vụ */}
       <div className={styles.pricingGrid}>
         {packages.map((pkg) => (
-          <div key={pkg._id} className={`${styles.pricingCard} ${pkg.code === 'STANDARD' ? styles.popular : ''} ${currentPlan === pkg.code ? styles.activeCard : ''}`}>
+          <div
+            key={pkg._id}
+            className={`${styles.pricingCard} ${pkg.code === 'STANDARD' ? styles.popular : ''} ${
+              currentPlan === pkg.code ? styles.activeCard : ''
+            }`}
+          >
             {pkg.code === 'STANDARD' && <div className={styles.popularBadge}>Phổ biến nhất</div>}
             <div className={styles.planName}>{pkg.name}</div>
             <div className={styles.planDesc}>{pkg.description}</div>
@@ -188,175 +377,253 @@ export default function BillingPage() {
               {pkg.price.toLocaleString('vi-VN')} VNĐ <span>/ tháng</span>
             </div>
             <div className={styles.featureList}>
-              {pkg.features && pkg.features.map((feature: string, idx: number) => (
-                <div key={idx} className={styles.featureItem}><Check size={18} color="#16a34a" /> {feature}</div>
-              ))}
+              {pkg.features &&
+                pkg.features.map((feature: string, idx: number) => (
+                  <div key={idx} className={styles.featureItem}>
+                    <Check size={18} color="#16a34a" /> {feature}
+                  </div>
+                ))}
             </div>
-            <button 
-              className={`${styles.button} ${currentPlan === pkg.code ? styles.btnDisabled : styles.btnOutline}`}
+            <button
+              className={`${styles.button} ${
+                currentPlan === pkg.code ? styles.btnDisabled : styles.btnOutline
+              }`}
               onClick={() => handleSelectPlan(pkg)}
-              disabled={currentPlan === pkg.code || !pkg.isActive}
+              disabled={currentPlan === pkg.code || !pkg.isActive || isCreatingPayment}
             >
-              {!pkg.isActive ? 'Ngừng cung cấp' : currentPlan === pkg.code ? 'Gói hiện tại' : 'Chọn gói này'}
+              {!pkg.isActive
+                ? 'Ngừng cung cấp'
+                : currentPlan === pkg.code
+                ? 'Gói hiện tại'
+                : isCreatingPayment && selectedPkg?.code === pkg.code
+                ? 'Đang khởi tạo...'
+                : 'Nâng cấp ngay'}
             </button>
           </div>
         ))}
       </div>
 
-      {/* ─── QR Payment Modal ─────────────────────────────── */}
-      {showQRModal && selectedPkg && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.6)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-          backdropFilter: 'blur(6px)',
-          animation: 'fadeIn 0.3s ease'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--color-surface, #fff)',
-            borderRadius: '20px',
-            padding: '2.5rem',
-            width: '100%',
-            maxWidth: '480px',
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-            position: 'relative',
-            animation: 'scaleIn 0.3s ease'
-          }}>
+      {/* Bảng lịch sử giao dịch thanh toán */}
+      {history.length > 0 && (
+        <div className={styles.historySection}>
+          <div className={styles.historyHeader}>
+            <h2>Lịch sử giao dịch</h2>
+            <p>Các giao dịch thanh toán nâng cấp gói cước qua SePay của tài khoản</p>
+          </div>
+          <div className={styles.historyTableCard}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Mã đơn</th>
+                  <th>Gói dịch vụ</th>
+                  <th>Số tiền</th>
+                  <th>Thời gian</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((item) => (
+                  <tr key={item._id}>
+                    <td>
+                      <code style={{ fontWeight: 700, color: 'var(--color-primary-700)' }}>
+                        {item.paymentCode}
+                      </code>
+                    </td>
+                    <td>
+                      <strong>{item.packageName}</strong>
+                    </td>
+                    <td>{item.amount.toLocaleString('vi-VN')} VNĐ</td>
+                    <td>{new Date(item.createdAt).toLocaleString('vi-VN')}</td>
+                    <td>
+                      {item.status === 'SUCCESS' ? (
+                        <span className={styles.badgeSuccess}>
+                          <CheckCircle2 size={12} /> Thành công
+                        </span>
+                      ) : item.status === 'PENDING' ? (
+                        <span className={styles.badgePending}>
+                          <Clock size={12} /> Chờ chuyển khoản
+                        </span>
+                      ) : (
+                        <span className={styles.badgeExpired}>Hết hạn / Hủy</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ─── SePay Payment Modal ─────────────────────────────── */}
+      {showQRModal && paymentData && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
             {/* Close button */}
-            <button 
-              onClick={() => setShowQRModal(false)}
-              style={{
-                position: 'absolute', top: '1rem', right: '1rem',
-                background: 'var(--color-bg, #f3f4f6)', border: 'none',
-                borderRadius: '50%', width: '36px', height: '36px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: 'var(--color-text-muted, #6b7280)',
-                transition: 'all 0.2s'
-              }}
-            >
+            <button className={styles.modalCloseBtn} onClick={() => setShowQRModal(false)}>
               <X size={18} />
             </button>
 
             {/* Header */}
-            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-main)', margin: '0 0 0.5rem 0' }}>
-                Thanh toán gói {selectedPkg.name}
-              </h2>
-              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>
-                Quét mã QR bên dưới để chuyển khoản thanh toán
+            <div className={styles.modalHeader}>
+              <div className={styles.sepayBranding}>
+                <ShieldCheck size={14} /> Cổng thanh toán tự động SePay
+              </div>
+              <h2 className={styles.modalTitle}>Thanh toán gói {paymentData.packageName}</h2>
+              <p className={styles.modalSubtitle}>
+                Quét mã VietQR bằng ứng dụng ngân hàng bất kỳ để hoàn tất nâng cấp
               </p>
             </div>
 
-            {/* Amount */}
-            <div style={{
-              textAlign: 'center',
-              padding: '0.75rem 1.5rem',
-              background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-              borderRadius: '12px',
-              marginBottom: '1.5rem',
-              border: '1px solid #bbf7d0'
-            }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#15803d', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>
-                Số tiền thanh toán
-              </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#16a34a' }}>
-                {selectedPkg.price.toLocaleString('vi-VN')} VNĐ
+            {/* Amount Banner */}
+            <div className={styles.amountBanner}>
+              <div className={styles.amountLabel}>Số tiền cần thanh toán</div>
+              <div className={styles.amountValue}>
+                {paymentData.amount.toLocaleString('vi-VN')} VNĐ
               </div>
             </div>
 
-            {/* QR Code */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              marginBottom: '1.5rem',
-              padding: '1rem',
-              background: 'white',
-              borderRadius: '16px',
-              border: '2px dashed #d1d5db'
-            }}>
+            {/* QR Code Container */}
+            <div className={styles.qrContainer}>
               <img
-                src={`${QR_BASE_URL}&amount=${selectedPkg.price}`}
-                alt="QR thanh toán"
-                style={{
-                  width: '260px',
-                  height: '260px',
-                  objectFit: 'contain',
-                  borderRadius: '8px'
+                src={paymentData.qrUrl}
+                alt="SePay VietQR MBBank"
+                className={styles.qrImage}
+                onError={(e) => {
+                  // Fallback sang vietqrUrl nếu qr.sepay.vn gặp sự cố
+                  if (paymentData.vietqrUrl) {
+                    (e.target as HTMLImageElement).src = paymentData.vietqrUrl;
+                  }
                 }}
               />
-            </div>
-
-            {/* Bank info */}
-            <div style={{
-              background: 'var(--color-bg, #f9fafb)',
-              borderRadius: '12px',
-              padding: '1rem',
-              marginBottom: '1.5rem',
-              fontSize: '0.8125rem',
-              color: 'var(--color-text-main)',
-              lineHeight: 1.8
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--color-text-muted)' }}>Ngân hàng:</span>
-                <strong>MB Bank</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--color-text-muted)' }}>Số tài khoản:</span>
-                <strong>88020305666999</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--color-text-muted)' }}>Chủ tài khoản:</span>
-                <strong>NGUYEN TUNG ANH</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--color-text-muted)' }}>Nội dung CK:</span>
-                <strong>AGRILOG {selectedPkg.code}</strong>
+              <div className={styles.qrInstructions}>
+                Mở ứng dụng Ngân hàng hoặc ví điện tử để quét mã thanh toán tức thì
               </div>
             </div>
 
-            {/* Confirm button */}
-            <button
-              onClick={handleConfirmPayment}
-              style={{
-                width: '100%',
-                padding: '1rem',
-                background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '9999px',
-                fontWeight: 700,
-                fontSize: '1rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                boxShadow: '0 4px 14px rgba(22,163,74,0.3)'
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(22,163,74,0.4)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(22,163,74,0.3)'; }}
-            >
-              ✓ Tôi đã thanh toán xong
-            </button>
+            {/* Thông tin chuyển khoản và nút sao chép */}
+            <div className={styles.bankDetailsCard}>
+              <div className={styles.bankRow}>
+                <span className={styles.bankLabel}>Ngân hàng:</span>
+                <span className={styles.bankValue}>
+                  {paymentData.bankName} (Ngân hàng Quân Đội)
+                </span>
+              </div>
 
-            <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.75rem', marginBottom: 0 }}>
-              Vui lòng chuyển khoản đúng số tiền trước khi xác nhận
-            </p>
+              <div className={styles.bankRow}>
+                <span className={styles.bankLabel}>Số tài khoản:</span>
+                <div className={styles.bankValue}>
+                  <span>{paymentData.accountNumber}</span>
+                  <button
+                    className={`${styles.copyBtn} ${
+                      copiedField === 'Số tài khoản' ? styles.copied : ''
+                    }`}
+                    onClick={() => handleCopy(paymentData.accountNumber, 'Số tài khoản')}
+                  >
+                    {copiedField === 'Số tài khoản' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedField === 'Số tài khoản' ? 'Đã chép' : 'Sao chép'}
+                  </button>
+                </div>
+              </div>
+
+              <div className={styles.bankRow}>
+                <span className={styles.bankLabel}>Chủ tài khoản:</span>
+                <span className={styles.bankValue}>{paymentData.accountHolder}</span>
+              </div>
+
+              <div className={styles.bankRow}>
+                <span className={styles.bankLabel}>Số tiền:</span>
+                <div className={styles.bankValue}>
+                  <span>{paymentData.amount.toLocaleString('vi-VN')} đ</span>
+                  <button
+                    className={`${styles.copyBtn} ${copiedField === 'Số tiền' ? styles.copied : ''}`}
+                    onClick={() => handleCopy(paymentData.amount.toString(), 'Số tiền')}
+                  >
+                    {copiedField === 'Số tiền' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedField === 'Số tiền' ? 'Đã chép' : 'Sao chép'}
+                  </button>
+                </div>
+              </div>
+
+              <div className={styles.bankRow}>
+                <span className={styles.bankLabel}>Nội dung CK:</span>
+                <div className={styles.bankValue}>
+                  <span className={styles.transferContentHighlight}>
+                    {paymentData.paymentCode}
+                  </span>
+                  <button
+                    className={`${styles.copyBtn} ${
+                      copiedField === 'Nội dung chuyển khoản' ? styles.copied : ''
+                    }`}
+                    onClick={() => handleCopy(paymentData.paymentCode, 'Nội dung chuyển khoản')}
+                  >
+                    {copiedField === 'Nội dung chuyển khoản' ? (
+                      <Check size={12} />
+                    ) : (
+                      <Copy size={12} />
+                    )}
+                    {copiedField === 'Nội dung chuyển khoản' ? 'Đã chép' : 'Sao chép'}
+                  </button>
+                </div>
+              </div>
+
+              <div className={styles.contentWarning}>
+                <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>
+                  <strong>Quan trọng:</strong> Vui lòng giữ nguyên nội dung chuyển khoản{' '}
+                  <code style={{ fontWeight: 800 }}>{paymentData.paymentCode}</code> để hệ thống tự
+                  động kích hoạt gói cước ngay khi nhận được tiền.
+                </span>
+              </div>
+            </div>
+
+            {/* Trạng thái real-time & Bộ đếm giờ */}
+            <div className={styles.statusRow}>
+              <div className={styles.pulsingStatus}>
+                <div className={styles.pulseDot}></div>
+                <span>Hệ thống đang đợi nhận tiền...</span>
+              </div>
+              <div className={styles.timer}>
+                <Clock size={14} />
+                <span>{formatTime(timeLeft)}</span>
+              </div>
+            </div>
+
+            {/* Các nút hành động */}
+            <div className={styles.modalActions}>
+              <button
+                className={styles.checkStatusBtn}
+                onClick={handleCheckStatusNow}
+                disabled={isCheckingPayment}
+              >
+                <RefreshCw
+                  size={16}
+                  style={isCheckingPayment ? { animation: 'spin 1s linear infinite' } : {}}
+                />
+                {isCheckingPayment ? 'Đang kiểm tra SePay...' : 'Tôi đã chuyển khoản - Kiểm tra ngay'}
+              </button>
+
+              {/* Nút mô phỏng thanh toán khi test local */}
+              <button
+                className={styles.simulateBtn}
+                onClick={handleSimulatePayment}
+                disabled={isSimulating}
+                title="Bấm vào đây để giả lập chuyển khoản thành công phục vụ kiểm thử"
+              >
+                <Zap size={14} color="#ca8a04" />
+                {isSimulating ? 'Đang kích hoạt gói...' : '⚡ Mô phỏng thanh toán thành công (Dev Test)'}
+              </button>
+            </div>
           </div>
-
-          <style>{`
-            @keyframes fadeIn {
-              from { opacity: 0; }
-              to { opacity: 1; }
-            }
-            @keyframes scaleIn {
-              from { transform: scale(0.9); opacity: 0; }
-              to { transform: scale(1); opacity: 1; }
-            }
-          `}</style>
         </div>
       )}
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

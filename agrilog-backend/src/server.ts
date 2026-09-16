@@ -48,6 +48,7 @@ import productRoutes from './routes/productRoutes';
 import orderRoutes from './routes/orderRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import exportRoutes from './routes/exportRoutes';
+import paymentRoutes from './routes/paymentRoutes';
 import path from 'path';
 
 // Routes
@@ -67,6 +68,7 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/payment', paymentRoutes);
 
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 

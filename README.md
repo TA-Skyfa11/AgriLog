@@ -28,6 +28,14 @@ Hệ thống bao gồm 3 vai trò chính:
   - Hỗ trợ đầy đủ tiếng Việt Unicode có dấu, typography sắc nét, màu sắc nhận diện riêng biệt cho từng loại nhật ký.
   - Tự động tích hợp thông tin nông trại (Tên, địa chỉ, SĐT) cùng khung chữ ký xác nhận ("Người lập biểu", "Chủ trang trại / Cán bộ kỹ thuật").
   - Áp dụng cho: Nhật ký Canh tác, Nhật ký Bón phân, Nhật ký Thuốc BVTV và Báo cáo hoạt động nông trại theo tháng.
+- **Cổng thanh toán tự động SePay (Ngân hàng TMCP Quân đội - MBBank)**:
+  - Tích hợp thanh toán mua và nâng cấp gói cước dịch vụ (`BASIC`, `STANDARD`, `PREMIUM`) qua tài khoản ngân hàng kết nối SePay.
+  - Sinh mã VietQR SePay động chứa đúng số tiền và nội dung chuyển khoản duy nhất cho từng lệnh (`AGRIxxxxxx`).
+  - **Tự động nhận diện giao dịch thành công**:
+    - Tiếp nhận Webhook tức thì từ SePay (`POST /api/payment/sepay-webhook`) khi có biến động số dư tiền vào.
+    - Chủ động đối soát qua SePay API v2 để tự động phát hiện thanh toán ngay cả trên môi trường local.
+  - **Tự động mở gói & gia hạn**: Ngay khi nhận tiền, hệ thống tự động cập nhật gói cước trong `FarmProfile`, gia hạn 30 ngày (cộng dồn nếu gói còn hạn), lưu lịch sử giao dịch và gửi thông báo in-app `Notification`.
+  - **Giao diện thanh toán hiện đại**: Nút sao chép 1-chạm (STK, Số tiền, Nội dung), đồng hồ đếm ngược 15 phút, trạng thái chờ nhấp nháy real-time, nút kiểm tra ngay và chế độ mô phỏng thanh toán (Dev Simulation).
 - **Sàn giao dịch (Marketplace)**: Farm tìm kiếm, xem chi tiết và đặt hàng vật tư nông nghiệp; Company quản lý danh mục và tồn kho; Admin kiểm duyệt.
 - **Cài đặt & Thông báo**: Cấu hình hồ sơ, thông báo (Push/Email qua Resend), giao diện Sáng/Tối, gói cước giới hạn upload hình ảnh.
 - **Tích hợp Thời tiết (OpenWeatherMap)**: Hiển thị thời tiết thời gian thực trên Dashboard và tự động ghi nhận thời tiết vào các bảng nhật ký.
@@ -72,17 +80,31 @@ Dự án được chia làm hai phần tách biệt:
    RESEND_API_KEY=your_resend_api_key
 
    # Cloudflare R2 Storage Configuration
-   R2_ACCOUNT_ID=d83b40f9ba48c1a0952568b9620ee62f
-   R2_ENDPOINT=https://d83b40f9ba48c1a0952568b9620ee62f.r2.cloudflarestorage.com
+   R2_ACCOUNT_ID=your_cloudflare_account_id
+   R2_ENDPOINT=https://<your_account_id>.r2.cloudflarestorage.com
    R2_ACCESS_KEY_ID=your_cloudflare_r2_access_key_id
    R2_SECRET_ACCESS_KEY=your_cloudflare_r2_secret_access_key
    R2_BUCKET_NAME=agrilog
    R2_PUBLIC_URL=
+
+   # SePay Payment Gateway Configuration
+   SEPAY_API_KEY=your_sepay_api_token
+   SEPAY_ACC_NUMBER=your_bank_account_number
+   SEPAY_BANK=MBBank
+   SEPAY_ACC_NAME=YOUR_ACCOUNT_NAME
+   SEPAY_WEBHOOK_KEY=
    ```
    > **Lưu ý về Cloudflare R2:**
    > - `R2_ACCESS_KEY_ID` và `R2_SECRET_ACCESS_KEY`: Lấy từ mục *Cloudflare Dashboard -> R2 -> Manage R2 API Tokens*.
    > - `R2_BUCKET_NAME`: Tên bucket trên R2 (mặc định là `agrilog`).
    > - `R2_PUBLIC_URL`: Để trống nếu sử dụng cơ chế streaming proxy mặc định qua API backend, hoặc điền Public Domain của Bucket (ví dụ: `https://pub-xxxx.r2.dev`) nếu đã bật tính năng R2 Public Bucket.
+   >
+   > **Lưu ý về Cổng thanh toán SePay:**
+   > - `SEPAY_API_KEY`: API Token lấy từ trang quản trị [my.sepay.vn](https://my.sepay.vn) (Company Settings -> API Access) dùng để chủ động đối soát biến động số dư qua SePay API v2.
+   > - `SEPAY_ACC_NUMBER`: Số tài khoản ngân hàng thụ hưởng của bạn.
+   > - `SEPAY_BANK`: Tên ngân hàng thụ hưởng (ví dụ: `MBBank`, `Vietcombank`, `Techcombank`...).
+   > - `SEPAY_ACC_NAME`: Tên chủ tài khoản thụ hưởng (chữ in hoa không dấu).
+   > - `SEPAY_WEBHOOK_KEY`: Chuỗi bí mật xác thực webhook (tùy chọn).
 
 4. **Tạo dữ liệu mẫu ban đầu (Seeder)**
    ```bash
@@ -99,6 +121,19 @@ Dự án được chia làm hai phần tách biệt:
    npm run dev
    ```
    Backend sẽ hoạt động tại `http://localhost:5000`
+
+---
+
+## 💳 Hướng dẫn cấu hình SePay Webhook (Khi đưa lên Server)
+
+Khi triển khai hệ thống lên máy chủ thực tế (Production) hoặc thử nghiệm qua kênh Tunnel (Ngrok / Cloudflare Tunnel):
+1. Đăng nhập vào trang quản trị [my.sepay.vn](https://my.sepay.vn).
+2. Vào menu **Webhooks** -> chọn **Thêm Webhook**.
+3. Cấu hình các thông tin:
+   - **URL Webhook**: `https://<ten-mien-cua-ban>/api/payment/sepay-webhook`
+   - **Tài khoản**: Chọn tài khoản ngân hàng của bạn đã kết nối trên SePay.
+   - **Sự kiện kích hoạt**: Khi có biến động số dư tiền vào (`in`).
+4. Bấm **Lưu**. Bất cứ khi nào phát sinh giao dịch chuyển khoản vào tài khoản ngân hàng với nội dung `AGRIxxxxxx`, SePay sẽ tự động gọi webhook và hệ thống AgriLog sẽ kích hoạt gói cước ngay lập tức.
 
 ---
 
@@ -134,3 +169,7 @@ Dự án được chia làm hai phần tách biệt:
   - Thử nghiệm tạo nhật ký canh tác và kiểm tra tính năng tự động đồng bộ sang bảng bón phân, phun thuốc.
   - Tải lên ảnh tại cột "Đính kèm ảnh" để kiểm tra tải ảnh trực tiếp lên **Cloudflare R2** và phóng to ảnh (Lightbox preview).
   - Thử nghiệm tạo lịch công việc với tùy chọn lặp lại định kỳ (Hàng tuần, Hàng tháng, Tùy chỉnh).
+  - Truy cập mục **Gói dịch vụ** (`/billing`) để trải nghiệm cổng thanh toán tự động **SePay**:
+    - Chọn nâng cấp gói cước (`STANDARD` hoặc `PREMIUM`) để xem mã VietQR SePay động được tạo tự động với đầy đủ thông tin thanh toán.
+    - Sử dụng các nút sao chép tiện lợi (STK, Số tiền, Nội dung).
+    - Thử nghiệm nút **"⚡ Mô phỏng thanh toán (Dev Test)"** hoặc quét mã thanh toán thật để hệ thống tự động kích hoạt gói cước và gia hạn 30 ngày ngay lập tức.

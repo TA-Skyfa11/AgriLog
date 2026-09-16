@@ -7,10 +7,18 @@ import Link from 'next/link';
 import { fetchAPI } from '@/lib/api';
 import styles from '@/css/login.module.css';
 import billingStyles from '@/css/billing.module.css';
-import { Check, X, CheckCircle2 } from 'lucide-react';
+import {
+  Check,
+  X,
+  CheckCircle2,
+  Copy,
+  Clock,
+  RefreshCw,
+  Zap,
+  ShieldCheck,
+  AlertTriangle,
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
-
-const QR_BASE_URL = 'https://api.vietqr.io/image/970422-88020305666999-CYu443p.jpg?accountName=NGUYEN%20TUNG%20ANH';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -35,12 +43,19 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Billing
+  // Billing & SePay
   const [packages, setPackages] = useState<any[]>([]);
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedPkg, setSelectedPkg] = useState<any>(null);
+  const [paymentData, setPaymentData] = useState<any>(null);
+  const [isCreatingPayment, setIsCreatingPayment] = useState(false);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(900);
   const [showSuccess, setShowSuccess] = useState(false);
   const [countdown, setCountdown] = useState(5);
+  const pollingRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const loadPackages = async () => {
     try {
@@ -136,34 +151,144 @@ export default function RegisterPage() {
     return () => clearTimeout(timer);
   }, [showSuccess, countdown, router, role]);
 
+  // Đếm ngược thời gian đơn thanh toán (15 phút)
+  useEffect(() => {
+    if (!showQRModal || !paymentData) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          toast.error('Lệnh thanh toán đã hết hạn');
+          setShowQRModal(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [showQRModal, paymentData]);
+
+  const handlePaymentSuccess = React.useCallback(() => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    setShowQRModal(false);
+    setShowSuccess(true);
+    setCountdown(5);
+    toast.success('Thanh toán thành công! Gói cước đã được kích hoạt.');
+  }, []);
+
+  // Polling tự động kiểm tra trạng thái thanh toán mỗi 2.5s
+  useEffect(() => {
+    if (!showQRModal || !paymentData?.paymentCode) {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+      return;
+    }
+
+    const checkStatus = async () => {
+      try {
+        const res = await fetchAPI(`/payment/status/${paymentData.paymentCode}`);
+        if (res.success && res.data?.status === 'SUCCESS') {
+          handlePaymentSuccess();
+        }
+      } catch {
+        // ignore polling err
+      }
+    };
+
+    pollingRef.current = setInterval(checkStatus, 2500);
+
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [showQRModal, paymentData, handlePaymentSuccess]);
+
   const handleSkipBilling = () => {
     router.push('/dashboard');
   };
 
-  const handleSelectPlan = (pkg: any) => {
+  const handleSelectPlan = async (pkg: any) => {
     setSelectedPkg(pkg);
-    setShowQRModal(true);
-  };
-
-  const handleConfirmPayment = async () => {
-    if (!selectedPkg) return;
+    setIsCreatingPayment(true);
 
     try {
-      const res = await fetchAPI('/farm/profile', {
-        method: 'PUT',
-        body: JSON.stringify({
-          plan: selectedPkg.code,
-          farmName: profileName // required field in PUT
-        }),
+      const res = await fetchAPI('/payment/create', {
+        method: 'POST',
+        body: JSON.stringify({ packageCode: pkg.code }),
       });
-      if (res.success) {
-        setShowQRModal(false);
-        setShowSuccess(true);
-        setCountdown(5);
+
+      if (res.success && res.data) {
+        setPaymentData(res.data);
+        setTimeLeft(900);
+        setShowQRModal(true);
+      } else {
+        toast.error(res.message || 'Không thể tạo giao dịch thanh toán');
       }
-    } catch (error) {
-      toast.error('Có lỗi xảy ra khi xử lý thanh toán');
+    } catch {
+      toast.error('Có lỗi xảy ra khi tạo giao dịch thanh toán');
+    } finally {
+      setIsCreatingPayment(false);
     }
+  };
+
+  const handleCheckStatusNow = async () => {
+    if (!paymentData?.paymentCode) return;
+    setIsCheckingPayment(true);
+
+    try {
+      const res = await fetchAPI(`/payment/status/${paymentData.paymentCode}`);
+      if (res.success) {
+        if (res.data?.status === 'SUCCESS') {
+          handlePaymentSuccess();
+        } else if (res.data?.status === 'EXPIRED') {
+          toast.error('Giao dịch này đã hết hạn');
+          setShowQRModal(false);
+        } else {
+          toast('Hệ thống chưa nhận được tiền chuyển khoản. Vui lòng thử lại sau vài giây.', {
+            icon: '⏳',
+          });
+        }
+      }
+    } catch {
+      toast.error('Không thể kiểm tra trạng thái lúc này');
+    } finally {
+      setIsCheckingPayment(false);
+    }
+  };
+
+  const handleSimulatePayment = async () => {
+    if (!paymentData?.paymentCode) return;
+    setIsSimulating(true);
+
+    try {
+      const res = await fetchAPI('/payment/dev-simulate', {
+        method: 'POST',
+        body: JSON.stringify({ paymentCode: paymentData.paymentCode }),
+      });
+
+      if (res.success) {
+        handlePaymentSuccess();
+      } else {
+        toast.error(res.message || 'Mô phỏng thất bại');
+      }
+    } catch {
+      toast.error('Lỗi khi mô phỏng thanh toán');
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
+  const handleCopy = (text: string, fieldName: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldName);
+    toast.success(`Đã sao chép ${fieldName}`);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const renderBillingStep = () => {
@@ -229,9 +354,9 @@ export default function RegisterPage() {
                 className={`${billingStyles.button} ${pkg.code === 'STANDARD' ? billingStyles.btnSolid : billingStyles.btnOutline}`}
                 style={{ padding: '0.5rem', fontSize: '0.875rem' }}
                 onClick={() => handleSelectPlan(pkg)}
-                disabled={!pkg.isActive}
+                disabled={!pkg.isActive || isCreatingPayment}
               >
-                Chọn gói
+                {isCreatingPayment && selectedPkg?.code === pkg.code ? 'Đang tạo...' : 'Chọn gói'}
               </button>
             </div>
           ))}
@@ -386,45 +511,162 @@ export default function RegisterPage() {
       </div>
 
       {/* QR Modal Step 2 */}
-      {showQRModal && selectedPkg && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center',
-          alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(6px)'
-        }}>
-          <div style={{
-            backgroundColor: 'var(--color-surface, #fff)', borderRadius: '20px',
-            padding: '2.5rem', width: '100%', maxWidth: '480px', position: 'relative'
-          }}>
-            <button 
-              onClick={() => setShowQRModal(false)}
-              style={{ position: 'absolute', top: '1rem', right: '1rem', border: 'none', background: 'transparent', cursor: 'pointer' }}
-            >
-              <X size={20} />
+      {/* SePay QR Modal Step 2 */}
+      {showQRModal && paymentData && (
+        <div className={billingStyles.modalOverlay}>
+          <div className={billingStyles.modalContent}>
+            {/* Close button */}
+            <button className={billingStyles.modalCloseBtn} onClick={() => setShowQRModal(false)}>
+              <X size={18} />
             </button>
 
-            <h2 style={{ textAlign: 'center', fontSize: '1.5rem', fontWeight: 800 }}>Thanh toán gói {selectedPkg.name}</h2>
-            <div style={{ textAlign: 'center', color: '#16a34a', fontSize: '1.75rem', fontWeight: 800, margin: '1rem 0' }}>
-              {selectedPkg.price.toLocaleString('vi-VN')} VNĐ
+            {/* Header */}
+            <div className={billingStyles.modalHeader}>
+              <div className={billingStyles.sepayBranding}>
+                <ShieldCheck size={14} /> Cổng thanh toán tự động SePay
+              </div>
+              <h2 className={billingStyles.modalTitle}>Thanh toán gói {paymentData.packageName}</h2>
+              <p className={billingStyles.modalSubtitle}>
+                Quét mã VietQR bằng ứng dụng ngân hàng bất kỳ để hoàn tất nâng cấp
+              </p>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'center', margin: '1rem 0' }}>
+            {/* Amount Banner */}
+            <div className={billingStyles.amountBanner}>
+              <div className={billingStyles.amountLabel}>Số tiền cần thanh toán</div>
+              <div className={billingStyles.amountValue}>
+                {paymentData.amount.toLocaleString('vi-VN')} VNĐ
+              </div>
+            </div>
+
+            {/* QR Code Container */}
+            <div className={billingStyles.qrContainer}>
               <img
-                src={`${QR_BASE_URL}&amount=${selectedPkg.price}`}
-                alt="QR thanh toán"
-                style={{ width: '220px', height: '220px', borderRadius: '8px' }}
+                src={paymentData.qrUrl}
+                alt="SePay VietQR MBBank"
+                className={billingStyles.qrImage}
+                onError={(e) => {
+                  if (paymentData.vietqrUrl) {
+                    (e.target as HTMLImageElement).src = paymentData.vietqrUrl;
+                  }
+                }}
               />
+              <div className={billingStyles.qrInstructions}>
+                Mở ứng dụng Ngân hàng hoặc ví điện tử để quét mã thanh toán tức thì
+              </div>
             </div>
 
-            <button
-              onClick={handleConfirmPayment}
-              style={{
-                width: '100%', padding: '1rem', background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                color: 'white', border: 'none', borderRadius: '9999px', fontWeight: 700, cursor: 'pointer'
-              }}
-            >
-              ✓ Tôi đã thanh toán xong
-            </button>
+            {/* Thông tin chuyển khoản và nút sao chép */}
+            <div className={billingStyles.bankDetailsCard}>
+              <div className={billingStyles.bankRow}>
+                <span className={billingStyles.bankLabel}>Ngân hàng:</span>
+                <span className={billingStyles.bankValue}>
+                  {paymentData.bankName} (Ngân hàng Quân Đội)
+                </span>
+              </div>
+
+              <div className={billingStyles.bankRow}>
+                <span className={billingStyles.bankLabel}>Số tài khoản:</span>
+                <div className={billingStyles.bankValue}>
+                  <span>{paymentData.accountNumber}</span>
+                  <button
+                    className={`${billingStyles.copyBtn} ${
+                      copiedField === 'Số tài khoản' ? billingStyles.copied : ''
+                    }`}
+                    onClick={() => handleCopy(paymentData.accountNumber, 'Số tài khoản')}
+                  >
+                    {copiedField === 'Số tài khoản' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedField === 'Số tài khoản' ? 'Đã chép' : 'Sao chép'}
+                  </button>
+                </div>
+              </div>
+
+              <div className={billingStyles.bankRow}>
+                <span className={billingStyles.bankLabel}>Chủ tài khoản:</span>
+                <span className={billingStyles.bankValue}>{paymentData.accountHolder}</span>
+              </div>
+
+              <div className={billingStyles.bankRow}>
+                <span className={billingStyles.bankLabel}>Số tiền:</span>
+                <div className={billingStyles.bankValue}>
+                  <span>{paymentData.amount.toLocaleString('vi-VN')} đ</span>
+                  <button
+                    className={`${billingStyles.copyBtn} ${copiedField === 'Số tiền' ? billingStyles.copied : ''}`}
+                    onClick={() => handleCopy(paymentData.amount.toString(), 'Số tiền')}
+                  >
+                    {copiedField === 'Số tiền' ? <Check size={12} /> : <Copy size={12} />}
+                    {copiedField === 'Số tiền' ? 'Đã chép' : 'Sao chép'}
+                  </button>
+                </div>
+              </div>
+
+              <div className={billingStyles.bankRow}>
+                <span className={billingStyles.bankLabel}>Nội dung CK:</span>
+                <div className={billingStyles.bankValue}>
+                  <span className={billingStyles.transferContentHighlight}>
+                    {paymentData.paymentCode}
+                  </span>
+                  <button
+                    className={`${billingStyles.copyBtn} ${
+                      copiedField === 'Nội dung chuyển khoản' ? billingStyles.copied : ''
+                    }`}
+                    onClick={() => handleCopy(paymentData.paymentCode, 'Nội dung chuyển khoản')}
+                  >
+                    {copiedField === 'Nội dung chuyển khoản' ? (
+                      <Check size={12} />
+                    ) : (
+                      <Copy size={12} />
+                    )}
+                    {copiedField === 'Nội dung chuyển khoản' ? 'Đã chép' : 'Sao chép'}
+                  </button>
+                </div>
+              </div>
+
+              <div className={billingStyles.contentWarning}>
+                <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>
+                  <strong>Quan trọng:</strong> Vui lòng giữ nguyên nội dung chuyển khoản{' '}
+                  <code style={{ fontWeight: 800 }}>{paymentData.paymentCode}</code> để hệ thống tự
+                  động kích hoạt gói cước ngay khi nhận được tiền.
+                </span>
+              </div>
+            </div>
+
+            {/* Trạng thái real-time & Bộ đếm giờ */}
+            <div className={billingStyles.statusRow}>
+              <div className={billingStyles.pulsingStatus}>
+                <div className={billingStyles.pulseDot}></div>
+                <span>Hệ thống đang đợi nhận tiền...</span>
+              </div>
+              <div className={billingStyles.timer}>
+                <Clock size={14} />
+                <span>{formatTime(timeLeft)}</span>
+              </div>
+            </div>
+
+            {/* Các nút hành động */}
+            <div className={billingStyles.modalActions}>
+              <button
+                className={billingStyles.checkStatusBtn}
+                onClick={handleCheckStatusNow}
+                disabled={isCheckingPayment}
+              >
+                <RefreshCw
+                  size={16}
+                  style={isCheckingPayment ? { animation: 'spin 1s linear infinite' } : {}}
+                />
+                {isCheckingPayment ? 'Đang kiểm tra SePay...' : 'Tôi đã chuyển khoản - Kiểm tra ngay'}
+              </button>
+
+              <button
+                className={billingStyles.simulateBtn}
+                onClick={handleSimulatePayment}
+                disabled={isSimulating}
+              >
+                <Zap size={14} color="#ca8a04" />
+                {isSimulating ? 'Đang kích hoạt gói...' : '⚡ Mô phỏng thanh toán thành công (Dev Test)'}
+              </button>
+            </div>
           </div>
         </div>
       )}
