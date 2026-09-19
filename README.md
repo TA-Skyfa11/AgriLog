@@ -133,7 +133,62 @@ Khi triển khai hệ thống lên máy chủ thực tế (Production) hoặc th
    - **URL Webhook**: `https://<ten-mien-cua-ban>/api/payment/sepay-webhook`
    - **Tài khoản**: Chọn tài khoản ngân hàng của bạn đã kết nối trên SePay.
    - **Sự kiện kích hoạt**: Khi có biến động số dư tiền vào (`in`).
+   - **Xác thực API Key**: Điền giá trị của biến `SEPAY_WEBHOOK_KEY` vào mục API Key trên SePay.
 4. Bấm **Lưu**. Bất cứ khi nào phát sinh giao dịch chuyển khoản vào tài khoản ngân hàng với nội dung `AGRIxxxxxx`, SePay sẽ tự động gọi webhook và hệ thống AgriLog sẽ kích hoạt gói cước ngay lập tức.
+
+### 🛡️ Cơ chế Bảo mật Xác thực Thanh toán (3 Phương thức Độc lập)
+
+Hệ thống thanh toán AgriLog hỗ trợ đầy đủ 3 cơ chế xác thực an toàn cấp doanh nghiệp:
+
+#### 1. Phương thức API Key (Timing-Safe)
+- Gửi kèm trong Header `Authorization: Apikey <SEPAY_WEBHOOK_KEY>` (hoặc `Authorization: Bearer <SEPAY_WEBHOOK_KEY>`, `x-api-key: <SEPAY_WEBHOOK_KEY>`).
+- Hệ thống áp dụng so sánh hằng số thời gian (`crypto.timingSafeEqual`) để loại bỏ hoàn toàn nguy cơ Timing Attack.
+- **Ví dụ gọi Webhook bằng API Key**:
+  ```bash
+  curl -X POST http://localhost:5000/api/payment/sepay-webhook \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Apikey agrilog_webhook_key_2026" \
+    -d '{"id":123,"transferType":"in","transferAmount":199000,"content":"AGRI123456 NANG CAP GOI"}'
+  ```
+
+#### 2. Phương thức Chữ ký số HMAC-SHA256 (Toàn vẹn dữ liệu & Chống Replay Attack)
+- Dành cho các bên tích hợp hoặc SePay Webhook cấu hình chữ ký số `x-signature` hoặc `x-sepay-signature`.
+- Chữ ký được sinh bằng thuật toán:
+  `HMAC-SHA256(JSON_PAYLOAD, SEPAY_WEBHOOK_SECRET)`
+- Tự động kiểm tra tem thời gian (`x-timestamp` hoặc `transactionDate`) trong giới hạn 5 phút (300s) để ngăn chặn tấn công phát lại (Replay Attack).
+- **Ví dụ gọi Webhook bằng chữ ký HMAC-SHA256**:
+  ```bash
+  curl -X POST http://localhost:5000/api/payment/sepay-webhook \
+    -H "Content-Type: application/json" \
+    -H "x-signature: <computed_hmac_hex>" \
+    -d '{"id":123,"transferType":"in","transferAmount":199000,"content":"AGRI123456"}'
+  ```
+
+#### 3. Phương thức OAuth 2.0 (Client Credentials Grant - RFC 6749)
+- Chuẩn giao tiếp Machine-to-Machine (M2M) an toàn giữa các dịch vụ tài chính/ngân hàng đối tác.
+- **Bước 1: Lấy OAuth 2.0 Bearer Token**:
+  ```bash
+  curl -X POST http://localhost:5000/api/payment/oauth/token \
+    -H "Content-Type: application/json" \
+    -d '{
+      "grant_type": "client_credentials",
+      "client_id": "agrilog_payment_client",
+      "client_secret": "agrilog_payment_secret"
+    }'
+  ```
+  *Phản hồi*: `{"access_token":"eyJhbG...","token_type":"Bearer","expires_in":3600,"scope":"payment:webhook"}`
+- **Bước 2: Sử dụng Access Token để gọi Webhook**:
+  ```bash
+  curl -X POST http://localhost:5000/api/payment/sepay-webhook \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer <access_token>" \
+    -d '{"id":123,"transferType":"in","transferAmount":199000,"content":"AGRI123456"}'
+  ```
+
+#### 4. Bảo vệ Endpoint Mô phỏng Thanh toán (`/dev-simulate`)
+- Endpoint `POST /api/payment/dev-simulate` bị khóa chặt trên Production (`403 Forbidden`).
+- Chỉ cho phép chạy ở môi trường Development hoặc khi request có token của tài khoản **ADMIN** / cung cấp `x-dev-simulate-key`.
+
 
 ---
 

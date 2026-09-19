@@ -1,10 +1,12 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import axios from 'axios';
 import { AuthRequest } from '../middleware/authMiddleware';
+import { PaymentAuthRequest } from '../middleware/paymentSecurityMiddleware';
 import { PaymentTransaction, PaymentStatus, IPaymentTransaction } from '../models/PaymentTransaction';
 import { ServicePackage } from '../models/ServicePackage';
 import { FarmProfile } from '../models/FarmProfile';
 import { Notification } from '../models/Notification';
+import { generateOAuthPaymentToken } from '../utils/paymentSecurity';
 
 const SEPAY_BANK = process.env.SEPAY_BANK || 'MBBank';
 const SEPAY_ACC_NUMBER = process.env.SEPAY_ACC_NUMBER || '88020305666999';
@@ -19,20 +21,37 @@ export const activatePackage = async (
   sepayData?: any
 ): Promise<{ success: boolean; profile?: any; message: string }> => {
   try {
-    // 1. Cập nhật trạng thái giao dịch
-    transaction.status = PaymentStatus.SUCCESS;
-    if (sepayData) {
-      transaction.sepayTransactionId = sepayData.id?.toString() || transaction.sepayTransactionId;
-      transaction.sepayReferenceCode =
-        sepayData.referenceCode || sepayData.reference_number || sepayData.referenceNumber || transaction.sepayReferenceCode;
-      transaction.transferDate = sepayData.transactionDate
-        ? new Date(sepayData.transactionDate)
-        : sepayData.transaction_date
-        ? new Date(sepayData.transaction_date)
-        : new Date();
-      transaction.rawWebhookData = sepayData;
+    // 1. Cập nhật trạng thái giao dịch một cách nguyên tử (Atomic locking) để chống race-condition & double-spending
+    const updated = await PaymentTransaction.findOneAndUpdate(
+      { _id: transaction._id, status: PaymentStatus.PENDING },
+      {
+        $set: {
+          status: PaymentStatus.SUCCESS,
+          ...(sepayData && {
+            sepayTransactionId: sepayData.id?.toString() || transaction.sepayTransactionId,
+            sepayReferenceCode:
+              sepayData.referenceCode || sepayData.reference_number || sepayData.referenceNumber || transaction.sepayReferenceCode,
+            transferDate: sepayData.transactionDate
+              ? new Date(sepayData.transactionDate)
+              : sepayData.transaction_date
+              ? new Date(sepayData.transaction_date)
+              : new Date(),
+            rawWebhookData: sepayData,
+          }),
+        },
+      },
+      { new: true }
+    );
+
+    // Nếu không tìm thấy PENDING nhưng transaction đã SUCCESS từ trước đó
+    if (!updated && transaction.status === PaymentStatus.SUCCESS) {
+      const existingProfile = await FarmProfile.findOne({ user: transaction.user });
+      return {
+        success: true,
+        profile: existingProfile,
+        message: `Giao dịch ${transaction.paymentCode} đã được kích hoạt trước đó (Idempotent).`,
+      };
     }
-    await transaction.save();
 
     // 2. Tìm và kích hoạt gói cước trong FarmProfile
     let profile = await FarmProfile.findOne({ user: transaction.user });
@@ -327,23 +346,16 @@ async function checkSePayApiForTransaction(transaction: IPaymentTransaction): Pr
 /**
  * 3. Webhook tiếp nhận thông báo biến động số dư từ SePay
  * POST /api/payment/sepay-webhook
+ * Đã được bảo vệ qua middleware verifyPaymentWebhookAuth (API Key, HMAC-SHA256, hoặc OAuth 2.0)
  */
-export const sepayWebhook = async (req: AuthRequest, res: Response) => {
+export const sepayWebhook = async (req: PaymentAuthRequest, res: Response) => {
   try {
     // SePay yêu cầu luôn trả về HTTP 200 kèm {"success": true}
     const data = req.body;
-    console.log('--- Nhận SePay Webhook ---', JSON.stringify(data));
-
-    // Kiểm tra cấu hình xác thực Webhook nếu có cấu hình SEPAY_WEBHOOK_KEY
-    const webhookKey = process.env.SEPAY_WEBHOOK_KEY;
-    if (webhookKey) {
-      const authHeader = req.headers.authorization || '';
-      const cleanHeader = authHeader.replace(/^(Bearer|Apikey)\s+/i, '').trim();
-      if (cleanHeader !== webhookKey) {
-        console.warn('Webhook Authorization không hợp lệ');
-        return res.status(401).json({ success: false, message: 'Unauthorized webhook' });
-      }
-    }
+    console.log(
+      `--- Nhận SePay Webhook [Auth Method: ${req.paymentAuth?.method || 'NONE'}] ---`,
+      JSON.stringify(data)
+    );
 
     const {
       id,
@@ -502,3 +514,63 @@ export const getUserPaymentHistory = async (req: AuthRequest, res: Response) => 
     res.status(500).json({ success: false, message: (error as Error).message });
   }
 };
+
+/**
+ * 6. Cấp phát OAuth 2.0 Access Token (Client Credentials Grant - RFC 6749)
+ * POST /api/payment/oauth/token
+ */
+export const issueOAuthToken = async (req: Request, res: Response) => {
+  try {
+    const grantType = req.body?.grant_type || req.query?.grant_type;
+    if (grantType !== 'client_credentials') {
+      return res.status(400).json({
+        error: 'unsupported_grant_type',
+        error_description: 'Hệ thống chỉ hỗ trợ grant_type="client_credentials"',
+      });
+    }
+
+    // Trích xuất client_id và client_secret từ body, query hoặc Basic Auth header
+    let clientId = req.body?.client_id || req.query?.client_id;
+    let clientSecret = req.body?.client_secret || req.query?.client_secret;
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Basic ')) {
+      try {
+        const credentials = Buffer.from(authHeader.substring(6), 'base64').toString('utf8');
+        const [id, secret] = credentials.split(':');
+        if (id && secret) {
+          clientId = id;
+          clientSecret = secret;
+        }
+      } catch {
+        // Bỏ qua lỗi parse Basic header
+      }
+    }
+
+    if (!clientId || !clientSecret) {
+      return res.status(400).json({
+        error: 'invalid_client',
+        error_description: 'Yêu cầu cung cấp đầy đủ client_id và client_secret',
+      });
+    }
+
+    const tokenResult = generateOAuthPaymentToken(clientId, clientSecret);
+    if (!tokenResult) {
+      return res.status(401).json({
+        error: 'invalid_client',
+        error_description: 'Thông tin xác thực client_id hoặc client_secret không chính xác',
+      });
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Pragma', 'no-cache');
+    return res.status(200).json(tokenResult);
+  } catch (error) {
+    console.error('Lỗi khi cấp phát OAuth 2.0 token:', error);
+    return res.status(500).json({
+      error: 'server_error',
+      error_description: (error as Error).message,
+    });
+  }
+};
+

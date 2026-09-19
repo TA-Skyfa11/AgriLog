@@ -43,7 +43,7 @@ services:
       NODE_ENV: production
       MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/agrilog}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-      JWT_SECRET: ${JWT_SECRET:-agrilog_jwt_production_secret_key_min_32_characters}
+      JWT_SECRET: "${JWT_SECRET:?Bat buoc phai cau hinh JWT_SECRET trong file .env}"
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       OPENWEATHERMAP_API_KEY: ${OPENWEATHERMAP_API_KEY:-}
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
