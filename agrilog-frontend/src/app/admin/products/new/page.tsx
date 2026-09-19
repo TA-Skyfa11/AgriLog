@@ -53,7 +53,7 @@ export default function NewProductPage() {
     setLoading(true);
 
     try {
-      let images: string[] = [];
+      const images: string[] = [];
 
       if (imageFile) {
         const formData = new FormData();

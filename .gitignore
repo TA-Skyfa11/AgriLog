@@ -1,0 +1,87 @@
+# ==============================================================================
+# 1. BẢO MẬT HỆ THỐNG: Biến môi trường & Khóa bí mật (Secrets & Credentials)
+# ==============================================================================
+# Tất cả các file .env chứa mật khẩu, API keys, chuỗi kết nối Database
+.env
+.env.*
+.env*.local
+*.env
+*.env.*
+**/agrilog-backend/.env*
+**/agrilog-frontend/.env*
+
+# NGOẠI LỆ: Cho phép commit các file template mẫu để đồng đội tham khảo cấu hình
+!.env.example
+!.env.docker.example
+!.env.*.example
+!agrilog-backend/.env.example
+!agrilog-frontend/.env.example
+
+# Khóa bí mật, chứng chỉ SSL & SSH Keys
+*.pem
+*.key
+*.pkcs12
+*.pfx
+*.p12
+id_rsa*
+id_ed25519*
+*.cert
+*.crt
+
+# Service account & API Token files
+*credentials*.json
+service-account*.json
+firebase*.json
+*.token
+*.secret
+
+# ==============================================================================
+# 2. Dependencies & Build Artifacts
+# ==============================================================================
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.next/
+**/.next/
+out/
+**/out/
+build/
+**/build/
+coverage/
+**/coverage/
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# ==============================================================================
+# 3. Database dumps, Cache & Runtime Logs
+# ==============================================================================
+*.dump
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# PM2 runtime
+.pm2/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ==============================================================================
+# 4. OS & IDE System Files
+# ==============================================================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+.idea/
+.vscode/*
+!.vscode/extensions.json

@@ -173,3 +173,80 @@ Khi triển khai hệ thống lên máy chủ thực tế (Production) hoặc th
     - Chọn nâng cấp gói cước (`STANDARD` hoặc `PREMIUM`) để xem mã VietQR SePay động được tạo tự động với đầy đủ thông tin thanh toán.
     - Sử dụng các nút sao chép tiện lợi (STK, Số tiền, Nội dung).
     - Thử nghiệm nút **"⚡ Mô phỏng thanh toán (Dev Test)"** hoặc quét mã thanh toán thật để hệ thống tự động kích hoạt gói cước và gia hạn 30 ngày ngay lập tức.
+
+---
+
+## 🚀 Tự động hóa CI/CD & Triển khai Máy chủ (GitHub Actions)
+
+Dự án AgriLog đã được cấu hình sẵn hệ thống CI/CD chuyên nghiệp với 2 workflows:
+
+### 1. Workflow CI Kiểm tra Pre-merge (`.github/workflows/ci.yml`)
+- **Kích hoạt**: Tự động khi tạo **Pull Request** vào nhánh `main` hoặc push lên các nhánh tính năng.
+- **Nhiệm vụ**:
+  - Backend: Cài đặt dependencies (`npm ci`) và kiểm tra Type-check / Compile (`npm run build`).
+  - Frontend: Cài đặt dependencies (`npm ci`), chạy linter (`npm run lint`), và build Next.js (`npm run build`).
+  - Đảm bảo không có lỗi cú pháp hoặc build break nào lọt vào nhánh chính.
+
+### 2. Workflow CD Tự động Triển khai (`.github/workflows/deploy.yml`)
+- **Kích hoạt**: Tự động khi merge hoặc push code trực tiếp vào nhánh `main`.
+- **Cơ chế**:
+  1. Kiểm tra lại toàn bộ quy trình CI (Gatekeeper).
+  2. Tự động kết nối SSH vào máy chủ (**hỗ trợ cả Linux Server và Windows Server**).
+  3. Kéo mã nguồn mới nhất (`git fetch && git reset --hard origin/main`).
+  4. Cài đặt dependency và build bản mới nhất cho cả Backend và Frontend.
+  5. Tải lại dịch vụ không gián đoạn thông qua **PM2** bằng cấu hình `ecosystem.config.js`.
+
+### 3. Cấu hình GitHub Secrets cho CD
+Vào repository trên GitHub: **Settings** -> **Secrets and variables** -> **Actions** -> **New repository secret**:
+
+| Tên Secret | Bắt buộc | Mô tả |
+| :--- | :--- | :--- |
+| `SERVER_HOST` | Có | Địa chỉ IP hoặc Domain máy chủ của bạn (ví dụ: `103.x.x.x` hoặc `agrilog.vn`) |
+| `SERVER_USER` | Có | Tên người dùng SSH (ví dụ: `ubuntu`, `root`, `Administrator`) |
+| `SERVER_SSH_KEY` | Có | Private Key SSH (dạng OpenSSH, bắt đầu bằng `-----BEGIN OPENSSH PRIVATE KEY-----`) |
+| `SERVER_PORT` | Không | Cổng SSH (mặc định: `22`) |
+| `DEPLOY_PATH` | Có | Đường dẫn thư mục dự án trên server (ví dụ: `/var/www/agrilog` hoặc `C:\apps\agrilog`) |
+| `SERVER_OS` | Không | Mặc định là `linux`. Nếu deploy lên Windows Server, đặt giá trị là `windows` |
+
+> [!NOTE]
+> Nếu chưa cấu hình `SERVER_HOST`, bước deploy sẽ tự động bỏ qua (skip) an toàn mà không làm lỗi workflow.
+
+### 4. Quản lý tiến trình trên Server với PM2 (`ecosystem.config.js`)
+Dự án cung cấp sẵn file `ecosystem.config.js` tương thích cả Linux và Windows:
+```bash
+# Cài đặt PM2 toàn cục (nếu chưa có)
+npm install -g pm2
+
+# Khởi chạy cả Backend và Frontend
+pm2 start ecosystem.config.js
+
+# Xem trạng thái
+pm2 status
+
+# Lưu cấu hình tự khởi động lại khi reboot máy chủ
+pm2 save
+pm2 startup
+```
+
+### 5. Triển khai trọn gói với Docker & Docker Compose 🐳
+Dự án cung cấp cấu hình Docker hoàn chỉnh (Multi-stage build cho Next.js Standalone và Express có tích hợp Puppeteer Chromium, kết hợp cơ sở dữ liệu MongoDB):
+
+```bash
+# 1. Sao chép file cấu hình biến môi trường
+cp .env.docker.example .env
+
+# 2. Khởi chạy toàn bộ hệ thống (MongoDB + Backend + Frontend)
+docker compose up -d --build
+
+# 3. Theo dõi log hoạt động của các dịch vụ
+docker compose logs -f
+
+# 4. Dừng hệ thống
+docker compose down
+```
+
+Các cổng mặc định sau khi container khởi chạy:
+- **Frontend (Next.js)**: `http://localhost:3000`
+- **Backend API**: `http://localhost:5000`
+- **MongoDB**: `localhost:27017` (dữ liệu được lưu trữ an toàn trong volume `agrilog_mongo_data`)
+

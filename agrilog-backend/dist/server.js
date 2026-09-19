@@ -10,6 +10,13 @@ const db_1 = require("./config/db");
 const express_session_1 = __importDefault(require("express-session"));
 const connect_mongo_1 = __importDefault(require("connect-mongo"));
 dotenv_1.default.config();
+// Fail fast on startup if JWT_SECRET is missing or empty
+if (!process.env.JWT_SECRET || !process.env.JWT_SECRET.trim()) {
+    console.error('FATAL ERROR: JWT_SECRET environment variable is missing.');
+    console.error('Server startup aborted: JWT_SECRET is required to secure authentication tokens and sessions.');
+    throw new Error('FATAL: JWT_SECRET environment variable is required to start the server.');
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 const app = (0, express_1.default)();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
@@ -20,7 +27,7 @@ app.use((0, cors_1.default)({
 }));
 app.use(express_1.default.json());
 app.use((0, express_session_1.default)({
-    secret: process.env.JWT_SECRET || 'secret_key',
+    secret: JWT_SECRET,
     resave: false,
     saveUninitialized: false,
     store: connect_mongo_1.default.create({

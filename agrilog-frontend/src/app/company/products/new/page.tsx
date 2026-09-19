@@ -55,7 +55,7 @@ export default function NewProductPage() {
     setLoading(true);
 
     try {
-      let images: string[] = [];
+      const images: string[] = [];
 
       if (imageMode === 'upload' && imageFile) {
         const formData = new FormData();

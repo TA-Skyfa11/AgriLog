@@ -16,10 +16,17 @@ const protect = async (req, res, next) => {
             const token = authHeader.split(' ')[1];
             if (token) {
                 try {
-                    const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'secret_key');
+                    const secret = process.env.JWT_SECRET;
+                    if (!secret) {
+                        throw new Error('JWT_SECRET environment variable is not configured');
+                    }
+                    const decoded = jsonwebtoken_1.default.verify(token, secret);
                     userId = decoded.id;
                 }
                 catch (err) {
+                    if (err?.message === 'JWT_SECRET environment variable is not configured') {
+                        return res.status(500).json({ success: false, message: 'Lỗi cấu hình hệ thống: thiếu JWT_SECRET' });
+                    }
                     // Token invalid or expired
                 }
             }

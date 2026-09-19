@@ -12,7 +12,11 @@ const Notification_1 = require("../models/Notification");
 const crypto_1 = __importDefault(require("crypto"));
 const emailService_1 = require("../utils/emailService");
 const generateToken = (userId) => {
-    return jsonwebtoken_1.default.sign({ id: userId }, process.env.JWT_SECRET || 'secret_key', {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error('JWT_SECRET environment variable is not configured');
+    }
+    return jsonwebtoken_1.default.sign({ id: userId }, secret, {
         expiresIn: '30d',
     });
 };

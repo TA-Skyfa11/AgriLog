@@ -1,0 +1,133 @@
+name: CD - Build & Deploy to Production (Linux & Windows)
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false
+
+jobs:
+  # ============================================================================
+  # 1. CI Validation Gate: Verify code compiles and passes tests before deploying
+  # ============================================================================
+  ci-check:
+    name: Build & Lint Pre-Deployment Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: |
+            agrilog-backend/package-lock.json
+            agrilog-frontend/package-lock.json
+
+      # Backend Build Check
+      - name: Install Backend Dependencies
+        working-directory: agrilog-backend
+        run: npm ci
+
+      - name: Compile Backend TypeScript
+        working-directory: agrilog-backend
+        run: npm run build
+
+      # Frontend Build Check
+      - name: Install Frontend Dependencies
+        working-directory: agrilog-frontend
+        run: npm ci
+
+      - name: Lint Frontend
+        working-directory: agrilog-frontend
+        run: npm run lint
+
+      - name: Build Frontend Production Bundle
+        working-directory: agrilog-frontend
+        env:
+          NEXT_PUBLIC_API_URL: https://api.agrilog.example.com/api
+        run: npm run build
+
+  # ============================================================================
+  # 2. CD Deploy Gate: SSH into Server (Linux or Windows) and reload PM2
+  # ============================================================================
+  deploy-production:
+    name: Deploy to Production Server
+    needs: [ci-check]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if Server Secrets are Configured
+        id: check-secrets
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_OS: ${{ secrets.SERVER_OS }}
+          SERVER_OS_VAR: ${{ vars.SERVER_OS }}
+        run: |
+          if [ -z "$SERVER_HOST" ]; then
+            echo "configured=false" >> $GITHUB_OUTPUT
+            echo "::notice title=Deployment Skipped::SERVER_HOST is not set in GitHub Secrets. Automatic deployment skipped."
+          else
+            echo "configured=true" >> $GITHUB_OUTPUT
+          fi
+
+          OS_VALUE="${SERVER_OS:-${SERVER_OS_VAR:-linux}}"
+          TARGET_OS=$(echo "$OS_VALUE" | tr '[:upper:]' '[:lower:]')
+          echo "server_os=$TARGET_OS" >> $GITHUB_OUTPUT
+
+      # ------------------------------------------------------------------------
+      # Target A: Linux Server Deployment (Ubuntu / Debian / CentOS)
+      # ------------------------------------------------------------------------
+      - name: Deploy to Linux Server via SSH
+        if: steps.check-secrets.outputs.configured == 'true' && steps.check-secrets.outputs.server_os != 'windows'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            set -e
+            echo "🚀 Connecting to Linux Server at ${{ secrets.SERVER_HOST }}..."
+            cd "${{ secrets.DEPLOY_PATH }}"
+            if [ -f "deploy/deploy-linux.sh" ]; then
+              chmod +x deploy/deploy-linux.sh
+              ./deploy/deploy-linux.sh
+            else
+              git fetch origin main
+              git reset --hard origin/main
+              cd agrilog-backend && npm ci && npm run build
+              cd ../agrilog-frontend && npm ci && npm run build
+              cd ..
+              npx --yes pm2 reload ecosystem.config.js --update-env || npx --yes pm2 start ecosystem.config.js
+              npx --yes pm2 save
+            fi
+
+      # ------------------------------------------------------------------------
+      # Target B: Windows Server Deployment (PowerShell via OpenSSH)
+      # ------------------------------------------------------------------------
+      - name: Deploy to Windows Server via SSH
+        if: steps.check-secrets.outputs.configured == 'true' && steps.check-secrets.outputs.server_os == 'windows'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            Set-Location "${{ secrets.DEPLOY_PATH }}"
+            if (Test-Path "deploy\deploy-windows.ps1") {
+              powershell -ExecutionPolicy Bypass -File "deploy\deploy-windows.ps1"
+            } else {
+              git fetch origin main
+              git reset --hard origin/main
+              Set-Location agrilog-backend; npm ci; npm run build
+              Set-Location ../agrilog-frontend; npm ci; npm run build
+              Set-Location ..
+              npx --yes pm2 reload ecosystem.config.js --update-env
+              npx --yes pm2 save
+            }
