@@ -3,30 +3,30 @@
 # ==============================================================================
 $ErrorActionPreference = "Stop"
 
-Write-Host "🚀 [AgriLog] Bắt đầu triển khai trên Windows Server..." -ForegroundColor Cyan
+Write-Host "[AgriLog] Starting deployment on Windows Server..." -ForegroundColor Cyan
 
-# Di chuyển về thư mục gốc của dự án
+# Navigate to project root directory
 $RootDir = Split-Path -Parent $PSScriptRoot
 Set-Location $RootDir
 
-Write-Host "📥 1. Kéo mã nguồn mới nhất từ nhánh main..." -ForegroundColor Yellow
+Write-Host "1. Pulling latest source code from main branch..." -ForegroundColor Yellow
 git fetch origin main
 git reset --hard origin/main
 
-Write-Host "🔨 2. Cài đặt và build Backend..." -ForegroundColor Yellow
+Write-Host "2. Installing dependencies and building Backend..." -ForegroundColor Yellow
 Set-Location agrilog-backend
 npm ci
 npm run build
 
-Write-Host "🎨 3. Cài đặt và build Frontend..." -ForegroundColor Yellow
+Write-Host "3. Installing dependencies and building Frontend..." -ForegroundColor Yellow
 Set-Location ../agrilog-frontend
 npm ci
 npm run build
 
-Write-Host "⚡ 4. Khởi động / Tải lại tiến trình với PM2..." -ForegroundColor Yellow
+Write-Host "4. Starting / Reloading processes with PM2..." -ForegroundColor Yellow
 Set-Location ..
 
-# Kiểm tra pm2 toàn cục hoặc dùng npx
+# Check for global PM2 or fallback to npx
 $pm2Cmd = Get-Command pm2 -ErrorAction SilentlyContinue
 if ($pm2Cmd) {
     try {
@@ -47,4 +47,4 @@ else {
     npx --yes pm2 save
 }
 
-Write-Host "✅ [AgriLog] Triển khai thành công trên Windows Server!" -ForegroundColor Green
+Write-Host "[AgriLog] Deployment completed successfully on Windows Server!" -ForegroundColor Green
