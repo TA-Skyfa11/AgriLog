@@ -31,14 +31,17 @@ $pm2Cmd = Get-Command pm2 -ErrorAction SilentlyContinue
 if ($pm2Cmd) {
     try {
         pm2 reload ecosystem.config.js --update-env
-    } catch {
+    }
+    catch {
         pm2 start ecosystem.config.js
     }
     pm2 save
-} else {
+}
+else {
     try {
         npx --yes pm2 reload ecosystem.config.js --update-env
-    } catch {
+    }
+    catch {
         npx --yes pm2 start ecosystem.config.js
     }
     npx --yes pm2 save
