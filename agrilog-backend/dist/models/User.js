@@ -48,6 +48,7 @@ const userSchema = new mongoose_1.Schema({
     role: { type: String, enum: Object.values(Role), default: Role.FARM },
     isActive: { type: Boolean, default: true },
     allowAdminReset: { type: Boolean, default: false },
+    allowDevPayment: { type: Boolean, default: false },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
     loginAttempts: { type: Number, required: true, default: 0 },

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteUser = exports.updateCommissionSetting = exports.getCommissionSetting = exports.adminResetPassword = exports.toggleUserLock = exports.addUser = exports.getDashboardStats = exports.getFarms = exports.getUsers = void 0;
+exports.deleteUser = exports.updateCommissionSetting = exports.getCommissionSetting = exports.adminResetPassword = exports.toggleDevPaymentPermission = exports.toggleUserLock = exports.addUser = exports.getDashboardStats = exports.getFarms = exports.getUsers = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const User_1 = require("../models/User");
 const FarmProfile_1 = require("../models/FarmProfile");
@@ -206,6 +206,30 @@ const toggleUserLock = async (req, res) => {
     }
 };
 exports.toggleUserLock = toggleUserLock;
+const toggleDevPaymentPermission = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const user = await User_1.User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'Người dùng không tồn tại' });
+        }
+        user.allowDevPayment = !user.allowDevPayment;
+        await user.save();
+        res.json({
+            success: true,
+            message: `Đã ${user.allowDevPayment ? 'cấp quyền' : 'thu hồi quyền'} bypass thanh toán (Dev Test) cho tài khoản ${user.email}`,
+            data: {
+                userId: user._id,
+                email: user.email,
+                allowDevPayment: user.allowDevPayment,
+            },
+        });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.toggleDevPaymentPermission = toggleDevPaymentPermission;
 const adminResetPassword = async (req, res) => {
     try {
         const { userId } = req.params;

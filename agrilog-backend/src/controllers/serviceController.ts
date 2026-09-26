@@ -83,3 +83,39 @@ export const deleteServicePackage = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, message: (error as Error).message });
   }
 };
+
+// Lấy thông tin cấu hình chính sách Dùng thử (Public/Admin)
+export const getTrialPolicy = async (req: AuthRequest, res: Response) => {
+  try {
+    const { getOrCreateTrialSetting } = await import('../utils/boardUtils');
+    const setting = await getOrCreateTrialSetting();
+    res.json({ success: true, data: setting });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
+// Cập nhật cấu hình chính sách Dùng thử (Admin)
+export const updateTrialPolicy = async (req: AuthRequest, res: Response) => {
+  try {
+    const { getOrCreateTrialSetting } = await import('../utils/boardUtils');
+    const { isEnabled, durationMonths, trialPlan, lockOnExpiry } = req.body;
+    const setting = await getOrCreateTrialSetting();
+
+    if (typeof isEnabled === 'boolean') setting.isEnabled = isEnabled;
+    if (typeof durationMonths === 'number' && durationMonths >= 1) setting.durationMonths = Math.max(1, Math.min(36, Math.floor(durationMonths)));
+    if (trialPlan && ['BASIC', 'STANDARD', 'PREMIUM'].includes(trialPlan)) setting.trialPlan = trialPlan;
+    if (typeof lockOnExpiry === 'boolean') setting.lockOnExpiry = lockOnExpiry;
+    setting.updatedBy = req.user?._id as any;
+
+    await setting.save();
+
+    res.json({
+      success: true,
+      data: setting,
+      message: `Cập nhật chính sách dùng thử thành công: ${setting.isEnabled ? `Bật (${setting.durationMonths} tháng)` : 'Đã tắt'}`,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};

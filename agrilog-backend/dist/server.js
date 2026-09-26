@@ -60,7 +60,9 @@ const orderRoutes_1 = __importDefault(require("./routes/orderRoutes"));
 const notificationRoutes_1 = __importDefault(require("./routes/notificationRoutes"));
 const exportRoutes_1 = __importDefault(require("./routes/exportRoutes"));
 const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
+const featureRoutes_1 = __importDefault(require("./routes/featureRoutes"));
 const path_1 = __importDefault(require("path"));
+const r2Storage_1 = require("./utils/r2Storage");
 // Routes
 app.use('/api/auth', authRoutes_1.default);
 app.use('/api/farm', farmRoutes_1.default);
@@ -79,7 +81,30 @@ app.use('/api/company', companyRoutes_1.default);
 app.use('/api/products', productRoutes_1.default);
 app.use('/api/orders', orderRoutes_1.default);
 app.use('/api/payment', paymentRoutes_1.default);
-app.use('/uploads', express_1.default.static(path_1.default.join(process.cwd(), 'uploads')));
+app.use('/api/features', featureRoutes_1.default);
+// Support direct /images/* routing for R2 stored files
+app.get(/^\/images\/(.+)$/, async (req, res) => {
+    const key = `images/${req.params[0]}`;
+    try {
+        const fileData = await (0, r2Storage_1.getFileFromR2)(key);
+        res.setHeader('Content-Type', fileData.contentType);
+        if (fileData.contentLength) {
+            res.setHeader('Content-Length', fileData.contentLength);
+        }
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        fileData.stream.pipe(res);
+    }
+    catch (err) {
+        res.status(404).send('Không tìm thấy ảnh');
+    }
+});
+app.use('/uploads', (req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+}, express_1.default.static(path_1.default.join(process.cwd(), 'uploads')));
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', message: 'AgriLog Backend is running' });
 });

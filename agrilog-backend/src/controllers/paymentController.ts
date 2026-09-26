@@ -6,7 +6,8 @@ import { PaymentTransaction, PaymentStatus, IPaymentTransaction } from '../model
 import { ServicePackage } from '../models/ServicePackage';
 import { FarmProfile } from '../models/FarmProfile';
 import { Notification } from '../models/Notification';
-import { generateOAuthPaymentToken } from '../utils/paymentSecurity';
+import { User, Role } from '../models/User';
+import { generateOAuthPaymentToken, timingSafeEqualString } from '../utils/paymentSecurity';
 
 const SEPAY_BANK = process.env.SEPAY_BANK || 'MBBank';
 const SEPAY_ACC_NUMBER = process.env.SEPAY_ACC_NUMBER || '88020305666999';
@@ -22,8 +23,9 @@ export const activatePackage = async (
 ): Promise<{ success: boolean; profile?: any; message: string }> => {
   try {
     // 1. Cập nhật trạng thái giao dịch một cách nguyên tử (Atomic locking) để chống race-condition & double-spending
+    // Cho phép kích hoạt từ PENDING hoặc EXPIRED (nếu tiền về muộn hoặc người dùng xác nhận sau khi hết hạn 15p)
     const updated = await PaymentTransaction.findOneAndUpdate(
-      { _id: transaction._id, status: PaymentStatus.PENDING },
+      { _id: transaction._id, status: { $in: [PaymentStatus.PENDING, PaymentStatus.EXPIRED] } },
       {
         $set: {
           status: PaymentStatus.SUCCESS,
@@ -40,16 +42,23 @@ export const activatePackage = async (
           }),
         },
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
-    // Nếu không tìm thấy PENDING nhưng transaction đã SUCCESS từ trước đó
-    if (!updated && transaction.status === PaymentStatus.SUCCESS) {
-      const existingProfile = await FarmProfile.findOne({ user: transaction.user });
+    // Nếu không tìm thấy PENDING/EXPIRED nhưng transaction đã SUCCESS từ trước đó
+    if (!updated) {
+      const currentTx = await PaymentTransaction.findById(transaction._id);
+      if (currentTx?.status === PaymentStatus.SUCCESS) {
+        const existingProfile = await FarmProfile.findOne({ user: transaction.user });
+        return {
+          success: true,
+          profile: existingProfile,
+          message: `Giao dịch ${transaction.paymentCode} đã được kích hoạt trước đó (Idempotent).`,
+        };
+      }
       return {
-        success: true,
-        profile: existingProfile,
-        message: `Giao dịch ${transaction.paymentCode} đã được kích hoạt trước đó (Idempotent).`,
+        success: false,
+        message: `Không thể kích hoạt giao dịch ${transaction.paymentCode} ở trạng thái hiện tại.`,
       };
     }
 
@@ -71,11 +80,12 @@ export const activatePackage = async (
       const currentExpire = profile.planExpiresAt ? new Date(profile.planExpiresAt) : null;
 
       // Nếu đang dùng cùng gói và gói còn hạn => cộng dồn ngày; nếu không => tính từ thời điểm hiện tại
-      if (currentExpire && currentExpire > now && profile.plan === transaction.packageCode) {
+      if (currentExpire && currentExpire > now && profile.plan === transaction.packageCode && !profile.isTrial) {
         profile.planExpiresAt = new Date(currentExpire.getTime() + durationDays * 24 * 60 * 60 * 1000);
       } else {
         profile.previousPlan = profile.plan;
         profile.plan = transaction.packageCode as any;
+        profile.isTrial = false;
         profile.planExpiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
       }
       await profile.save();
@@ -227,7 +237,32 @@ export const getPaymentStatus = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Nếu đã hết hạn
+    // 2. Chủ động tra cứu SePay API (v2 & v1) TRƯỚC KHI đánh giá hết hạn!
+    // Bất kể transaction còn trong 15 phút hay đã quá 15 phút, nếu ngân hàng đã nhận được tiền,
+    // hệ thống phải đối soát thành công và kích hoạt gói ngay cho khách hàng!
+    if (SEPAY_API_KEY) {
+      try {
+        const matchingTx = await checkSePayApiForTransaction(transaction);
+        if (matchingTx) {
+          const activated = await activatePackage(transaction, matchingTx);
+          if (activated.success) {
+            const freshTx = await PaymentTransaction.findById(transaction._id);
+            return res.json({
+              success: true,
+              data: {
+                status: PaymentStatus.SUCCESS,
+                transaction: freshTx || transaction,
+                message: 'Đã nhận được chuyển khoản qua SePay và tự động kích hoạt gói!',
+              },
+            });
+          }
+        }
+      } catch (apiErr) {
+        console.warn('Tra cứu SePay API thất bại hoặc chưa có giao dịch:', (apiErr as Error).message);
+      }
+    }
+
+    // 3. Nếu chưa nhận được tiền VÀ đã quá thời gian hết hạn (15 phút)
     if (new Date() > new Date(transaction.expiresAt)) {
       if (transaction.status === PaymentStatus.PENDING) {
         transaction.status = PaymentStatus.EXPIRED;
@@ -243,30 +278,7 @@ export const getPaymentStatus = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Nếu đang PENDING và hệ thống có SEPAY_API_KEY:
-    // Chủ động tra cứu SePay API v2 để tự động đối soát giao dịch
-    if (SEPAY_API_KEY) {
-      try {
-        const matchingTx = await checkSePayApiForTransaction(transaction);
-        if (matchingTx) {
-          const activated = await activatePackage(transaction, matchingTx);
-          if (activated.success) {
-            return res.json({
-              success: true,
-              data: {
-                status: PaymentStatus.SUCCESS,
-                transaction,
-                message: 'Đã nhận được chuyển khoản qua SePay và tự động kích hoạt gói!',
-              },
-            });
-          }
-        }
-      } catch (apiErr) {
-        console.warn('Tra cứu SePay API thất bại hoặc chưa có giao dịch:', (apiErr as Error).message);
-      }
-    }
-
-    // Vẫn đang chờ
+    // 4. Vẫn đang trong thời hạn chờ thanh toán
     res.json({
       success: true,
       data: {
@@ -287,10 +299,13 @@ export const getPaymentStatus = async (req: AuthRequest, res: Response) => {
 async function checkSePayApiForTransaction(transaction: IPaymentTransaction): Promise<any | null> {
   if (!SEPAY_API_KEY) return null;
 
+  const targetCode = transaction.paymentCode.toUpperCase();
+  const targetAmount = transaction.amount;
+
+  // 1. Thử gọi SePay API v2 với bộ lọc nội dung giao dịch
   try {
-    // 1. Thử gọi SePay API v2 với bộ lọc nội dung giao dịch
     const v2Url = `https://userapi.sepay.vn/v2/transactions?transaction_content=${encodeURIComponent(
-      transaction.paymentCode
+      targetCode
     )}`;
 
     const v2Res = await axios.get(v2Url, {
@@ -298,7 +313,7 @@ async function checkSePayApiForTransaction(transaction: IPaymentTransaction): Pr
         Authorization: `Bearer ${SEPAY_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      timeout: 5000,
+      timeout: 7000,
     });
 
     const v2Data = v2Res.data?.data || v2Res.data?.transactions;
@@ -307,37 +322,39 @@ async function checkSePayApiForTransaction(transaction: IPaymentTransaction): Pr
         const content = (item.transaction_content || item.content || '').toUpperCase();
         const amountIn = Number(item.amount_in || item.transferAmount || item.transfer_amount || 0);
 
-        if (content.includes(transaction.paymentCode.toUpperCase()) && amountIn >= transaction.amount) {
+        if (content.includes(targetCode) && amountIn >= targetAmount) {
           return item;
         }
       }
     }
-  } catch (err) {
-    // Thử fallback sang v1 nếu v2 lỗi
-    try {
-      const v1Url = `https://my.sepay.vn/userapi/transactions/list?account_number=${SEPAY_ACC_NUMBER}&limit=20`;
-      const v1Res = await axios.get(v1Url, {
-        headers: {
-          Authorization: `Bearer ${SEPAY_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 5000,
-      });
+  } catch (err: any) {
+    console.warn('SePay v2 lookup warning:', err.message);
+  }
 
-      const list = v1Res.data?.transactions;
-      if (Array.isArray(list)) {
-        for (const item of list) {
-          const content = (item.transaction_content || item.content || '').toUpperCase();
-          const amountIn = Number(item.amount_in || item.transferAmount || 0);
+  // 2. Fallback sang SePay v1 nếu v2 không thấy kết quả hoặc lỗi mạng
+  try {
+    const v1Url = `https://my.sepay.vn/userapi/transactions/list?limit=50`;
+    const v1Res = await axios.get(v1Url, {
+      headers: {
+        Authorization: `Bearer ${SEPAY_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      timeout: 7000,
+    });
 
-          if (content.includes(transaction.paymentCode.toUpperCase()) && amountIn >= transaction.amount) {
-            return item;
-          }
+    const list = v1Res.data?.transactions;
+    if (Array.isArray(list)) {
+      for (const item of list) {
+        const content = (item.transaction_content || item.content || '').toUpperCase();
+        const amountIn = Number(item.amount_in || item.transferAmount || 0);
+
+        if (content.includes(targetCode) && amountIn >= targetAmount) {
+          return item;
         }
       }
-    } catch (v1Err) {
-      // Bỏ qua lỗi fallback
     }
+  } catch (v1Err: any) {
+    console.warn('SePay v1 fallback warning:', v1Err.message);
   }
 
   return null;
@@ -407,17 +424,30 @@ export const sepayWebhook = async (req: PaymentAuthRequest, res: Response) => {
     const paymentCode = match[0].toUpperCase();
     console.log(`Tìm thấy mã thanh toán từ Webhook: ${paymentCode}`);
 
-    // Tìm đơn thanh toán tương ứng
+    // Tìm đơn thanh toán tương ứng (chấp nhận cả PENDING và EXPIRED để xử lý giao dịch chuyển chậm hoặc đến sau 15p)
     const transaction = await PaymentTransaction.findOne({
       paymentCode,
-      status: PaymentStatus.PENDING,
+      status: { $in: [PaymentStatus.PENDING, PaymentStatus.EXPIRED] },
     });
 
     if (!transaction) {
-      console.log(`Không có giao dịch PENDING nào khớp với mã: ${paymentCode}`);
+      // Kiểm tra nếu transaction này đã được kích hoạt SUCCESS trước đó
+      const existingSuccess = await PaymentTransaction.findOne({
+        paymentCode,
+        status: PaymentStatus.SUCCESS,
+      });
+      if (existingSuccess) {
+        console.log(`Giao dịch ${paymentCode} đã SUCCESS từ trước.`);
+        return res.status(200).json({
+          success: true,
+          message: `Giao dịch ${paymentCode} đã được kích hoạt trước đó`,
+        });
+      }
+
+      console.log(`Không có giao dịch nào khớp với mã: ${paymentCode}`);
       return res.status(200).json({
         success: true,
-        message: `Không có giao dịch PENDING khớp mã ${paymentCode}`,
+        message: `Không có giao dịch khớp mã ${paymentCode}`,
       });
     }
 
@@ -470,6 +500,23 @@ export const simulatePaymentSuccess = async (req: AuthRequest, res: Response) =>
 
     if (transaction.status === PaymentStatus.SUCCESS) {
       return res.json({ success: true, message: 'Giao dịch này đã thành công trước đó' });
+    }
+
+    // Kiểm tra quyền mô phỏng thanh toán của chủ giao dịch hoặc người gọi
+    const txUser = await User.findById(transaction.user);
+    const isOwnerAllowed = txUser?.allowDevPayment === true;
+    const isAdmin = String(req.user?.role || '').toUpperCase() === Role.ADMIN;
+    const isRequesterAllowed = req.user?.allowDevPayment === true;
+
+    const devKeyHeader = (req.headers['x-dev-simulate-key'] as string || '').trim();
+    const configuredDevKey = process.env.DEV_SIMULATE_KEY?.trim();
+    const hasValidDevKey = !!(configuredDevKey && timingSafeEqualString(devKeyHeader, configuredDevKey));
+
+    if (!isOwnerAllowed && !isAdmin && !isRequesterAllowed && !hasValidDevKey) {
+      return res.status(403).json({
+        success: false,
+        message: 'Tài khoản chưa được Admin cấp phép sử dụng chức năng mô phỏng thanh toán (Dev Test). Vui lòng liên hệ Admin.',
+      });
     }
 
     const fakeSepayData = {

@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const adminController_1 = require("../controllers/adminController");
 const orderController_1 = require("../controllers/orderController");
+const featureController_1 = require("../controllers/featureController");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const User_1 = require("../models/User");
 const router = express_1.default.Router();
@@ -20,6 +21,8 @@ router.route('/users')
     .post(adminController_1.addUser);
 router.route('/users/:userId/toggle-lock')
     .put(adminController_1.toggleUserLock);
+router.route('/users/:userId/toggle-dev-payment')
+    .put(adminController_1.toggleDevPaymentPermission);
 router.route('/users/:userId')
     .delete(adminController_1.deleteUser);
 router.route('/users/:userId/reset-password')
@@ -29,4 +32,12 @@ router.route('/commission')
     .put(adminController_1.updateCommissionSetting);
 router.route('/orders')
     .get(orderController_1.getAllOrdersAdmin);
+router.route('/features')
+    .get(featureController_1.getAllFeaturesAdmin);
+router.route('/features/:key/toggle')
+    .put(featureController_1.toggleFeatureAdmin);
+router.route('/features/:key')
+    .put(featureController_1.updateFeatureAdmin);
+router.route('/features/reset-defaults')
+    .post(featureController_1.resetFeaturesAdmin);
 exports.default = router;

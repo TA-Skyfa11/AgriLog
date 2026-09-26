@@ -12,6 +12,7 @@ import Link from 'next/link';
 import CustomSelect from '@/components/ui/CustomSelect';
 import { toast } from 'react-hot-toast';
 import { useDialog } from '@/context/DialogContext';
+import { getSafeImageUrl } from '@/lib/image';
 
 
 const AutoResizeTextarea = (props: any) => {
@@ -118,14 +119,6 @@ const DropdownWithOther = ({ value, options, onChange, onBlur, placeholder, clas
       placeholder={placeholder}
     />
   );
-};
-
-const getSafeImageUrl = (url: string) => {
-  if (!url) return '';
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-  const baseUrl = apiUrl.replace(/\/api$/, '');
-  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
 };
 
 export default function CultivationDiaryDetailPage() {

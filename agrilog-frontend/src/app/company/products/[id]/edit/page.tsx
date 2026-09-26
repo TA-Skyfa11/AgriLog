@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { ArrowLeft, Upload, X, Link as LinkIcon } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { getSafeImageUrl } from '@/lib/image';
 
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -43,7 +44,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           setStock(p.stock?.toString() || '0');
           if (p.images && p.images.length > 0) {
             setImageUrl(p.images[0]);
-            setImagePreview(p.images[0]);
+            setImagePreview(getSafeImageUrl(p.images[0]));
             setImageMode('url');
           }
         } else {
@@ -238,7 +239,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             {imagePreview && (
               <div style={{ position: 'relative', width: '200px', height: '200px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--color-border)' }}>
                 {/* Use unoptimized to allow external URLs without next.config.js errors */}
-                <Image src={imagePreview} alt="Preview" fill style={{ objectFit: 'cover' }} unoptimized />
+                <Image src={getSafeImageUrl(imagePreview)} alt="Preview" fill style={{ objectFit: 'cover' }} unoptimized />
                 <button 
                   type="button" 
                   onClick={removeImage}

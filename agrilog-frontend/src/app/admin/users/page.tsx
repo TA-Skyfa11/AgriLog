@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Filter, UserPlus, Shield, Sprout, Ban, Building, KeyRound, Briefcase, Lock, Unlock, Trash2 } from 'lucide-react';
+import { Filter, UserPlus, Shield, Sprout, Ban, Building, KeyRound, Briefcase, Lock, Unlock, Trash2, Zap, ZapOff } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import styles from '@/css/Users.module.css';
@@ -131,6 +131,22 @@ export default function UsersPage() {
     }
   };
 
+  const handleToggleDevPayment = async (userId: string, email: string, currentStatus: boolean) => {
+    const actionText = currentStatus ? 'thu hồi quyền bypass' : 'cấp quyền bypass';
+    if (!(await dialog.confirm(`Bạn có chắc muốn ${actionText} thanh toán (Dev Test) cho tài khoản ${email}?`))) return;
+    try {
+      const res = await fetchAPI(`/admin/users/${userId}/toggle-dev-payment`, { method: 'PUT' });
+      if (res.success) {
+        toast.success(res.message || 'Cập nhật quyền thành công!');
+        loadUsers();
+      } else {
+        toast.error(res.message || 'Thao tác thất bại');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Có lỗi xảy ra');
+    }
+  };
+
   const handleDeleteUser = async (userId: string, email: string) => {
     if (!(await dialog.confirm(`Bạn có chắc chắn muốn XÓA VĨNH VIỄN tài khoản ${email} và TẤT CẢ dữ liệu liên quan? Hành động này không thể hoàn tác!`))) return;
     try {
@@ -153,6 +169,7 @@ export default function UsersPage() {
   const kpis = [
     { label: 'Tổng tài khoản', value: farmsData.length, meta: 'Dữ liệu thực', isPos: true },
     { label: 'Tài khoản hoạt động', value: farmsData.filter(f => f.user.isActive !== false).length, meta: 'Đang hoạt động', isPos: true },
+    { label: 'Quyền Dev Bypass', value: farmsData.filter(f => f.user.allowDevPayment === true).length, meta: 'Được cấp quyền', isPos: true },
     { label: 'Tổng số bảng/SP', value: farmsData.reduce((acc, f) => acc + (f.boardCount || 0), 0), meta: 'Trên toàn hệ thống', isPos: true },
   ];
 
@@ -218,13 +235,14 @@ export default function UsersPage() {
               <th>Ngày Đăng Ký</th>
               <th>Số lượng (Bảng/SP)</th>
               <th>Trạng Thái</th>
+              <th>Bypass TT (Dev)</th>
               <th>Hành động</th>
             </tr>
           </thead>
           <tbody>
             {farmsData.length === 0 && !loading && (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>Không có dữ liệu.</td>
+                <td colSpan={9} style={{ textAlign: 'center', padding: '2rem' }}>Không có dữ liệu.</td>
               </tr>
             )}
             {currentData.map((row, index) => {
@@ -255,6 +273,39 @@ export default function UsersPage() {
                     <Badge variant={row.user.isActive === false ? 'danger' : 'success'}>
                       {row.user.isActive === false ? 'Bị Khóa' : 'Hoạt động'}
                     </Badge>
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => handleToggleDevPayment(row.user._id, row.user.email, row.user.allowDevPayment || false)}
+                      style={{
+                        padding: '0.35rem 0.65rem',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        borderRadius: '6px',
+                        border: row.user.allowDevPayment ? '1px solid #86efac' : '1px solid #e2e8f0',
+                        backgroundColor: row.user.allowDevPayment ? '#f0fdf4' : '#f8fafc',
+                        color: row.user.allowDevPayment ? '#15803d' : '#64748b',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        transition: 'all 0.2s',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title={row.user.allowDevPayment ? "Bấm để thu hồi quyền bypass thanh toán" : "Bấm để cấp quyền bypass thanh toán (Dev Test)"}
+                    >
+                      {row.user.allowDevPayment ? (
+                        <>
+                          <Zap size={14} color="#16a34a" />
+                          <span>Đã cấp phép</span>
+                        </>
+                      ) : (
+                        <>
+                          <ZapOff size={14} color="#94a3b8" />
+                          <span>Chưa cấp</span>
+                        </>
+                      )}
+                    </button>
                   </td>
                   <td style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <button

@@ -25,7 +25,7 @@ interface MainLayoutProps {
 export default function MainLayout({ children, role }: MainLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { language, t, cart, removeFromCart, clearCart } = useAppContext();
+  const { language, t, cart, removeFromCart, clearCart, isFeatureEnabled, disabledPaths } = useAppContext();
   
   const currentLocale = language === 'en' ? enUS : vi;
   const todayStr = format(new Date(), 'EEEE, dd/MM/yyyy', { locale: currentLocale });
@@ -37,6 +37,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const [showCart, setShowCart] = React.useState(false);
   const [time, setTime] = React.useState(new Date());
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+  const [farmProfile, setFarmProfile] = React.useState<any>(null);
 
   React.useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000);
@@ -92,9 +93,11 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
 
       try {
         const data = await fetchAPI('/farm/profile');
-        if (data.success && data.data && data.data.farmName) {
-           localStorage.setItem('userPlan', data.data.plan || 'BASIC');
-           setUserName(data.data.farmName);
+        if (data.success && data.data) {
+           setFarmProfile(data.data);
+           if (data.data.farmName) {
+             localStorage.setItem('userPlan', data.data.plan || 'BASIC');
+             setUserName(data.data.farmName);
            const parts = data.data.farmName.trim().split(/\s+/);
            let initials = '';
            if (parts.length >= 2) {
@@ -106,7 +109,8 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
              setUserInitials(initials);
            }
            return;
-        }
+         }
+       }
       } catch (e) {}
       
       setUserName(fallbackName);
@@ -171,20 +175,27 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
     router.push('/');
   };
 
-  const farmLinks = [
+  interface NavLinkItem {
+    href: string;
+    label: string;
+    icon: React.ReactNode;
+    featureKey?: string;
+  }
+
+  const farmLinks: NavLinkItem[] = [
     { href: '/dashboard', label: t('dashboard.title'), icon: <Home size={20} /> },
-    { href: '/diary', label: t('diary.cultivation'), icon: <Leaf size={20} /> },
-    { href: '/diary/fertilizer', label: t('diary.fertilizer'), icon: <FlaskConical size={20} /> },
-    { href: '/diary/pesticide', label: t('diary.pesticide'), icon: <ShieldAlert size={20} /> },
-    { href: '/inventory', label: t('inventory'), icon: <Package size={20} /> },
-    { href: '/marketplace', label: t('marketplace'), icon: <ShoppingBag size={20} /> },
-    { href: '/tasks', label: t('tasks'), icon: <Calendar size={20} /> },
-    { href: '/reports', label: t('reports'), icon: <BarChart2 size={20} /> },
-    { href: '/billing', label: t('billing'), icon: <CreditCard size={20} /> },
+    { featureKey: 'diary_cultivation', href: '/diary', label: t('diary.cultivation'), icon: <Leaf size={20} /> },
+    { featureKey: 'diary_fertilizer', href: '/diary/fertilizer', label: t('diary.fertilizer'), icon: <FlaskConical size={20} /> },
+    { featureKey: 'diary_pesticide', href: '/diary/pesticide', label: t('diary.pesticide'), icon: <ShieldAlert size={20} /> },
+    { featureKey: 'inventory', href: '/inventory', label: t('inventory'), icon: <Package size={20} /> },
+    { featureKey: 'marketplace', href: '/marketplace', label: t('marketplace'), icon: <ShoppingBag size={20} /> },
+    { featureKey: 'tasks', href: '/tasks', label: t('tasks'), icon: <Calendar size={20} /> },
+    { featureKey: 'reports', href: '/reports', label: t('reports'), icon: <BarChart2 size={20} /> },
+    { featureKey: 'billing', href: '/billing', label: t('billing'), icon: <CreditCard size={20} /> },
     { href: '/settings', label: t('settings.title'), icon: <Settings size={20} /> },
   ];
 
-  const adminLinks = [
+  const adminLinks: NavLinkItem[] = [
     { href: '/admin/dashboard', label: t('dashboard.title'), icon: <Home size={20} /> },
     { href: '/admin/users', label: 'Quản lý người dùng', icon: <User size={20} /> },
     { href: '/admin/marketplace', label: 'Kiểm duyệt sản phẩm', icon: <ShoppingBag size={20} /> },
@@ -192,14 +203,22 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
     { href: '/admin/settings', label: 'Cài đặt', icon: <Settings size={20} /> },
   ];
 
-  const companyLinks = [
+  const companyLinks: NavLinkItem[] = [
     { href: '/company/dashboard', label: 'Dashboard', icon: <Home size={20} /> },
-    { href: '/company/products', label: 'Sản phẩm', icon: <PackagePlus size={20} /> },
-    { href: '/company/orders', label: 'Đơn hàng', icon: <ClipboardList size={20} /> },
+    { featureKey: 'company_products', href: '/company/products', label: 'Sản phẩm', icon: <PackagePlus size={20} /> },
+    { featureKey: 'company_orders', href: '/company/orders', label: 'Đơn hàng', icon: <ClipboardList size={20} /> },
     { href: '/company/settings', label: 'Cài đặt', icon: <Settings size={20} /> },
   ];
 
-  const links = role === 'FARM' ? farmLinks : role === 'ADMIN' ? adminLinks : companyLinks;
+  const rawLinks: NavLinkItem[] = role === 'FARM' ? farmLinks : role === 'ADMIN' ? adminLinks : companyLinks;
+  // Lọc chỉ hiển thị các liên kết thuộc tính năng đang BẬT
+  const links = rawLinks.filter(link => !link.featureKey || isFeatureEnabled(link.featureKey));
+
+  // Kiểm tra nếu route hiện tại đang truy cập thuộc tính năng bị tắt bởi Admin
+  const isCurrentRouteDisabled = role !== 'ADMIN' && (disabledPaths || []).some(dp => {
+    if (!dp) return false;
+    return pathname === dp || pathname.startsWith(dp + '/');
+  });
 
   return (
     <div className={styles.layout}>
@@ -359,8 +378,99 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             <div className={styles.headerAvatar}>{userInitials}</div>
           </div>
         </header>
+        {role === 'FARM' && farmProfile?.isPlanExpired && pathname !== '/billing' && (
+          <div style={{
+            backgroundColor: '#fef2f2',
+            borderBottom: '1px solid #fecaca',
+            padding: '0.65rem 1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+            color: '#991b1b',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ShieldAlert size={18} color="#ef4444" />
+              <span>
+                <strong>Gói dịch vụ {farmProfile?.isTrial ? 'dùng thử ' : ''}của bạn đã hết hạn.</strong> Các thao tác tạo mới và ghi chép canh tác hiện đã bị tạm khóa.
+              </span>
+            </div>
+            <Link
+              href="/billing"
+              style={{
+                padding: '0.35rem 0.85rem',
+                backgroundColor: '#dc2626',
+                color: 'white',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '0.8rem',
+                textDecoration: 'none',
+                boxShadow: '0 2px 4px rgba(220,38,38,0.2)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Mua gói gia hạn ngay &rarr;
+            </Link>
+          </div>
+        )}
         <div className={styles.content}>
-          {children}
+          {isCurrentRouteDisabled ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '60vh',
+              textAlign: 'center',
+              padding: '2rem',
+              backgroundColor: 'var(--color-surface, #ffffff)',
+              borderRadius: '12px',
+              border: '1px solid var(--color-border, #e2e8f0)',
+              margin: '1.5rem',
+            }}>
+              <div style={{
+                width: '72px',
+                height: '72px',
+                borderRadius: '50%',
+                backgroundColor: '#fef3c7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '1.5rem',
+                color: '#d97706',
+              }}>
+                <ShieldAlert size={36} />
+              </div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--color-text-main, #1e293b)' }}>
+                Tính năng đang tạm đóng
+              </h2>
+              <p style={{ maxWidth: '500px', color: 'var(--color-text-muted, #64748b)', lineHeight: 1.6, marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+                Chức năng này hiện đang được Quản trị viên hệ thống tạm ẩn để bảo trì hoặc nâng cấp hệ thống. Vui lòng quay lại sau!
+              </p>
+              <button 
+                onClick={() => router.push(role === 'COMPANY' ? '/company/dashboard' : '/dashboard')}
+                style={{
+                  padding: '0.75rem 1.75rem',
+                  backgroundColor: 'var(--color-primary-600, #16a34a)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  transition: 'opacity 0.2s',
+                }}
+              >
+                Quay về Trang chủ
+              </button>
+            </div>
+          ) : (
+            children
+          )}
         </div>
       </main>
       <Toaster position="bottom-right" toastOptions={{ style: { background: '#333', color: '#fff' } }} />

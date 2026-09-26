@@ -12,6 +12,7 @@ import {
   protectDevSimulate,
   PaymentAuthRequest,
 } from '../middleware/paymentSecurityMiddleware';
+import { getClientIp } from '../middleware/rateLimit';
 
 console.log('🧪 Bắt đầu chạy bộ kiểm thử Payment Security (API Key, HMAC-SHA256, OAuth 2.0)...\n');
 
@@ -98,6 +99,20 @@ async function runTests() {
 
     const isValidBadSignature = verifyHmacSha256(testPayload, testSecret, 'abcdef1234567890');
     assert.strictEqual(isValidBadSignature, false);
+  });
+
+  it('Xác thực thành công với Raw Buffer payload trực tiếp từ HTTP request SePay', () => {
+    const rawBuffer = Buffer.from(JSON.stringify(testPayload), 'utf8');
+    const rawSig = computeHmacSha256(rawBuffer, testSecret);
+    const isValid = verifyHmacSha256(rawBuffer, testSecret, rawSig);
+    assert.strictEqual(isValid, true);
+  });
+
+  it('Tự động loại bỏ tiền tố sha256= khi xác thực chữ ký', () => {
+    const rawBuffer = Buffer.from(JSON.stringify(testPayload), 'utf8');
+    const rawSig = computeHmacSha256(rawBuffer, testSecret);
+    const isValid = verifyHmacSha256(rawBuffer, testSecret, `sha256=${rawSig}`);
+    assert.strictEqual(isValid, true);
   });
 
   // ============================================================================
@@ -246,6 +261,58 @@ async function runTests() {
     const res: any = { status: () => res, json: () => res };
     protectDevSimulate(req, res, () => { nextCalled = true; });
     assert.strictEqual(nextCalled, true);
+  });
+
+  it('Cho phép gọi /dev-simulate đối với tài khoản được Admin cấp phép (allowDevPayment: true)', () => {
+    let nextCalled = false;
+    const req: any = { headers: {}, user: { role: 'FARM', allowDevPayment: true } };
+    const res: any = { status: () => res, json: () => res };
+    protectDevSimulate(req, res, () => { nextCalled = true; });
+    assert.strictEqual(nextCalled, true);
+  });
+
+  it('Chặn gọi /dev-simulate đối với tài khoản chưa được Admin cấp phép (allowDevPayment: false)', () => {
+    let statusCode = 0;
+    const req: any = { headers: {}, user: { role: 'FARM', allowDevPayment: false } };
+    const res: any = {
+      status: (code: number) => { statusCode = code; return res; },
+      json: () => res,
+    };
+    protectDevSimulate(req, res, () => {});
+    assert.strictEqual(statusCode, 403);
+  });
+
+  // ============================================================================
+  // Test 7: Reverse Proxy IP Sanitization (Chống lỗi ERR_ERL_INVALID_IP_ADDRESS)
+  // ============================================================================
+  console.log('\n📌 7. Kiểm thử getClientIp trích xuất và loại bỏ port từ Proxy:');
+  it('Loại bỏ chính xác cổng IPv4 đính kèm từ Proxy (171.244.35.2:38052 -> 171.244.35.2)', () => {
+    const req: any = {
+      headers: { 'x-forwarded-for': '171.244.35.2:38052' },
+    };
+    assert.strictEqual(getClientIp(req), '171.244.35.2');
+  });
+
+  it('Loại bỏ cổng khi có nhiều IP trong chuỗi X-Forwarded-For', () => {
+    const req: any = {
+      headers: { 'x-forwarded-for': '171.244.35.2:38052, 10.0.0.1' },
+    };
+    assert.strictEqual(getClientIp(req), '171.244.35.2');
+  });
+
+  it('Loại bỏ cổng IPv6 có ngoặc vuông ([2001:db8::1]:8080 -> 2001:db8::1)', () => {
+    const req: any = {
+      headers: { 'x-forwarded-for': '[2001:db8::1]:8080' },
+    };
+    assert.strictEqual(getClientIp(req), '2001:db8::1');
+  });
+
+  it('Chuẩn hóa IPv4-mapped IPv6 (::ffff:171.244.35.2 -> 171.244.35.2)', () => {
+    const req: any = {
+      headers: {},
+      ip: '::ffff:171.244.35.2',
+    };
+    assert.strictEqual(getClientIp(req), '171.244.35.2');
   });
 
   // ============================================================================

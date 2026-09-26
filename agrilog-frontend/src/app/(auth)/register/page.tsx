@@ -17,6 +17,9 @@ import {
   Zap,
   ShieldCheck,
   AlertTriangle,
+  Gift,
+  Sparkles,
+  Crown,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -43,6 +46,10 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Free Trial Celebration Info
+  const [trialInfo, setTrialInfo] = useState<any>(null);
+  const [showPackageList, setShowPackageList] = useState(false);
+
   // Billing & SePay
   const [packages, setPackages] = useState<any[]>([]);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -55,7 +62,17 @@ export default function RegisterPage() {
   const [timeLeft, setTimeLeft] = useState<number>(900);
   const [showSuccess, setShowSuccess] = useState(false);
   const [countdown, setCountdown] = useState(5);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const pollingRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('user');
+        if (stored) setCurrentUser(JSON.parse(stored));
+      } catch {}
+    }
+  }, []);
 
   const loadPackages = async () => {
     try {
@@ -96,6 +113,7 @@ export default function RegisterPage() {
         
         localStorage.setItem('token', registerData.token);
         localStorage.setItem('user', JSON.stringify(registerData.user));
+        setCurrentUser(registerData.user);
         localStorage.removeItem('cart'); // Clear cart on new account
 
         // Now setup profile
@@ -110,8 +128,11 @@ export default function RegisterPage() {
             }),
           });
           if (profileData.success) {
+            if (profileData.data?.isTrial) {
+              setTrialInfo(profileData.data);
+            }
             await loadPackages();
-            setStep(2); // Go to billing
+            setStep(2); // Go to billing or trial celebration
           }
         } else {
           const profileData = await fetchAPI('/company/profile', {
@@ -328,13 +349,94 @@ export default function RegisterPage() {
       );
     }
 
+    if (trialInfo && !showPackageList) {
+      return (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', padding: '1.5rem', textAlign: 'center',
+          animation: 'fadeIn 0.5s ease'
+        }}>
+          <div style={{
+            width: '80px', height: '80px', borderRadius: '50%',
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 0 12px rgba(16,185,129,0.15)',
+            marginBottom: '1.25rem', color: '#fff'
+          }}>
+            <Gift size={40} />
+          </div>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+            padding: '0.35rem 0.85rem', backgroundColor: '#ecfdf5', color: '#059669',
+            borderRadius: '9999px', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.75rem'
+          }}>
+            <Sparkles size={14} /> TẶNG GÓI DÙNG THỬ MIỄN PHÍ
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-main)', margin: '0 0 0.75rem 0' }}>
+            Chúc mừng bạn đã tạo tài khoản thành công!
+          </h2>
+          <p style={{ color: 'var(--color-text-muted)', fontSize: '0.925rem', maxWidth: '480px', lineHeight: 1.6, margin: '0 0 1.5rem 0' }}>
+            Nông trại của bạn đã được kích hoạt gói dùng thử <strong style={{ color: '#059669' }}>{trialInfo.effectivePlan || trialInfo.plan || 'PREMIUM'}</strong> với đầy đủ mọi tính năng.
+            {trialInfo.planExpiresAt && (
+              <> Thời hạn dùng thử đến ngày <strong style={{ color: '#0f172a' }}>{new Date(trialInfo.planExpiresAt).toLocaleDateString('vi-VN')}</strong>.</>
+            )}
+          </p>
+
+          <div style={{
+            width: '100%', maxWidth: '440px', backgroundColor: '#f8fafc',
+            borderRadius: '12px', border: '1px solid #e2e8f0', padding: '1.25rem',
+            display: 'flex', flexDirection: 'column', gap: '0.75rem', textAlign: 'left',
+            marginBottom: '1.75rem', fontSize: '0.875rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#1e293b' }}>
+              <CheckCircle2 size={16} color="#10b981" /> Trọn bộ công cụ ghi chép nhật ký canh tác
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#1e293b' }}>
+              <CheckCircle2 size={16} color="#10b981" /> Quản lý phân bón, thuốc BVTV không giới hạn
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#1e293b' }}>
+              <CheckCircle2 size={16} color="#10b981" /> Quản lý chi phí vật tư và mùa vụ nâng cao
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#1e293b' }}>
+              <CheckCircle2 size={16} color="#10b981" /> Không trừ tiền, chỉ gia hạn khi hết hạn dùng thử
+            </div>
+          </div>
+
+          <button
+            onClick={() => router.push('/dashboard')}
+            className={styles.button}
+            style={{
+              padding: '0.875rem 2.5rem', fontSize: '1rem', fontWeight: 700,
+              backgroundColor: '#10b981', color: 'white', borderRadius: '8px',
+              border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(16,185,129,0.3)',
+              marginBottom: '1rem', width: '100%', maxWidth: '340px'
+            }}
+          >
+            Bắt đầu trải nghiệm ngay
+          </button>
+
+          <button
+            onClick={() => setShowPackageList(true)}
+            style={{
+              background: 'none', border: 'none', color: '#64748b',
+              fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline'
+            }}
+          >
+            Xem bảng so sánh các gói dịch vụ
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div style={{ padding: '1rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 800, textAlign: 'center', marginBottom: '0.5rem', color: 'var(--color-text-main)' }}>
           Chọn gói dịch vụ
         </h2>
         <p style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
-          Bạn có thể nâng cấp để mở rộng tính năng, hoặc bỏ qua để dùng bản miễn phí.
+          {trialInfo?.isTrial 
+            ? `Tài khoản đang có gói dùng thử ${trialInfo.effectivePlan || 'PREMIUM'}. Bạn cũng có thể mua gói để sử dụng lâu dài.`
+            : 'Bạn có thể nâng cấp để mở rộng tính năng, hoặc bỏ qua để dùng bản miễn phí.'}
         </p>
 
         <div className={billingStyles.pricingGrid} style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
@@ -373,7 +475,7 @@ export default function RegisterPage() {
           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'var(--color-bg)' }}
           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
         >
-          Bỏ qua, dùng bản miễn phí (Free)
+          {trialInfo?.isTrial ? 'Bỏ qua & Vào Bảng Điều Khiển ngay' : 'Bỏ qua, dùng bản miễn phí (Free)'}
         </button>
       </div>
     );
@@ -658,14 +760,16 @@ export default function RegisterPage() {
                 {isCheckingPayment ? 'Đang kiểm tra SePay...' : 'Tôi đã chuyển khoản - Kiểm tra ngay'}
               </button>
 
-              <button
-                className={billingStyles.simulateBtn}
-                onClick={handleSimulatePayment}
-                disabled={isSimulating}
-              >
-                <Zap size={14} color="#ca8a04" />
-                {isSimulating ? 'Đang kích hoạt gói...' : '⚡ Mô phỏng thanh toán thành công (Dev Test)'}
-              </button>
+              {Boolean(currentUser?.allowDevPayment || currentUser?.role === 'ADMIN') && (
+                <button
+                  className={billingStyles.simulateBtn}
+                  onClick={handleSimulatePayment}
+                  disabled={isSimulating}
+                >
+                  <Zap size={14} color="#ca8a04" />
+                  {isSimulating ? 'Đang kích hoạt gói...' : '⚡ Mô phỏng thanh toán thành công (Dev Test)'}
+                </button>
+              )}
             </div>
           </div>
         </div>

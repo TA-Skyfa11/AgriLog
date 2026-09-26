@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import styles from '@/css/landing.module.css';
 import { fetchAPI } from '@/lib/api';
+import { getSafeImageUrl } from '@/lib/image';
 import heroImg from '../../public/images/landing/hero_real.jpg';
 import greenhouseImg from '../../public/images/landing/greenhouse_real.jpg';
 
@@ -189,7 +190,7 @@ export default function LandingPage() {
               <div key={product._id} className={styles.productCard}>
                 <div className={styles.productImg}>
                   {product.images && product.images.length > 0 ? (
-                    <img src={product.images[0]} alt={product.name} />
+                    <img src={getSafeImageUrl(product.images[0])} alt={product.name} />
                   ) : (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>No Image</div>
                   )}

@@ -8,6 +8,7 @@ import { ArrowLeft, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import { getSafeImageUrl } from '@/lib/image';
 
 export default function CheckoutPage() {
   const { id } = useParams() as { id: string };
@@ -99,7 +100,7 @@ export default function CheckoutPage() {
         <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '2rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--color-border)' }}>
           <div style={{ width: '100px', height: '100px', backgroundColor: '#f3f4f6', borderRadius: '8px', overflow: 'hidden' }}>
             {product.images && product.images.length > 0 ? (
-              <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={getSafeImageUrl(product.images[0])} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : null}
           </div>
           <div>

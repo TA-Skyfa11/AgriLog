@@ -15,12 +15,12 @@ git reset --hard origin/main
 
 Write-Host "2. Installing dependencies and building Backend..." -ForegroundColor Yellow
 Set-Location agrilog-backend
-npm ci
+npm install --legacy-peer-deps
 npm run build
 
 Write-Host "3. Installing dependencies and building Frontend..." -ForegroundColor Yellow
 Set-Location ../agrilog-frontend
-npm ci
+npm install --legacy-peer-deps
 npm run build
 
 Write-Host "4. Starting / Reloading processes with PM2..." -ForegroundColor Yellow
