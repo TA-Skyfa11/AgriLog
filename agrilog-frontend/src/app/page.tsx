@@ -11,6 +11,7 @@ import greenhouseImg from '../../public/images/landing/greenhouse_real.jpg';
 export default function LandingPage() {
   const [packages, setPackages] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -63,7 +64,7 @@ export default function LandingPage() {
             </p>
             <div className={styles.heroActions}>
               <Link href="/register" className={styles.heroPrimaryBtn}>Đăng ký miễn phí ➔</Link>
-              <button className={styles.heroSecondaryBtn}>Xem Demo ▾</button>
+              <button className={styles.heroSecondaryBtn} onClick={() => setIsVideoOpen(true)}>Xem Demo ▾</button>
             </div>
           </div>
           <div style={{ position: 'relative', height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -78,27 +79,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className={styles.stats}>
-        <div className={styles.statsGrid}>
-          <div>
-            <div className={styles.statNumber}>1.500+</div>
-            <div className={styles.statLabel}>Nông trại</div>
-          </div>
-          <div>
-            <div className={styles.statNumber}>50.000+</div>
-            <div className={styles.statLabel}>Luống sản xuất</div>
-          </div>
-          <div>
-            <div className={styles.statNumber}>12.000+</div>
-            <div className={styles.statLabel}>Đơn vị xuất</div>
-          </div>
-          <div>
-            <div className={styles.statNumber}>20+</div>
-            <div className={styles.statLabel}>Tỉnh thành</div>
-          </div>
-        </div>
-      </section>
 
       {/* Feature Detail Section */}
       <section id="features" className={styles.featureDetail}>
@@ -313,9 +293,54 @@ export default function LandingPage() {
           </div>
         </div>
         <div className={styles.footerBottom}>
-          © 2026 AgriLog. Đã đăng ký bản quyền.
+          © 2026 AgriLog.
         </div>
       </footer>
+
+      {/* Video Modal */}
+      {isVideoOpen && (
+        <div 
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '1rem'
+          }} 
+          onClick={() => setIsVideoOpen(false)}
+        >
+          <div 
+            style={{ 
+              position: 'relative', width: '100%', maxWidth: '800px', 
+              aspectRatio: '16/9', backgroundColor: '#000', 
+              borderRadius: '12px', overflow: 'hidden' 
+            }} 
+            onClick={e => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setIsVideoOpen(false)}
+              style={{ 
+                position: 'absolute', top: '10px', right: '10px', zIndex: 10, 
+                background: 'rgba(0,0,0,0.5)', border: 'none', color: 'white', 
+                borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' 
+              }}
+            >
+              ×
+            </button>
+            <video 
+              width="100%" height="100%" 
+              controls 
+              autoPlay 
+              muted
+              playsInline
+              src="/demo.mp4?v=1"
+              style={{ outline: 'none', backgroundColor: 'black' }}
+            >
+              Trình duyệt của bạn không hỗ trợ thẻ video.
+            </video>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
