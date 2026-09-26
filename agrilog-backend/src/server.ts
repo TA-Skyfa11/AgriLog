@@ -58,7 +58,9 @@ import orderRoutes from './routes/orderRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import exportRoutes from './routes/exportRoutes';
 import paymentRoutes from './routes/paymentRoutes';
+import featureRoutes from './routes/featureRoutes';
 import path from 'path';
+import { getFileFromR2 } from './utils/r2Storage';
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -78,8 +80,31 @@ app.use('/api/company', companyRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/features', featureRoutes);
 
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// Support direct /images/* routing for R2 stored files
+app.get(/^\/images\/(.+)$/, async (req: Request, res: Response) => {
+  const key = `images/${req.params[0]}`;
+  try {
+    const fileData = await getFileFromR2(key);
+    res.setHeader('Content-Type', fileData.contentType);
+    if (fileData.contentLength) {
+      res.setHeader('Content-Length', fileData.contentLength);
+    }
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    fileData.stream.pipe(res);
+  } catch (err: any) {
+    res.status(404).send('Không tìm thấy ảnh');
+  }
+});
+
+app.use('/uploads', (req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(process.cwd(), 'uploads')));
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'OK', message: 'AgriLog Backend is running' });

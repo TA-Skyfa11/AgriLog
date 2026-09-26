@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { useAppContext } from '@/context/AppProvider';
+import { getSafeImageUrl } from '@/lib/image';
 
 export default function ProductDetailPage() {
   const { id } = useParams() as { id: string };
@@ -50,7 +51,7 @@ export default function ProductDetailPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <div style={{ flex: '1', backgroundColor: '#f3f4f6', minHeight: '350px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {product.images && product.images.length > 0 ? (
-              <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={getSafeImageUrl(product.images[0])} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
               <div style={{ color: '#9ca3af', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
                 <ShoppingCart size={64} />

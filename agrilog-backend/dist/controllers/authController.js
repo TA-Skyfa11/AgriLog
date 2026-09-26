@@ -60,6 +60,7 @@ const register = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                allowDevPayment: user.allowDevPayment || false,
             }
         });
     }
@@ -105,24 +106,6 @@ const login = async (req, res) => {
             ipAddress,
             userAgent
         });
-        // MFA check for Admin
-        if (user.role === User_1.Role.ADMIN) {
-            const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digits
-            user.mfaOtp = crypto_1.default.createHash('sha256').update(otp).digest('hex');
-            user.mfaOtpExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-            await user.save();
-            await (0, emailService_1.sendEmail)({
-                to: user.email,
-                subject: 'AgriLog - Mã xác thực đăng nhập (MFA)',
-                html: `<h1>Mã xác thực của bạn là: <strong>${otp}</strong></h1><p>Mã này sẽ hết hạn sau 10 phút.</p>`
-            });
-            return res.json({
-                success: true,
-                message: 'Yêu cầu MFA. Vui lòng kiểm tra email để lấy mã xác thực.',
-                requiresMfa: true,
-                email: user.email
-            });
-        }
         // Set session
         req.session.userId = user._id.toString();
         const token = generateToken(user._id.toString());
@@ -135,6 +118,7 @@ const login = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                allowDevPayment: user.allowDevPayment || false,
             }
         });
     }
@@ -171,6 +155,7 @@ const verifyMfa = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                allowDevPayment: user.allowDevPayment || false,
             }
         });
     }

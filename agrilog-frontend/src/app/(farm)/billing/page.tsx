@@ -15,6 +15,8 @@ import {
   Crown,
   Calendar,
   AlertTriangle,
+  Sparkles,
+  Gift,
 } from 'lucide-react';
 import { fetchAPI } from '@/lib/api';
 import { useRouter } from 'next/navigation';
@@ -25,7 +27,17 @@ export default function BillingPage() {
   const [profile, setProfile] = useState<any>(null);
   const [packages, setPackages] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('user');
+        if (stored) setCurrentUser(JSON.parse(stored));
+      } catch {}
+    }
+  }, []);
 
   // SePay QR Payment Modal state
   const [showQRModal, setShowQRModal] = useState(false);
@@ -45,10 +57,11 @@ export default function BillingPage() {
 
   const loadData = async () => {
     try {
-      const [profileRes, pkgRes, historyRes] = await Promise.all([
+      const [profileRes, pkgRes, historyRes, meRes] = await Promise.all([
         fetchAPI('/farm/profile'),
         fetchAPI('/services'),
         fetchAPI('/payment/history').catch(() => ({ success: false, data: [] })),
+        fetchAPI('/auth/me').catch(() => ({ success: false, data: null })),
       ]);
 
       if (profileRes.success) {
@@ -59,6 +72,9 @@ export default function BillingPage() {
       }
       if (historyRes.success) {
         setHistory(historyRes.data);
+      }
+      if (meRes.success && meRes.data) {
+        setCurrentUser(meRes.data);
       }
     } catch (error) {
       console.error('Lỗi tải dữ liệu gói cước:', error);
@@ -137,7 +153,8 @@ export default function BillingPage() {
 
   // Khởi tạo giao dịch thanh toán SePay
   const handleSelectPlan = async (pkg: any) => {
-    if (profile?.plan === pkg.code) return;
+    const isExpired = profile?.isPlanExpired || (profile?.planExpiresAt && new Date(profile.planExpiresAt) < new Date());
+    if (profile?.plan === pkg.code && !isExpired) return;
     setSelectedPkg(pkg);
     setIsCreatingPayment(true);
 
@@ -227,7 +244,12 @@ export default function BillingPage() {
 
   if (loading) return <div style={{ padding: '2rem' }}>Đang tải thông tin gói cước...</div>;
 
-  const currentPlan = profile?.plan || 'FREE';
+  const isExpired = Boolean(profile?.isPlanExpired || (profile?.planExpiresAt && new Date(profile.planExpiresAt) < new Date()));
+  const isTrial = Boolean(profile?.isTrial && !isExpired);
+  const currentPlan = isExpired ? 'EXPIRED' : (profile?.plan || 'FREE');
+  const daysLeft = profile?.planExpiresAt 
+    ? Math.max(0, Math.ceil((new Date(profile.planExpiresAt).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
 
   // ─── Success Screen ───────────────────────────────────────
   if (showSuccess) {
@@ -334,28 +356,73 @@ export default function BillingPage() {
         </p>
       </div>
 
+      {/* Cảnh báo khi gói cước / gói dùng thử đã hết hạn */}
+      {isExpired && (
+        <div style={{
+          backgroundColor: '#fef2f2',
+          border: '1px solid #fecaca',
+          borderRadius: '12px',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '1rem',
+          animation: 'fadeIn 0.3s ease'
+        }}>
+          <div style={{
+            width: '42px', height: '42px', borderRadius: '50%',
+            backgroundColor: '#fee2e2', display: 'flex', alignItems: 'center',
+            justifyContent: 'center', color: '#dc2626', flexShrink: 0
+          }}>
+            <AlertTriangle size={24} />
+          </div>
+          <div>
+            <h3 style={{ margin: '0 0 0.35rem 0', color: '#991b1b', fontSize: '1.1rem', fontWeight: 700 }}>
+              Gói dịch vụ {profile?.isTrial ? 'dùng thử ' : ''}của bạn đã hết hạn!
+            </h3>
+            <p style={{ margin: 0, color: '#b91c1c', fontSize: '0.9rem', lineHeight: 1.5 }}>
+              Thời hạn sử dụng đã kết thúc vào ngày {profile?.planExpiresAt ? new Date(profile.planExpiresAt).toLocaleDateString('vi-VN') : ''}. 
+              Các tính năng tạo mới bảng nhật ký và ghi chép canh tác hiện đang tạm thời bị khóa.
+              Vui lòng chọn một trong các gói dịch vụ bên dưới để thanh toán kích hoạt lại tài khoản.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Banner thông báo gói cước hiện tại */}
       {profile && (
-        <div className={styles.activePlanBanner}>
+        <div className={styles.activePlanBanner} style={isExpired ? { borderLeft: '4px solid #ef4444', backgroundColor: '#fff5f5' } : (isTrial ? { borderLeft: '4px solid #10b981', backgroundColor: '#f0fdf4' } : undefined)}>
           <div className={styles.activePlanInfo}>
-            <div className={styles.activePlanIcon}>
-              <Crown size={22} />
+            <div className={styles.activePlanIcon} style={isExpired ? { backgroundColor: '#fee2e2', color: '#ef4444' } : (isTrial ? { backgroundColor: '#dcfce7', color: '#16a34a' } : undefined)}>
+              {isExpired ? <AlertTriangle size={22} /> : isTrial ? <Sparkles size={22} /> : <Crown size={22} />}
             </div>
             <div className={styles.activePlanText}>
               <h3>
-                Nông trại hiện đang dùng: <strong>Gói {currentPlan}</strong>
+                {isExpired ? (
+                  <>Trạng thái: <strong style={{ color: '#dc2626' }}>Gói {profile.plan || 'dịch vụ'} đã hết hạn</strong></>
+                ) : isTrial ? (
+                  <>Nông trại hiện đang dùng: <strong style={{ color: '#15803d' }}>Gói {profile.effectivePlan || profile.plan} (Dùng thử miễn phí)</strong></>
+                ) : (
+                  <>Nông trại hiện đang dùng: <strong>Gói {currentPlan}</strong></>
+                )}
               </h3>
               <p>
-                {currentPlan === 'FREE'
+                {isExpired
+                  ? 'Toàn bộ tính năng tạo mới bảng và ghi chép đã tạm khóa. Vui lòng thanh toán gia hạn bên dưới.'
+                  : isTrial
+                  ? `Bạn đang được trải nghiệm miễn phí toàn bộ tính năng cao cấp không giới hạn (${daysLeft} ngày còn lại).`
+                  : currentPlan === 'FREE'
                   ? 'Gói miễn phí với tính năng ghi chép cơ bản.'
                   : `Tất cả các tính năng của gói ${currentPlan} đang hoạt động bình thường.`}
               </p>
             </div>
           </div>
-          {profile.planExpiresAt && currentPlan !== 'FREE' && (
-            <div className={styles.activePlanExpiry}>
+          {profile.planExpiresAt && (
+            <div className={styles.activePlanExpiry} style={isExpired ? { backgroundColor: '#fee2e2', color: '#b91c1c' } : (isTrial ? { backgroundColor: '#dcfce7', color: '#15803d' } : undefined)}>
               <Calendar size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-2px' }} />
-              Hạn dùng: {new Date(profile.planExpiresAt).toLocaleDateString('vi-VN')}
+              {isExpired ? 'Đã hết hạn: ' : isTrial ? 'Hạn dùng thử: ' : 'Hạn dùng: '}
+              {new Date(profile.planExpiresAt).toLocaleDateString('vi-VN')}
+              {!isExpired && isTrial && ` (${daysLeft} ngày)`}
             </div>
           )}
         </div>
@@ -363,44 +430,49 @@ export default function BillingPage() {
 
       {/* Grid danh sách các gói dịch vụ */}
       <div className={styles.pricingGrid}>
-        {packages.map((pkg) => (
-          <div
-            key={pkg._id}
-            className={`${styles.pricingCard} ${pkg.code === 'STANDARD' ? styles.popular : ''} ${
-              currentPlan === pkg.code ? styles.activeCard : ''
-            }`}
-          >
-            {pkg.code === 'STANDARD' && <div className={styles.popularBadge}>Phổ biến nhất</div>}
-            <div className={styles.planName}>{pkg.name}</div>
-            <div className={styles.planDesc}>{pkg.description}</div>
-            <div className={styles.planPrice}>
-              {pkg.price.toLocaleString('vi-VN')} VNĐ <span>/ tháng</span>
-            </div>
-            <div className={styles.featureList}>
-              {pkg.features &&
-                pkg.features.map((feature: string, idx: number) => (
-                  <div key={idx} className={styles.featureItem}>
-                    <Check size={18} color="#16a34a" /> {feature}
-                  </div>
-                ))}
-            </div>
-            <button
-              className={`${styles.button} ${
-                currentPlan === pkg.code ? styles.btnDisabled : styles.btnOutline
+        {packages.map((pkg) => {
+          const isCurrentActive = profile?.plan === pkg.code && !isExpired;
+          return (
+            <div
+              key={pkg._id}
+              className={`${styles.pricingCard} ${pkg.code === 'STANDARD' ? styles.popular : ''} ${
+                isCurrentActive ? styles.activeCard : ''
               }`}
-              onClick={() => handleSelectPlan(pkg)}
-              disabled={currentPlan === pkg.code || !pkg.isActive || isCreatingPayment}
             >
-              {!pkg.isActive
-                ? 'Ngừng cung cấp'
-                : currentPlan === pkg.code
-                ? 'Gói hiện tại'
-                : isCreatingPayment && selectedPkg?.code === pkg.code
-                ? 'Đang khởi tạo...'
-                : 'Nâng cấp ngay'}
-            </button>
-          </div>
-        ))}
+              {pkg.code === 'STANDARD' && <div className={styles.popularBadge}>Phổ biến nhất</div>}
+              <div className={styles.planName}>{pkg.name}</div>
+              <div className={styles.planDesc}>{pkg.description}</div>
+              <div className={styles.planPrice}>
+                {pkg.price.toLocaleString('vi-VN')} VNĐ <span>/ tháng</span>
+              </div>
+              <div className={styles.featureList}>
+                {pkg.features &&
+                  pkg.features.map((feature: string, idx: number) => (
+                    <div key={idx} className={styles.featureItem}>
+                      <Check size={18} color="#16a34a" /> {feature}
+                    </div>
+                  ))}
+              </div>
+              <button
+                className={`${styles.button} ${
+                  isCurrentActive ? styles.btnDisabled : styles.btnOutline
+                }`}
+                onClick={() => handleSelectPlan(pkg)}
+                disabled={isCurrentActive || !pkg.isActive || isCreatingPayment}
+              >
+                {!pkg.isActive
+                  ? 'Ngừng cung cấp'
+                  : isCurrentActive
+                  ? 'Gói hiện tại'
+                  : isCreatingPayment && selectedPkg?.code === pkg.code
+                  ? 'Đang khởi tạo...'
+                  : isExpired && profile?.plan === pkg.code
+                  ? 'Gia hạn gói này'
+                  : 'Nâng cấp ngay'}
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {/* Bảng lịch sử giao dịch thanh toán */}
@@ -603,16 +675,18 @@ export default function BillingPage() {
                 {isCheckingPayment ? 'Đang kiểm tra SePay...' : 'Tôi đã chuyển khoản - Kiểm tra ngay'}
               </button>
 
-              {/* Nút mô phỏng thanh toán khi test local */}
-              <button
-                className={styles.simulateBtn}
-                onClick={handleSimulatePayment}
-                disabled={isSimulating}
-                title="Bấm vào đây để giả lập chuyển khoản thành công phục vụ kiểm thử"
-              >
-                <Zap size={14} color="#ca8a04" />
-                {isSimulating ? 'Đang kích hoạt gói...' : '⚡ Mô phỏng thanh toán thành công (Dev Test)'}
-              </button>
+              {/* Nút mô phỏng thanh toán dành riêng cho tài khoản được Admin cấp phép */}
+              {Boolean(currentUser?.allowDevPayment || currentUser?.role === 'ADMIN') && (
+                <button
+                  className={styles.simulateBtn}
+                  onClick={handleSimulatePayment}
+                  disabled={isSimulating}
+                  title="Tính năng mô phỏng thanh toán dành cho tài khoản được Admin cấp phép"
+                >
+                  <Zap size={14} color="#ca8a04" />
+                  {isSimulating ? 'Đang kích hoạt gói...' : '⚡ Mô phỏng thanh toán thành công (Dev Test)'}
+                </button>
+              )}
             </div>
           </div>
         </div>

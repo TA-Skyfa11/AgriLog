@@ -90,6 +90,8 @@ const handleStreamFile = async (key, res) => {
         if (fileData.eTag) {
             res.setHeader('ETag', fileData.eTag);
         }
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
         fileData.stream.pipe(res);
     }
     catch (err) {
@@ -100,6 +102,10 @@ const handleStreamFile = async (key, res) => {
         res.status(500).send('Lỗi khi tải file từ Cloudflare R2');
     }
 };
+router.get(/^\/file\/(.+)$/, async (req, res) => {
+    const key = req.params[0];
+    await handleStreamFile(key, res);
+});
 router.get('/file/:folder/:filename', async (req, res) => {
     const key = `${req.params.folder}/${req.params.filename}`;
     await handleStreamFile(key, res);
@@ -129,8 +135,9 @@ router.post('/', authMiddleware_1.protect, checkImageLimit, upload.single('image
                     imageUrl = r2Result.url;
                 }
                 else {
-                    // Internal proxy URL - construct absolute URL for seamless consumption
-                    imageUrl = `${protocol}://${host}${r2Result.url}`;
+                    // Internal proxy URL - ensure leading slash
+                    const cleanPath = r2Result.url.startsWith('/') ? r2Result.url : `/${r2Result.url}`;
+                    imageUrl = `${protocol}://${host}${cleanPath}`;
                 }
                 storageType = 'cloudflare-r2';
             }

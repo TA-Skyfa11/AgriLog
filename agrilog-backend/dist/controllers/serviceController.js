@@ -1,6 +1,39 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteServicePackage = exports.updateServicePackage = exports.createServicePackage = exports.getServicePackages = void 0;
+exports.updateTrialPolicy = exports.getTrialPolicy = exports.deleteServicePackage = exports.updateServicePackage = exports.createServicePackage = exports.getServicePackages = void 0;
 const ServicePackage_1 = require("../models/ServicePackage");
 // Lấy danh sách tất cả các gói dịch vụ
 const getServicePackages = async (req, res) => {
@@ -89,3 +122,42 @@ const deleteServicePackage = async (req, res) => {
     }
 };
 exports.deleteServicePackage = deleteServicePackage;
+// Lấy thông tin cấu hình chính sách Dùng thử (Public/Admin)
+const getTrialPolicy = async (req, res) => {
+    try {
+        const { getOrCreateTrialSetting } = await Promise.resolve().then(() => __importStar(require('../utils/boardUtils')));
+        const setting = await getOrCreateTrialSetting();
+        res.json({ success: true, data: setting });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.getTrialPolicy = getTrialPolicy;
+// Cập nhật cấu hình chính sách Dùng thử (Admin)
+const updateTrialPolicy = async (req, res) => {
+    try {
+        const { getOrCreateTrialSetting } = await Promise.resolve().then(() => __importStar(require('../utils/boardUtils')));
+        const { isEnabled, durationMonths, trialPlan, lockOnExpiry } = req.body;
+        const setting = await getOrCreateTrialSetting();
+        if (typeof isEnabled === 'boolean')
+            setting.isEnabled = isEnabled;
+        if (typeof durationMonths === 'number' && durationMonths >= 1)
+            setting.durationMonths = Math.max(1, Math.min(36, Math.floor(durationMonths)));
+        if (trialPlan && ['BASIC', 'STANDARD', 'PREMIUM'].includes(trialPlan))
+            setting.trialPlan = trialPlan;
+        if (typeof lockOnExpiry === 'boolean')
+            setting.lockOnExpiry = lockOnExpiry;
+        setting.updatedBy = req.user?._id;
+        await setting.save();
+        res.json({
+            success: true,
+            data: setting,
+            message: `Cập nhật chính sách dùng thử thành công: ${setting.isEnabled ? `Bật (${setting.durationMonths} tháng)` : 'Đã tắt'}`,
+        });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.updateTrialPolicy = updateTrialPolicy;

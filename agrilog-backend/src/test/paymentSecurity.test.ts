@@ -248,6 +248,25 @@ async function runTests() {
     assert.strictEqual(nextCalled, true);
   });
 
+  it('Cho phép gọi /dev-simulate đối với tài khoản được Admin cấp phép (allowDevPayment: true)', () => {
+    let nextCalled = false;
+    const req: any = { headers: {}, user: { role: 'FARM', allowDevPayment: true } };
+    const res: any = { status: () => res, json: () => res };
+    protectDevSimulate(req, res, () => { nextCalled = true; });
+    assert.strictEqual(nextCalled, true);
+  });
+
+  it('Chặn gọi /dev-simulate đối với tài khoản chưa được Admin cấp phép (allowDevPayment: false)', () => {
+    let statusCode = 0;
+    const req: any = { headers: {}, user: { role: 'FARM', allowDevPayment: false } };
+    const res: any = {
+      status: (code: number) => { statusCode = code; return res; },
+      json: () => res,
+    };
+    protectDevSimulate(req, res, () => {});
+    assert.strictEqual(statusCode, 403);
+  });
+
   // ============================================================================
   // Tổng kết
   // ============================================================================

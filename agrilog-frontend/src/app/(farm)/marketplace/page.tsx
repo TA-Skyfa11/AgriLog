@@ -6,6 +6,7 @@ import { fetchAPI } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Search, ShoppingCart, Eye } from 'lucide-react';
 import Link from 'next/link';
+import { getSafeImageUrl } from '@/lib/image';
 
 const CATEGORY_LABELS: Record<string, string> = {
   ALL: 'Tất cả',
@@ -110,7 +111,7 @@ export default function FarmMarketplacePage() {
               <Card style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%', transition: 'transform 0.2s', cursor: 'pointer' }} className="hover:shadow-lg">
                 <div style={{ height: '180px', backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
                   {p.images && p.images.length > 0 ? (
-                    <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    <img src={getSafeImageUrl(p.images[0])} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : (
                     <div style={{ color: '#9ca3af', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                       <ShoppingCart size={32} />

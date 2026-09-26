@@ -6,6 +6,7 @@ import { ShoppingCart, ArrowLeft, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/AppProvider';
+import { getSafeImageUrl } from '@/lib/image';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -88,7 +89,7 @@ export default function CheckoutPage() {
                   <div key={item.product._id} style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
                     <div style={{ width: '80px', height: '80px', backgroundColor: '#f3f4f6', borderRadius: '8px', padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {item.product.images && item.product.images.length > 0 ? (
-                        <img src={item.product.images[0]} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        <img src={getSafeImageUrl(item.product.images[0])} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                       ) : (
                         <ShoppingCart color="#9ca3af" />
                       )}

@@ -65,7 +65,10 @@ export const uploadToR2 = async (
 
   let url: string;
   if (publicUrl && publicUrl.trim() !== '') {
-    const cleanPublicUrl = publicUrl.trim().replace(/\/$/, '');
+    let cleanPublicUrl = publicUrl.trim().replace(/\/$/, '');
+    if (!cleanPublicUrl.startsWith('http://') && !cleanPublicUrl.startsWith('https://')) {
+      cleanPublicUrl = `https://${cleanPublicUrl}`;
+    }
     url = `${cleanPublicUrl}/${uniqueKey}`;
   } else {
     // Relative API proxy path; callers can make it absolute using req context if desired

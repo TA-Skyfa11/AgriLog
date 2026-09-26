@@ -5,7 +5,8 @@ import {
   verifyReplayAttack,
   verifyOAuthPaymentToken,
 } from '../utils/paymentSecurity';
-import { Role } from '../models/User';
+import jwt from 'jsonwebtoken';
+import { User, Role } from '../models/User';
 
 export interface PaymentAuthRequest extends Request {
   paymentAuth?: {
@@ -30,6 +31,7 @@ export const verifyPaymentWebhookAuth = (
 ) => {
   const isProduction = process.env.NODE_ENV === 'production';
   const webhookKey = process.env.SEPAY_WEBHOOK_KEY?.trim();
+  const sepayApiKey = process.env.SEPAY_API_KEY?.trim();
   const hmacSecret = (process.env.SEPAY_WEBHOOK_SECRET || process.env.SEPAY_WEBHOOK_KEY)?.trim();
 
   // 1. Thu thập thông tin xác thực từ Headers và Query
@@ -45,12 +47,10 @@ export const verifyPaymentWebhookAuth = (
   const timestamp = (
     req.headers['x-timestamp'] ||
     req.headers['x-request-timestamp'] ||
-    req.body?.transactionDate ||
-    req.body?.timestamp ||
     ''
   ) as string;
 
-  // 2. Kiểm tra Replay Attack nếu có Timestamp
+  // 2. Kiểm tra Replay Attack nếu có Timestamp trong Headers
   if (timestamp) {
     const replayCheck = verifyReplayAttack(timestamp, 300); // 5 phút
     if (!replayCheck.valid) {
@@ -76,10 +76,17 @@ export const verifyPaymentWebhookAuth = (
     console.warn(`🚨 [PaymentSecurity] Chữ ký HMAC-SHA256 không hợp lệ.`);
   }
 
-  // 4. Cơ chế 2: Xác thực qua API Key
+  // 4. Cơ chế 2: Xác thực qua API Key (Hỗ trợ cả SEPAY_WEBHOOK_KEY và SEPAY_API_KEY)
   const incomingApiKey = customApiKey || authHeader.replace(/^(Bearer|Apikey)\s+/i, '').trim();
-  if (incomingApiKey && webhookKey) {
-    if (timingSafeEqualString(incomingApiKey, webhookKey)) {
+  if (incomingApiKey) {
+    if (webhookKey && timingSafeEqualString(incomingApiKey, webhookKey)) {
+      req.paymentAuth = {
+        method: 'API_KEY',
+        authenticated: true,
+      };
+      return next();
+    }
+    if (sepayApiKey && timingSafeEqualString(incomingApiKey, sepayApiKey)) {
       req.paymentAuth = {
         method: 'API_KEY',
         authenticated: true,
@@ -124,22 +131,18 @@ export const verifyPaymentWebhookAuth = (
 
 /**
  * Middleware bảo vệ endpoint mô phỏng thanh toán (Dev Simulate)
- * Không cho phép gọi tự do trên môi trường Production
+ * Chỉ cho phép khi:
+ * 1. Cung cấp khóa bí mật DEV_SIMULATE_KEY hợp lệ (CI / testing).
+ * 2. Hoặc tài khoản đăng nhập có quyền ADMIN.
+ * 3. Hoặc tài khoản đăng nhập được Admin cấp phép bypass (allowDevPayment === true).
+ * Mọi tài khoản thông thường khác sẽ bị từ chối 403 Forbidden.
  */
-export const protectDevSimulate = (
+export const protectDevSimulate = async (
   req: PaymentAuthRequest,
   res: Response,
   next: NextFunction
 ) => {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const allowDevSimulate = process.env.ALLOW_DEV_SIMULATE === 'true';
-
-  // Ở môi trường Dev hoặc khi bật cờ ALLOW_DEV_SIMULATE => Cho phép
-  if (!isProduction || allowDevSimulate) {
-    return next();
-  }
-
-  // Trên Production: Chỉ cho phép Admin hoặc cung cấp khóa DEV_SIMULATE_KEY
+  // 1. Kiểm tra khóa x-dev-simulate-key (CI / automated scripts)
   const devKeyHeader = (req.headers['x-dev-simulate-key'] as string || '').trim();
   const configuredDevKey = process.env.DEV_SIMULATE_KEY?.trim();
 
@@ -147,12 +150,51 @@ export const protectDevSimulate = (
     return next();
   }
 
-  if (req.user && String(req.user.role || '').toUpperCase() === Role.ADMIN) {
-    return next();
+  // 2. Nếu req.user đã có sẵn (từ middleware protect hoặc test mock)
+  if (req.user) {
+    const role = String(req.user.role || '').toUpperCase();
+    if (role === Role.ADMIN || req.user.allowDevPayment === true) {
+      return next();
+    }
+    return res.status(403).json({
+      success: false,
+      message: 'Tài khoản chưa được Admin cấp phép sử dụng chức năng mô phỏng thanh toán (Dev Test).',
+    });
+  }
+
+  // 3. Nếu chưa có req.user, thử trích xuất từ Bearer JWT token hoặc Session
+  let userId = (req as any).session?.userId;
+  if (!userId) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      if (token) {
+        try {
+          const secret = process.env.JWT_SECRET;
+          if (secret) {
+            const decoded = jwt.verify(token, secret) as { id: string };
+            userId = decoded.id;
+          }
+        } catch {}
+      }
+    }
+  }
+
+  if (userId) {
+    try {
+      const user = await User.findById(userId);
+      if (user) {
+        req.user = user;
+        const role = String(user.role || '').toUpperCase();
+        if (role === Role.ADMIN || user.allowDevPayment === true) {
+          return next();
+        }
+      }
+    } catch {}
   }
 
   return res.status(403).json({
     success: false,
-    message: 'Tính năng mô phỏng thanh toán bị vô hiệu hóa trên môi trường Production.',
+    message: 'Tài khoản chưa được Admin cấp phép sử dụng chức năng mô phỏng thanh toán (Dev Test).',
   });
 };

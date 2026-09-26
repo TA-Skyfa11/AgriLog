@@ -45,6 +45,7 @@ const farmProfileSchema = new mongoose_1.Schema({
     plan: { type: String, enum: ['FREE', 'BASIC', 'STANDARD', 'PREMIUM'], default: 'FREE' },
     planExpiresAt: { type: Date, required: false },
     previousPlan: { type: String, enum: ['FREE', 'BASIC', 'STANDARD', 'PREMIUM'], required: false },
+    isTrial: { type: Boolean, default: false },
     notificationPreferences: {
         push: { type: Boolean, default: true },
         email: { type: Boolean, default: false },

@@ -9,8 +9,10 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const User_1 = require("../models/User");
 const router = express_1.default.Router();
 router.get('/', serviceController_1.getServicePackages); // Ai cũng có thể xem danh sách gói
+router.get('/trial-policy', serviceController_1.getTrialPolicy); // Ai cũng có thể xem chính sách dùng thử
 router.use(authMiddleware_1.protect);
 router.use((0, authMiddleware_1.authorize)(User_1.Role.ADMIN));
+router.put('/trial-policy', serviceController_1.updateTrialPolicy); // Admin cập nhật chính sách dùng thử
 router.post('/', serviceController_1.createServicePackage);
 router.put('/:id', serviceController_1.updateServicePackage);
 router.delete('/:id', serviceController_1.deleteServicePackage);

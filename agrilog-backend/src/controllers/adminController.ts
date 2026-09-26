@@ -227,6 +227,31 @@ export const toggleUserLock = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const toggleDevPaymentPermission = async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Người dùng không tồn tại' });
+    }
+
+    user.allowDevPayment = !user.allowDevPayment;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `Đã ${user.allowDevPayment ? 'cấp quyền' : 'thu hồi quyền'} bypass thanh toán (Dev Test) cho tài khoản ${user.email}`,
+      data: {
+        userId: user._id,
+        email: user.email,
+        allowDevPayment: user.allowDevPayment,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
 export const adminResetPassword = async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;

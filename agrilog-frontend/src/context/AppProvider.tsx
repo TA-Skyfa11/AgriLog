@@ -22,6 +22,10 @@ interface AppContextType {
   addToCart: (product: any, quantity: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
+  features: Record<string, boolean>;
+  disabledPaths: string[];
+  isFeatureEnabled: (key: string) => boolean;
+  reloadFeatures: () => Promise<void>;
 }
 
 const translations: Record<Language, Record<string, string>> = {
@@ -69,11 +73,32 @@ const translations: Record<Language, Record<string, string>> = {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+import { fetchAPI } from '@/lib/api';
+
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>('light');
   const [language, setLanguageState] = useState<Language>('vi');
   const [timezone, setTimezoneState] = useState<string>('GMT+7');
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [features, setFeatures] = useState<Record<string, boolean>>({});
+  const [disabledPaths, setDisabledPaths] = useState<string[]>([]);
+
+  const reloadFeatures = async () => {
+    try {
+      const res = await fetchAPI('/features/active');
+      if (res && res.success && res.data) {
+        setFeatures(res.data.featureMap || {});
+        setDisabledPaths(res.data.disabledPaths || []);
+      }
+    } catch {
+      // Bỏ qua lỗi kết nối ban đầu
+    }
+  };
+
+  const isFeatureEnabled = (key: string): boolean => {
+    if (!key) return true;
+    return features[key] !== false;
+  };
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as Theme;
@@ -101,6 +126,9 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         console.error('Failed to parse cart', e);
       }
     }
+
+    // Nạp trạng thái các tính năng hệ thống từ backend
+    reloadFeatures();
   }, []);
 
   const setTheme = (newTheme: Theme) => {
@@ -153,7 +181,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <AppContext.Provider value={{ theme, setTheme, language, setLanguage, timezone, setTimezone, t, cart, addToCart, removeFromCart, clearCart }}>
+    <AppContext.Provider value={{ 
+      theme, setTheme, 
+      language, setLanguage, 
+      timezone, setTimezone, 
+      t, 
+      cart, addToCart, removeFromCart, clearCart,
+      features, disabledPaths, isFeatureEnabled, reloadFeatures
+    }}>
       {children}
     </AppContext.Provider>
   );
