@@ -284,13 +284,13 @@ pm2 startup
 ```
 
 ### 5. Triển khai trọn gói với Docker & Docker Compose 🐳
-Dự án cung cấp cấu hình Docker hoàn chỉnh (Multi-stage build cho Next.js Standalone và Express có tích hợp Puppeteer Chromium, kết hợp cơ sở dữ liệu MongoDB):
+Dự án cung cấp cấu hình Docker tối ưu (Multi-stage build cho Next.js Standalone và Express tích hợp Puppeteer Chromium, kết nối trực tiếp đến **MongoDB Atlas Cloud**):
 
 ```bash
 # 1. Sao chép file cấu hình biến môi trường
 cp .env.docker.example .env
 
-# 2. Khởi chạy toàn bộ hệ thống (MongoDB + Backend + Frontend)
+# 2. Khởi chạy toàn bộ hệ thống (Backend + Frontend kết nối MongoDB Atlas)
 docker compose up -d --build
 
 # 3. Theo dõi log hoạt động của các dịch vụ
@@ -300,8 +300,20 @@ docker compose logs -f
 docker compose down
 ```
 
-Các cổng mặc định sau khi container khởi chạy:
+> **Ghi chú về cơ sở dữ liệu:**
+> - Hệ thống mặc định kết nối trực tiếp đến **MongoDB Atlas Cloud** theo quyết định kiến trúc đã thống nhất.
+> - *(Tùy chọn)* Nếu muốn chạy một container MongoDB 7.0 local cho môi trường dev offline, sử dụng profile `local-db`:
+>   ```bash
+>   docker compose --profile local-db up -d
+>   ```
+
+#### Script tự động hóa triển khai trên Server:
+- **Windows Server (PowerShell):** Chạy script `deploy\deploy-windows.ps1`
+- **Linux Server (Bash):** Chạy script `deploy/deploy-linux.sh`
+
+Các cổng dịch vụ sau khi container khởi chạy:
 - **Frontend (Next.js)**: `http://localhost:3000`
 - **Backend API**: `http://localhost:5000`
-- **MongoDB**: `localhost:27017` (dữ liệu được lưu trữ an toàn trong volume `agrilog_mongo_data`)
+- **Database**: Kết nối an toàn qua TLS tới **MongoDB Atlas Cloud**
+
 

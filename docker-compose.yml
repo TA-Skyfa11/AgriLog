@@ -1,10 +1,12 @@
 services:
   # ============================================================================
-  # 1. Database: MongoDB 7.0
+  # 1. Database: MongoDB 7.0 (Chỉ kích hoạt khi dev offline qua profile "local-db")
   # ============================================================================
   mongo:
     image: mongo:7.0
     container_name: agrilog-mongo
+    profiles:
+      - local-db
     restart: unless-stopped
     ports:
       - "27017:27017"
@@ -32,16 +34,13 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
-    depends_on:
-      mongo:
-        condition: service_healthy
     env_file:
       - path: ./agrilog-backend/.env
         required: false
     environment:
       PORT: 5000
       NODE_ENV: production
-      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/agrilog}
+      MONGO_URI: "${MONGO_URI:?Bat buoc phai cau hinh MONGO_URI tro ve Atlas trong file .env}"
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       JWT_SECRET: "${JWT_SECRET:?Bat buoc phai cau hinh JWT_SECRET trong file .env}"
       RESEND_API_KEY: ${RESEND_API_KEY:-}
