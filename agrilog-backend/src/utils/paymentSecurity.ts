@@ -42,23 +42,30 @@ export function sortObjectKeys(obj: any): any {
 }
 
 /**
- * Tính toán chữ ký HMAC-SHA256 cho payload bất kỳ
+ * Tính toán chữ ký HMAC-SHA256 cho payload bất kỳ (hỗ trợ Buffer thô, string, hoặc Object)
  */
 export function computeHmacSha256(payload: any, secret: string): string {
   if (!secret) return '';
 
+  if (Buffer.isBuffer(payload)) {
+    return crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  }
+
   const dataString =
     typeof payload === 'string'
       ? payload
-      : Buffer.isBuffer(payload)
-      ? payload.toString('utf8')
       : JSON.stringify(sortObjectKeys(payload));
 
-  return crypto.createHmac('sha256', secret).update(dataString).digest('hex');
+  return crypto.createHmac('sha256', secret).update(dataString, 'utf8').digest('hex');
 }
 
 /**
  * Xác thực chữ ký HMAC-SHA256 nhận được với secret key
+ * Hỗ trợ:
+ * 1. Raw buffer / raw string từ Webhook SePay (ưu tiên cao nhất, chống lỗi sai lệch do serialize)
+ * 2. Tự động cắt bỏ tiền tố "sha256=" nếu có
+ * 3. So khớp cả dạng hex và base64
+ * 4. Fallback kiểm tra dạng canonical object và raw JSON string
  */
 export function verifyHmacSha256(
   payload: any,
@@ -67,18 +74,51 @@ export function verifyHmacSha256(
 ): boolean {
   if (!secret || !signature || typeof signature !== 'string') return false;
 
-  const cleanSignature = signature.trim().toLowerCase();
+  const rawSig = signature.trim();
+  const cleanSignature = rawSig.replace(/^sha256=/i, '').toLowerCase();
 
-  // 1. Kiểm tra với payload dạng canonical (sorted keys)
+  // 1. Kiểm tra ưu tiên: Payload thô (Buffer hoặc String trực tiếp từ HTTP request của SePay)
+  if (Buffer.isBuffer(payload) || typeof payload === 'string') {
+    const rawBuffer = Buffer.isBuffer(payload) ? payload : Buffer.from(payload, 'utf8');
+
+    // So khớp Hex
+    const computedHex = crypto.createHmac('sha256', secret).update(rawBuffer).digest('hex');
+    if (timingSafeEqualString(computedHex.toLowerCase(), cleanSignature)) {
+      return true;
+    }
+
+    // So khớp Base64
+    const computedBase64 = crypto.createHmac('sha256', secret).update(rawBuffer).digest('base64');
+    if (timingSafeEqualString(computedBase64, rawSig)) {
+      return true;
+    }
+
+    // Fallback: Thử parse JSON nếu là buffer/string để kiểm tra chữ ký kiểu sorted keys
+    try {
+      const parsed = JSON.parse(rawBuffer.toString('utf8'));
+      if (parsed && typeof parsed === 'object') {
+        const computedCanonical = computeHmacSha256(parsed, secret);
+        if (timingSafeEqualString(computedCanonical.toLowerCase(), cleanSignature)) {
+          return true;
+        }
+      }
+    } catch {
+      // Không phải JSON, bỏ qua
+    }
+
+    return false;
+  }
+
+  // 2. Kiểm tra với payload dạng canonical (sorted keys) khi payload đã được parse thành Object
   const computedCanonical = computeHmacSha256(payload, secret);
   if (timingSafeEqualString(computedCanonical.toLowerCase(), cleanSignature)) {
     return true;
   }
 
-  // 2. Kiểm tra với payload dạng JSON thuần nếu payload là object
+  // 3. Kiểm tra với payload dạng JSON thuần nếu payload là object
   if (typeof payload === 'object' && payload !== null) {
     const rawJson = JSON.stringify(payload);
-    const directComputed = crypto.createHmac('sha256', secret).update(rawJson).digest('hex');
+    const directComputed = crypto.createHmac('sha256', secret).update(rawJson, 'utf8').digest('hex');
     if (timingSafeEqualString(directComputed.toLowerCase(), cleanSignature)) {
       return true;
     }
@@ -125,11 +165,11 @@ export function verifyReplayAttack(
     };
   }
 
-  // Cho phép chênh lệch đồng hồ máy chủ tối đa 60 giây trong tương lai
-  if (diffSeconds < -60) {
+  // Cho phép chênh lệch đồng hồ máy chủ tối đa 120 giây (2 phút) trong tương lai (hữu ích cho Windows VPS)
+  if (diffSeconds < -120) {
     return {
       valid: false,
-      reason: 'Timestamp trong tương lai vượt quá giới hạn sai lệch đồng hồ (60s)',
+      reason: 'Timestamp trong tương lai vượt quá giới hạn sai lệch đồng hồ (120s)',
     };
   }
 

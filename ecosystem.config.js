@@ -20,8 +20,7 @@ module.exports = {
     {
       name: 'agrilog-frontend',
       cwd: './agrilog-frontend',
-      script: 'node_modules/next/dist/bin/next',
-      args: 'start -p 3000',
+      script: 'start.js',
       instances: 1,
       autorestart: true,
       watch: false,

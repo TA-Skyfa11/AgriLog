@@ -13,12 +13,12 @@ git reset --hard origin/main
 
 echo "🔨 2. Cài đặt và build Backend..."
 cd agrilog-backend
-npm ci
+npm install --legacy-peer-deps
 npm run build
 
 echo "🎨 3. Cài đặt và build Frontend..."
 cd ../agrilog-frontend
-npm ci
+npm install --legacy-peer-deps
 npm run build
 
 echo "⚡ 4. Khởi động / Tải lại tiến trình với PM2..."
