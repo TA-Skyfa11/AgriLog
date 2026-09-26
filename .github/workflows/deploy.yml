@@ -100,7 +100,11 @@ jobs:
             else
               git fetch origin main
               git reset --hard origin/main
-              docker compose up -d --build --remove-orphans
+              cd agrilog-backend && npm ci && npm run build
+              cd ../agrilog-frontend && npm ci && npm run build
+              cd ..
+              npx --yes pm2 reload ecosystem.config.js --update-env || npx --yes pm2 start ecosystem.config.js
+              npx --yes pm2 save
             fi
 
       # ------------------------------------------------------------------------
@@ -121,5 +125,9 @@ jobs:
             } else {
               git fetch origin main
               git reset --hard origin/main
-              docker compose up -d --build --remove-orphans
+              Set-Location agrilog-backend; npm ci; npm run build
+              Set-Location ../agrilog-frontend; npm ci; npm run build
+              Set-Location ..
+              npx --yes pm2 reload ecosystem.config.js --update-env
+              npx --yes pm2 save
             }
