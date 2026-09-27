@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Users, Store, ShoppingCart, Package, Settings, HelpCircle, LogOut } from 'lucide-react';
 import styles from '../../css/AdminLayout.module.css';
+import logoImg from '../../../public/images/landing/logo.png';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -30,7 +31,7 @@ export function Sidebar() {
     <aside className={styles.sidebar}>
       <div className={styles.logoArea}>
         <div className={styles.logoIcon} style={{ background: 'transparent', width: 'auto', height: 'auto' }}>
-          <img src="/images/landing/logo nhật ký.png" alt="AgriLog" width="48" height="48" style={{ objectFit: 'contain' }} />
+          <img src={logoImg.src} alt="AgriLog" width="48" height="48" style={{ objectFit: 'contain' }} />
         </div>
         <div className={styles.logoText}>
           <span className={styles.logoTitle} style={{ fontSize: '1.4rem' }}>AgriLog</span>

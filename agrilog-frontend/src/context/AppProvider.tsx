@@ -83,6 +83,8 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [features, setFeatures] = useState<Record<string, boolean>>({});
   const [disabledPaths, setDisabledPaths] = useState<string[]>([]);
 
+  const [featuresLoaded, setFeaturesLoaded] = useState(false);
+
   const reloadFeatures = async () => {
     try {
       const res = await fetchAPI('/features/active');
@@ -92,11 +94,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch {
       // Bỏ qua lỗi kết nối ban đầu
+    } finally {
+      setFeaturesLoaded(true);
     }
   };
 
   const isFeatureEnabled = (key: string): boolean => {
     if (!key) return true;
+    if (!featuresLoaded) return false; // Tránh flicker (chớp nhoáng hiển thị rồi biến mất)
     return features[key] !== false;
   };
 
