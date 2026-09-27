@@ -135,6 +135,7 @@ export default function CultivationDiaryDetailPage() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [userPlan, setUserPlan] = useState('BASIC');
+  const [allowExport, setAllowExport] = useState<boolean>(true);
 
   // Define new inline input style
   const inlineInputStyle: React.CSSProperties = {
@@ -218,6 +219,7 @@ export default function CultivationDiaryDetailPage() {
       if (profileRes.success) {
         setProfile(profileRes.data);
         setUserPlan(profileRes.data.plan || 'BASIC');
+        setAllowExport(profileRes.data.allowExport !== false);
       }
     } catch (error: any) {
       if (error.message !== 'Board not found') {
@@ -570,8 +572,8 @@ export default function CultivationDiaryDetailPage() {
   };
 
   const exportToExcel = async () => {
-    if (userPlan === 'BASIC') {
-      toast.error('Gói cước Basic không hỗ trợ xuất file Excel. Vui lòng nâng cấp gói cước.');
+    if (!allowExport) {
+      toast.error('Gói cước hiện tại không hỗ trợ xuất file Excel (Không có tính năng lưu trữ/xuất hồ sơ). Vui lòng nâng cấp gói cước.');
       return;
     }
     
@@ -675,10 +677,10 @@ export default function CultivationDiaryDetailPage() {
           <button className={styles.spreadsheetBtn} onClick={handleAddColumn} disabled={userPlan === 'FREE'} style={{ opacity: userPlan === 'FREE' ? 0.5 : 1, cursor: userPlan === 'FREE' ? 'not-allowed' : 'pointer' }} title={userPlan === 'FREE' ? 'Gói Miễn phí không hỗ trợ thêm cột mới' : ''}>
             + Thêm cột
           </button>
-          <button className={styles.spreadsheetBtn} onClick={exportToPDF} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
+          <button className={styles.spreadsheetBtn} onClick={exportToPDF} disabled={!allowExport} style={{ opacity: !allowExport ? 0.5 : 1, cursor: !allowExport ? 'not-allowed' : 'pointer' }} title={!allowExport ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
             <Printer size={16} /> PDF
           </button>
-          <button className={styles.spreadsheetBtn} onClick={exportToExcel} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
+          <button className={styles.spreadsheetBtn} onClick={exportToExcel} disabled={!allowExport} style={{ opacity: !allowExport ? 0.5 : 1, cursor: !allowExport ? 'not-allowed' : 'pointer' }} title={!allowExport ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
             <Download size={16} /> Excel
           </button>
 

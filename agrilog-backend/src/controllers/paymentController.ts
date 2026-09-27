@@ -556,7 +556,16 @@ export const getUserPaymentHistory = async (req: AuthRequest, res: Response) => 
       .sort({ createdAt: -1 })
       .limit(20);
 
-    res.json({ success: true, data: history });
+    const now = new Date();
+    const updatedHistory = await Promise.all(history.map(async (tx) => {
+      if (tx.status === PaymentStatus.PENDING && tx.expiresAt && new Date(tx.expiresAt) < now) {
+        tx.status = PaymentStatus.EXPIRED;
+        await tx.save();
+      }
+      return tx;
+    }));
+
+    res.json({ success: true, data: updatedHistory });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
   }

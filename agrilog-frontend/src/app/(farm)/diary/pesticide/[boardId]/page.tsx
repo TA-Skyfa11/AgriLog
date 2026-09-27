@@ -54,6 +54,7 @@ export default function PesticideDiaryDetailPage() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [userPlan, setUserPlan] = useState('BASIC');
+  const [allowExport, setAllowExport] = useState<boolean>(true);
 
   const inlineInputStyle: React.CSSProperties = {
     width: '100%',
@@ -120,7 +121,10 @@ export default function PesticideDiaryDetailPage() {
         }
       }
       if (materialsRes.success) setMaterials(materialsRes.data);
-      if (profileRes.success) setUserPlan(profileRes.data.plan || 'BASIC');
+      if (profileRes.success) {
+        setUserPlan(profileRes.data.plan || 'BASIC');
+        setAllowExport(profileRes.data.allowExport !== false);
+      }
     } catch (error: any) {
       if (error.message !== 'Board not found') {
         console.error(error);
@@ -433,8 +437,8 @@ export default function PesticideDiaryDetailPage() {
   };
 
   const exportToExcel = () => {
-    if (userPlan === 'BASIC') {
-      alert('Gói cước Basic không hỗ trợ xuất file Excel. Vui lòng nâng cấp gói cước.');
+    if (!allowExport) {
+      alert('Gói cước hiện tại không hỗ trợ xuất file Excel (Không có tính năng lưu trữ/xuất hồ sơ). Vui lòng nâng cấp gói cước.');
       return;
     }
     
@@ -526,7 +530,7 @@ export default function PesticideDiaryDetailPage() {
           <button className={styles.spreadsheetBtn} onClick={exportToPDF} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
             <Printer size={16} /> PDF
           </button>
-          <button className={styles.spreadsheetBtn} onClick={exportToExcel} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
+          <button className={styles.spreadsheetBtn} onClick={exportToExcel} disabled={!allowExport} style={{ opacity: !allowExport ? 0.5 : 1, cursor: !allowExport ? 'not-allowed' : 'pointer' }} title={!allowExport ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
             <Download size={16} /> Excel
           </button>
         </div>

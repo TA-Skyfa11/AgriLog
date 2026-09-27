@@ -8,11 +8,13 @@ import { fetchAPI } from '@/lib/api';
 import { getSafeImageUrl } from '@/lib/image';
 import heroImg from '../../public/images/landing/hero_real.jpg';
 import greenhouseImg from '../../public/images/landing/greenhouse_real.jpg';
+import { useAppContext } from '@/context/AppProvider';
 
 export default function LandingPage() {
   const [packages, setPackages] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const { isFeatureEnabled } = useAppContext();
 
   useEffect(() => {
     const loadData = async () => {
@@ -42,7 +44,9 @@ export default function LandingPage() {
           </Link>
           <nav className={styles.navLinks}>
             <a href="#features" className={styles.navLink}>Tính năng</a>
-            <a href="#store" className={styles.navLink}>Vật tư</a>
+            {isFeatureEnabled('marketplace') && (
+              <a href="#store" className={styles.navLink}>Vật tư</a>
+            )}
             <a href="#pricing" className={styles.navLink}>Bảng giá</a>
           </nav>
           <div className={styles.headerActions}>
@@ -175,43 +179,45 @@ export default function LandingPage() {
         </div>
       </section>
       {/* Store Section */}
-      <section id="store" className={styles.store}>
-        <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-          <h2 className={styles.sectionTitle}>Vật tư Nông nghiệp</h2>
-          <p className={styles.sectionDesc} style={{ margin: '0 auto', maxWidth: '600px' }}>
-            Khám phá các sản phẩm vật tư chất lượng từ Marketplace.
-          </p>
-        </div>
-        <div className={styles.storeCards}>
-          {products.length === 0 ? (
-            <div style={{ textAlign: 'center', width: '100%', padding: '2rem', gridColumn: '1 / -1' }}>Đang tải vật tư...</div>
-          ) : (
-            products.slice(0, 6).map((product) => (
-              <div key={product._id} className={styles.productCard}>
-                <div className={styles.productImg}>
-                  {product.images && product.images.length > 0 ? (
-                    <img src={getSafeImageUrl(product.images[0])} alt={product.name} />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>No Image</div>
-                  )}
-                </div>
-                <div className={styles.productInfo}>
-                  <div className={styles.productCategory}>{product.category}</div>
-                  <h4 className={styles.productTitle}>{product.name}</h4>
-                  <div className={styles.productPrice}>
-                    {product.price.toLocaleString('vi-VN')}đ <span style={{ fontSize: '0.875rem', fontWeight: 'normal', color: 'var(--color-text-muted)' }}>/ {product.unit}</span>
+      {isFeatureEnabled('marketplace') && (
+        <section id="store" className={styles.store}>
+          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <h2 className={styles.sectionTitle}>Vật tư Nông nghiệp</h2>
+            <p className={styles.sectionDesc} style={{ margin: '0 auto', maxWidth: '600px' }}>
+              Khám phá các sản phẩm vật tư chất lượng từ Marketplace.
+            </p>
+          </div>
+          <div className={styles.storeCards}>
+            {products.length === 0 ? (
+              <div style={{ textAlign: 'center', width: '100%', padding: '2rem', gridColumn: '1 / -1' }}>Đang tải vật tư...</div>
+            ) : (
+              products.slice(0, 6).map((product) => (
+                <div key={product._id} className={styles.productCard}>
+                  <div className={styles.productImg}>
+                    {product.images && product.images.length > 0 ? (
+                      <img src={getSafeImageUrl(product.images[0])} alt={product.name} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>No Image</div>
+                    )}
+                  </div>
+                  <div className={styles.productInfo}>
+                    <div className={styles.productCategory}>{product.category}</div>
+                    <h4 className={styles.productTitle}>{product.name}</h4>
+                    <div className={styles.productPrice}>
+                      {product.price.toLocaleString('vi-VN')}đ <span style={{ fontSize: '0.875rem', fontWeight: 'normal', color: 'var(--color-text-muted)' }}>/ {product.unit}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
-        <div style={{ textAlign: 'center', marginTop: '3rem' }}>
-          <Link href="/login" style={{ padding: '0.75rem 2.5rem', border: '2px solid var(--color-primary-600)', color: 'var(--color-primary-600)', fontWeight: 600, borderRadius: '9999px', textDecoration: 'none', display: 'inline-block', transition: 'all 0.2s' }}>
-            Xem tất cả sản phẩm ➔
-          </Link>
-        </div>
-      </section>
+              ))
+            )}
+          </div>
+          <div style={{ textAlign: 'center', marginTop: '3rem' }}>
+            <Link href="/login" style={{ padding: '0.75rem 2.5rem', border: '2px solid var(--color-primary-600)', color: 'var(--color-primary-600)', fontWeight: 600, borderRadius: '9999px', textDecoration: 'none', display: 'inline-block', transition: 'all 0.2s' }}>
+              Xem tất cả sản phẩm ➔
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* Pricing */}
       <section id="pricing" className={styles.pricing}>

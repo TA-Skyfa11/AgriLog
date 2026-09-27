@@ -16,13 +16,21 @@ export default function ReportsPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 
+  const [allowExport, setAllowExport] = useState<boolean>(true);
+
   useEffect(() => {
     const loadStats = async () => {
       setLoading(true);
       try {
-        const res = await fetchAPI(`/farm/reports-stats?month=${selectedMonth}`);
+        const [res, profileRes] = await Promise.all([
+          fetchAPI(`/farm/reports-stats?month=${selectedMonth}`),
+          fetchAPI('/farm/profile')
+        ]);
         if (res.success) {
           setStats(res.data);
+        }
+        if (profileRes.success) {
+          setAllowExport(profileRes.data.allowExport !== false);
         }
       } catch (error) {
         console.error('Error loading stats:', error);
@@ -34,6 +42,10 @@ export default function ReportsPage() {
   }, [selectedMonth]);
 
   const exportToPDF = async () => {
+    if (!allowExport) {
+      toast.error('Gói cước hiện tại không hỗ trợ in PDF (Không có tính năng lưu trữ/xuất hồ sơ). Vui lòng nâng cấp gói cước.');
+      return;
+    }
     const toastId = toast.loading('Đang khởi tạo file PDF báo cáo bằng Puppeteer...');
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -67,6 +79,10 @@ export default function ReportsPage() {
   };
 
   const exportToExcel = () => {
+    if (!allowExport) {
+      toast.error('Gói cước hiện tại không hỗ trợ xuất file Excel (Không có tính năng lưu trữ/xuất hồ sơ). Vui lòng nâng cấp gói cước.');
+      return;
+    }
     import('xlsx').then((XLSX) => {
       const { cultivationReport = [], fertilizerReport = [], pesticideReport = [] } = stats || {};
       const wb = XLSX.utils.book_new();
@@ -122,10 +138,10 @@ export default function ReportsPage() {
             onChange={(e) => setSelectedMonth(e.target.value)}
             style={{ padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--color-border)', outline: 'none', fontWeight: 600, color: 'var(--color-text-main)' }}
           />
-          <button className={styles.button} onClick={exportToPDF} style={{ backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' }}>
+          <button className={styles.button} onClick={exportToPDF} disabled={!allowExport} style={{ backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', opacity: !allowExport ? 0.5 : 1, cursor: !allowExport ? 'not-allowed' : 'pointer' }}>
             <Download size={18} /> In PDF
           </button>
-          <button className={styles.button} onClick={exportToExcel} style={{ backgroundColor: '#10b981' }}>
+          <button className={styles.button} onClick={exportToExcel} disabled={!allowExport} style={{ backgroundColor: '#10b981', opacity: !allowExport ? 0.5 : 1, cursor: !allowExport ? 'not-allowed' : 'pointer' }}>
             <FileSpreadsheet size={18} /> Xuất Excel
           </button>
         </div>

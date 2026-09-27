@@ -22,12 +22,46 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const app = (0, express_1.default)();
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
+// Chuẩn hóa header X-Forwarded-For và X-Real-IP nếu reverse proxy chuyển tiếp port (ví dụ: "171.244.35.2:38052")
+app.use((req, _res, next) => {
+    const xForwardedFor = req.headers['x-forwarded-for'];
+    if (typeof xForwardedFor === 'string' && xForwardedFor.includes(':')) {
+        const cleaned = xForwardedFor
+            .split(',')
+            .map((part) => {
+            const trimmed = part.trim();
+            const ipv4Match = trimmed.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/);
+            if (ipv4Match)
+                return ipv4Match[1];
+            const ipv6Match = trimmed.match(/^\[([a-fA-F0-9:]+)\](:\d+)?$/);
+            if (ipv6Match)
+                return ipv6Match[1];
+            return trimmed;
+        })
+            .join(', ');
+        req.headers['x-forwarded-for'] = cleaned;
+    }
+    const xRealIp = req.headers['x-real-ip'];
+    if (typeof xRealIp === 'string' && xRealIp.includes(':')) {
+        const trimmed = xRealIp.trim();
+        const ipv4Match = trimmed.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d+)?$/);
+        if (ipv4Match) {
+            req.headers['x-real-ip'] = ipv4Match[1];
+        }
+    }
+    next();
+});
 // Middleware
 app.use((0, cors_1.default)({
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true
 }));
-app.use(express_1.default.json());
+// Lưu rawBody để xác thực chữ ký webhook (HMAC-SHA256 của SePay)
+app.use(express_1.default.json({
+    verify: (req, _res, buf) => {
+        req.rawBody = buf;
+    }
+}));
 app.use((0, express_session_1.default)({
     secret: JWT_SECRET,
     resave: false,

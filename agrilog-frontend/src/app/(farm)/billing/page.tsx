@@ -179,6 +179,26 @@ export default function BillingPage() {
     }
   };
 
+  const handleSelectTrialPlan = async (pkg: any) => {
+    setIsCreatingPayment(true);
+    try {
+      const res = await fetchAPI('/farm/profile/select-trial', {
+        method: 'POST',
+        body: JSON.stringify({ packageCode: pkg.code }),
+      });
+      if (res.success) {
+        toast.success(`Đã chọn dùng thử gói ${pkg.name} thành công!`);
+        loadData();
+      } else {
+        toast.error(res.message || 'Lỗi khi chọn gói dùng thử');
+      }
+    } catch (error) {
+      toast.error('Có lỗi xảy ra');
+    } finally {
+      setIsCreatingPayment(false);
+    }
+  };
+
   // Kiểm tra chủ động trạng thái qua SePay API
   const handleCheckStatusNow = async () => {
     if (!paymentData?.paymentCode) return;
@@ -399,18 +419,20 @@ export default function BillingPage() {
             <div className={styles.activePlanText}>
               <h3>
                 {isExpired ? (
-                  <>Trạng thái: <strong style={{ color: '#dc2626' }}>Gói {profile.plan || 'dịch vụ'} đã hết hạn</strong></>
+                  <>Trạng thái: <strong style={{ color: '#dc2626' }}>Gói {profile.plan === 'ALL' ? 'Toàn diện (Cả 3 gói)' : (profile.plan || 'dịch vụ')} đã hết hạn</strong></>
                 ) : isTrial ? (
-                  <>Nông trại hiện đang dùng: <strong style={{ color: '#15803d' }}>Gói {profile.effectivePlan || profile.plan} (Dùng thử miễn phí)</strong></>
+                  <>Nông trại hiện đang dùng: <strong style={{ color: '#15803d' }}>Gói {profile.effectivePlan === 'ALL' ? 'Toàn diện (Cả 3 gói)' : (profile.effectivePlan || profile.plan)} (Dùng thử miễn phí)</strong></>
                 ) : (
-                  <>Nông trại hiện đang dùng: <strong>Gói {currentPlan}</strong></>
+                  <>Nông trại hiện đang dùng: <strong>Gói {currentPlan === 'ALL' ? 'Toàn diện (Cả 3 gói)' : currentPlan}</strong></>
                 )}
               </h3>
               <p>
                 {isExpired
                   ? 'Toàn bộ tính năng tạo mới bảng và ghi chép đã tạm khóa. Vui lòng thanh toán gia hạn bên dưới.'
                   : isTrial
-                  ? `Bạn đang được trải nghiệm miễn phí toàn bộ tính năng cao cấp không giới hạn (${daysLeft} ngày còn lại).`
+                  ? (profile.effectivePlan === 'ALL' || profile.plan === 'ALL')
+                    ? `Bạn đang được trải nghiệm miễn phí trọn bộ cả 3 gói dịch vụ (Basic, Standard, Premium) với đầy đủ tính năng cao cấp (${daysLeft} ngày còn lại).`
+                    : `Bạn đang được trải nghiệm miễn phí toàn bộ tính năng cao cấp không giới hạn (${daysLeft} ngày còn lại).`
                   : currentPlan === 'FREE'
                   ? 'Gói miễn phí với tính năng ghi chép cơ bản.'
                   : `Tất cả các tính năng của gói ${currentPlan} đang hoạt động bình thường.`}
@@ -432,6 +454,9 @@ export default function BillingPage() {
       <div className={styles.pricingGrid}>
         {packages.map((pkg) => {
           const isCurrentActive = profile?.plan === pkg.code && !isExpired;
+          const canSwitchTrial = profile?.isTrialAll && !isExpired && !isCurrentActive;
+          const isDisabled = isCurrentActive || (!canSwitchTrial && !pkg.isActive) || isCreatingPayment;
+
           return (
             <div
               key={pkg._id}
@@ -457,15 +482,17 @@ export default function BillingPage() {
                 className={`${styles.button} ${
                   isCurrentActive ? styles.btnDisabled : styles.btnOutline
                 }`}
-                onClick={() => handleSelectPlan(pkg)}
-                disabled={isCurrentActive || !pkg.isActive || isCreatingPayment}
+                onClick={() => canSwitchTrial ? handleSelectTrialPlan(pkg) : handleSelectPlan(pkg)}
+                disabled={isDisabled}
               >
-                {!pkg.isActive
+                {!pkg.isActive && !canSwitchTrial
                   ? 'Ngừng cung cấp'
+                  : canSwitchTrial
+                  ? 'Chuyển dùng thử gói này'
                   : isCurrentActive
                   ? 'Gói hiện tại'
                   : isCreatingPayment && selectedPkg?.code === pkg.code
-                  ? 'Đang khởi tạo...'
+                  ? 'Đang xử lý...'
                   : isExpired && profile?.plan === pkg.code
                   ? 'Gia hạn gói này'
                   : 'Nâng cấp ngay'}

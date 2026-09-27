@@ -7,9 +7,9 @@ export interface IFarmProfile extends Document {
   areaSqm: number;
   mainCropType: string;
   contactPhone: string;
-  plan: 'FREE' | 'BASIC' | 'STANDARD' | 'PREMIUM';
+  plan: 'FREE' | 'BASIC' | 'STANDARD' | 'PREMIUM' | 'ALL';
   planExpiresAt?: Date;
-  previousPlan?: 'FREE' | 'BASIC' | 'STANDARD' | 'PREMIUM';
+  previousPlan?: 'FREE' | 'BASIC' | 'STANDARD' | 'PREMIUM' | 'ALL';
   isTrial?: boolean;
   notificationPreferences: {
     push: boolean;
@@ -29,9 +29,9 @@ const farmProfileSchema = new Schema<IFarmProfile>(
     areaSqm: { type: Number, required: false },
     mainCropType: { type: String, required: false },
     contactPhone: { type: String, required: false },
-    plan: { type: String, enum: ['FREE', 'BASIC', 'STANDARD', 'PREMIUM'], default: 'FREE' },
+    plan: { type: String, enum: ['FREE', 'BASIC', 'STANDARD', 'PREMIUM', 'ALL'], default: 'FREE' },
     planExpiresAt: { type: Date, required: false },
-    previousPlan: { type: String, enum: ['FREE', 'BASIC', 'STANDARD', 'PREMIUM'], required: false },
+    previousPlan: { type: String, enum: ['FREE', 'BASIC', 'STANDARD', 'PREMIUM', 'ALL'], required: false },
     isTrial: { type: Boolean, default: false },
     notificationPreferences: {
       push: { type: Boolean, default: true },

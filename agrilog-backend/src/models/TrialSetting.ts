@@ -3,7 +3,7 @@ import mongoose, { Document, Schema, Types } from 'mongoose';
 export interface ITrialSetting extends Document {
   isEnabled: boolean;
   durationMonths: number;
-  trialPlan: 'BASIC' | 'STANDARD' | 'PREMIUM';
+  trialPlan: 'BASIC' | 'STANDARD' | 'PREMIUM' | 'ALL';
   lockOnExpiry: boolean;
   updatedBy?: Types.ObjectId;
   createdAt: Date;
@@ -16,7 +16,7 @@ const trialSettingSchema = new Schema<ITrialSetting>(
     durationMonths: { type: Number, default: 1, min: 1, max: 24 },
     trialPlan: {
       type: String,
-      enum: ['BASIC', 'STANDARD', 'PREMIUM'],
+      enum: ['BASIC', 'STANDARD', 'PREMIUM', 'ALL'],
       default: 'PREMIUM',
     },
     lockOnExpiry: { type: Boolean, default: true },

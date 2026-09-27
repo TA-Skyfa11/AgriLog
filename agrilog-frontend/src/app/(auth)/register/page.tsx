@@ -376,7 +376,7 @@ export default function RegisterPage() {
             Chúc mừng bạn đã tạo tài khoản thành công!
           </h2>
           <p style={{ color: 'var(--color-text-muted)', fontSize: '0.925rem', maxWidth: '480px', lineHeight: 1.6, margin: '0 0 1.5rem 0' }}>
-            Nông trại của bạn đã được kích hoạt gói dùng thử <strong style={{ color: '#059669' }}>{trialInfo.effectivePlan || trialInfo.plan || 'PREMIUM'}</strong> với đầy đủ mọi tính năng.
+            Nông trại của bạn đã được kích hoạt gói dùng thử <strong style={{ color: '#059669' }}>{(trialInfo.effectivePlan === 'ALL' || trialInfo.plan === 'ALL') ? 'Toàn bộ cả 3 gói dịch vụ' : (trialInfo.effectivePlan || trialInfo.plan || 'PREMIUM')}</strong> với đầy đủ mọi tính năng.
             {trialInfo.planExpiresAt && (
               <> Thời hạn dùng thử đến ngày <strong style={{ color: '#0f172a' }}>{new Date(trialInfo.planExpiresAt).toLocaleDateString('vi-VN')}</strong>.</>
             )}

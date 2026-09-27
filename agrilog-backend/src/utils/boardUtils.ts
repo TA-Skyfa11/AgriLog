@@ -8,6 +8,7 @@ export const PLAN_LIMITS = {
   BASIC: { columns: 10, products: 3, retentionYears: 1 },
   STANDARD: { columns: 15, products: 5, retentionYears: 2 },
   PREMIUM: { columns: 25, products: 15, retentionYears: 3 },
+  ALL: { columns: 0, products: 0, retentionYears: 1 }, // Người dùng chưa chọn gói
   EXPIRED: { columns: 0, products: 0, retentionYears: 1 },
 };
 
@@ -43,7 +44,7 @@ export const getEffectivePlan = (profile: any) => {
       effectivePlan = 'EXPIRED';
     } else if (profile.previousPlan) {
       const prevPlan = profile.previousPlan.toUpperCase();
-      const planValues = { FREE: 0, BASIC: 1, STANDARD: 2, PREMIUM: 3 };
+      const planValues = { FREE: 0, BASIC: 1, STANDARD: 2, PREMIUM: 3, ALL: 4 };
       const currentVal = planValues[effectivePlan as keyof typeof planValues] || 1;
       const prevVal = planValues[prevPlan as keyof typeof planValues] || 1;
       if (prevVal > currentVal) {

@@ -1,6 +1,39 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateFarmProfile = exports.getFarmProfile = exports.createDefaultFarmProfile = void 0;
+exports.selectTrialPlan = exports.updateFarmProfile = exports.getFarmProfile = exports.createDefaultFarmProfile = void 0;
 const FarmProfile_1 = require("../models/FarmProfile");
 const Notification_1 = require("../models/Notification");
 const boardUtils_1 = require("../utils/boardUtils");
@@ -35,10 +68,13 @@ const createDefaultFarmProfile = async (userId, initialData = {}) => {
     // Tạo thông báo chào mừng dùng thử miễn phí
     if (isTrial && planExpiresAt) {
         try {
+            const planNameText = plan === 'ALL'
+                ? 'toàn bộ cả 3 gói dịch vụ (Basic + Standard + Premium)'
+                : `gói ${plan}`;
             await Notification_1.Notification.create({
                 user: userId,
                 title: 'Kích hoạt dùng thử miễn phí',
-                message: `Chào mừng bạn đến với AgriLog! Bạn được tặng gói dùng thử miễn phí toàn bộ chức năng trong ${trialSetting.durationMonths} tháng (hạn dùng đến ${planExpiresAt.toLocaleDateString('vi-VN')}).`,
+                message: `Chào mừng bạn đến với AgriLog! Bạn được tặng gói dùng thử miễn phí ${planNameText} trong ${trialSetting.durationMonths} tháng (hạn dùng đến ${planExpiresAt.toLocaleDateString('vi-VN')}).`,
                 type: 'BILLING',
             });
         }
@@ -62,6 +98,21 @@ const getFarmProfile = async (req, res) => {
         profileObj.effectivePlan = effectivePlan;
         profileObj.isPlanExpired = expired;
         profileObj.isTrial = profile.isTrial || false;
+        const trialSetting = await (0, boardUtils_1.getOrCreateTrialSetting)();
+        const isTrialAll = profile.isTrial && (profile.plan === 'ALL' || trialSetting.trialPlan === 'ALL' || profile.previousPlan === 'ALL');
+        profileObj.isTrialAll = isTrialAll;
+        // Check if package allows export based on features
+        const { ServicePackage } = await Promise.resolve().then(() => __importStar(require('../models/ServicePackage')));
+        const pkg = await ServicePackage.findOne({ code: effectivePlan });
+        let allowExport = false;
+        if (pkg) {
+            const featureString = pkg.features.join(' ').toLowerCase();
+            allowExport = featureString.includes('lưu trữ') || featureString.includes('hồ sơ') || featureString.includes('xuất');
+        }
+        else {
+            allowExport = effectivePlan !== 'BASIC' && effectivePlan !== 'FREE';
+        }
+        profileObj.allowExport = allowExport;
         res.json({ success: true, data: profileObj });
     }
     catch (error) {
@@ -110,6 +161,8 @@ const updateFarmProfile = async (req, res) => {
         profileObj.effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
         profileObj.isPlanExpired = (0, boardUtils_1.isPlanExpired)(profile);
         profileObj.isTrial = profile.isTrial || false;
+        const trialSetting = await (0, boardUtils_1.getOrCreateTrialSetting)();
+        profileObj.isTrialAll = profile.isTrial && (profile.plan === 'ALL' || trialSetting.trialPlan === 'ALL' || profile.previousPlan === 'ALL');
         res.json({ success: true, data: profileObj });
     }
     catch (error) {
@@ -117,3 +170,38 @@ const updateFarmProfile = async (req, res) => {
     }
 };
 exports.updateFarmProfile = updateFarmProfile;
+const selectTrialPlan = async (req, res) => {
+    try {
+        const { packageCode } = req.body;
+        if (!['BASIC', 'STANDARD', 'PREMIUM'].includes(packageCode)) {
+            return res.status(400).json({ success: false, message: 'Gói không hợp lệ' });
+        }
+        const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ nông trại' });
+        }
+        const trialSetting = await (0, boardUtils_1.getOrCreateTrialSetting)();
+        const isTrialAll = profile.isTrial && (profile.plan === 'ALL' || trialSetting.trialPlan === 'ALL' || profile.previousPlan === 'ALL');
+        if (!isTrialAll) {
+            return res.status(400).json({ success: false, message: 'Bạn không có quyền chuyển đổi gói dùng thử lúc này' });
+        }
+        profile.plan = packageCode;
+        // We KEEP the isTrial=true and the original planExpiresAt!
+        await profile.save();
+        await Notification_1.Notification.create({
+            user: req.user?._id,
+            title: 'Bắt đầu dùng thử gói',
+            message: `Bạn đã chọn dùng thử gói ${packageCode}. Hạn dùng thử đến ngày ${profile.planExpiresAt ? profile.planExpiresAt.toLocaleDateString('vi-VN') : ''}.`,
+            type: 'BILLING'
+        });
+        const profileObj = profile.toObject();
+        profileObj.effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
+        profileObj.isPlanExpired = (0, boardUtils_1.isPlanExpired)(profile);
+        profileObj.isTrial = profile.isTrial;
+        res.json({ success: true, message: 'Đã chọn gói dùng thử', data: profileObj });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.selectTrialPlan = selectTrialPlan;

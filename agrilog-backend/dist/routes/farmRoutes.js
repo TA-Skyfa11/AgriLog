@@ -14,6 +14,7 @@ router.use((0, authMiddleware_1.authorize)(User_1.Role.FARM));
 router.route('/profile')
     .get(farmProfileController_1.getFarmProfile)
     .put(farmProfileController_1.updateFarmProfile);
+router.post('/profile/select-trial', farmProfileController_1.selectTrialPlan);
 router.route('/reports-stats')
     .get(reportsController_1.getReportsStats);
 exports.default = router;

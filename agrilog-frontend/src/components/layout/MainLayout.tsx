@@ -126,21 +126,33 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             
             // Show toasts for unread notifications that haven't been toasted yet in this session
             // Only toast recent notifications (e.g. less than 24 hours old) to avoid bombarding user with old notifications on login
-            const toastedIds = JSON.parse(sessionStorage.getItem('toastedIds') || '[]');
+            let toastedIds = JSON.parse(localStorage.getItem('toastedIds') || '[]');
             const now = new Date().getTime();
             const unread = res.data.filter((n: any) => {
               const isRecent = now - new Date(n.createdAt).getTime() < 24 * 60 * 60 * 1000;
               return !n.isRead && !toastedIds.includes(n._id) && isRecent;
             });
             
+            const hasFetched = sessionStorage.getItem('has_fetched_notifications');
+            
             unread.forEach((n: any) => {
-              toast(n.title + ': ' + n.message, {
-                icon: n.type === 'BILLING' ? '💎' : n.type === 'TASK' ? '📅' : '🔔',
-                duration: 6000,
-              });
+              if (hasFetched) {
+                toast(n.title + ': ' + n.message, {
+                  icon: n.type === 'BILLING' ? '💎' : n.type === 'TASK' ? '📅' : '🔔',
+                  duration: 6000,
+                });
+              }
               toastedIds.push(n._id);
             });
-            sessionStorage.setItem('toastedIds', JSON.stringify(toastedIds));
+
+            if (!hasFetched) {
+              sessionStorage.setItem('has_fetched_notifications', 'true');
+            }
+
+            if (toastedIds.length > 100) {
+              toastedIds = toastedIds.slice(toastedIds.length - 100);
+            }
+            localStorage.setItem('toastedIds', JSON.stringify(toastedIds));
           }
         }
       } catch (e) {}

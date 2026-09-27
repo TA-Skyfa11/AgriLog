@@ -41,10 +41,13 @@ export const createDefaultFarmProfile = async (
   // Tạo thông báo chào mừng dùng thử miễn phí
   if (isTrial && planExpiresAt) {
     try {
+      const planNameText = plan === 'ALL'
+        ? 'toàn bộ cả 3 gói dịch vụ (Basic + Standard + Premium)'
+        : `gói ${plan}`;
       await Notification.create({
         user: userId,
         title: 'Kích hoạt dùng thử miễn phí',
-        message: `Chào mừng bạn đến với AgriLog! Bạn được tặng gói dùng thử miễn phí toàn bộ chức năng trong ${trialSetting.durationMonths} tháng (hạn dùng đến ${planExpiresAt.toLocaleDateString('vi-VN')}).`,
+        message: `Chào mừng bạn đến với AgriLog! Bạn được tặng gói dùng thử miễn phí ${planNameText} trong ${trialSetting.durationMonths} tháng (hạn dùng đến ${planExpiresAt.toLocaleDateString('vi-VN')}).`,
         type: 'BILLING',
       });
     } catch (e) {
@@ -70,6 +73,21 @@ export const getFarmProfile = async (req: AuthRequest, res: Response) => {
     profileObj.effectivePlan = effectivePlan;
     profileObj.isPlanExpired = expired;
     profileObj.isTrial = profile.isTrial || false;
+    const trialSetting = await getOrCreateTrialSetting();
+    const isTrialAll = profile.isTrial && (profile.plan === 'ALL' || trialSetting.trialPlan === 'ALL' || profile.previousPlan === 'ALL');
+    profileObj.isTrialAll = isTrialAll;
+    
+    // Check if package allows export based on features
+    const { ServicePackage } = await import('../models/ServicePackage');
+    const pkg = await ServicePackage.findOne({ code: effectivePlan });
+    let allowExport = false;
+    if (pkg) {
+      const featureString = pkg.features.join(' ').toLowerCase();
+      allowExport = featureString.includes('lưu trữ') || featureString.includes('hồ sơ') || featureString.includes('xuất');
+    } else {
+      allowExport = effectivePlan !== 'BASIC' && effectivePlan !== 'FREE';
+    }
+    profileObj.allowExport = allowExport;
     
     res.json({ success: true, data: profileObj });
   } catch (error) {
@@ -120,8 +138,52 @@ export const updateFarmProfile = async (req: AuthRequest, res: Response) => {
     profileObj.effectivePlan = getEffectivePlan(profile);
     profileObj.isPlanExpired = isPlanExpired(profile);
     profileObj.isTrial = profile.isTrial || false;
+    const trialSetting = await getOrCreateTrialSetting();
+    profileObj.isTrialAll = profile.isTrial && (profile.plan === 'ALL' || trialSetting.trialPlan === 'ALL' || profile.previousPlan === 'ALL');
     
     res.json({ success: true, data: profileObj });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
+export const selectTrialPlan = async (req: AuthRequest, res: Response) => {
+  try {
+    const { packageCode } = req.body;
+    
+    if (!['BASIC', 'STANDARD', 'PREMIUM'].includes(packageCode)) {
+      return res.status(400).json({ success: false, message: 'Gói không hợp lệ' });
+    }
+
+    const profile: any = await FarmProfile.findOne({ user: req.user?._id });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ nông trại' });
+    }
+
+    const trialSetting = await getOrCreateTrialSetting();
+    const isTrialAll = profile.isTrial && (profile.plan === 'ALL' || trialSetting.trialPlan === 'ALL' || profile.previousPlan === 'ALL');
+
+    if (!isTrialAll) {
+      return res.status(400).json({ success: false, message: 'Bạn không có quyền chuyển đổi gói dùng thử lúc này' });
+    }
+
+    profile.plan = packageCode;
+    // We KEEP the isTrial=true and the original planExpiresAt!
+    await profile.save();
+
+    await Notification.create({
+      user: req.user?._id,
+      title: 'Bắt đầu dùng thử gói',
+      message: `Bạn đã chọn dùng thử gói ${packageCode}. Hạn dùng thử đến ngày ${profile.planExpiresAt ? profile.planExpiresAt.toLocaleDateString('vi-VN') : ''}.`,
+      type: 'BILLING'
+    });
+
+    const profileObj: any = profile.toObject();
+    profileObj.effectivePlan = getEffectivePlan(profile);
+    profileObj.isPlanExpired = isPlanExpired(profile);
+    profileObj.isTrial = profile.isTrial;
+    
+    res.json({ success: true, message: 'Đã chọn gói dùng thử', data: profileObj });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
   }

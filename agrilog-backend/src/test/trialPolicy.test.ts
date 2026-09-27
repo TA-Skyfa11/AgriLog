@@ -105,6 +105,25 @@ async function runTests() {
     await TrialSetting.updateOne({}, { $set: { isEnabled: true, durationMonths: 1, trialPlan: 'PREMIUM' } });
   });
 
+  console.log('\n📌 5. Kiểm thử gói cước dùng thử trọn bộ (ALL - Cả 3 gói):');
+  await it('Cấu hình trialPlan là ALL cho phép truy cập đầy đủ quyền lợi cao nhất', async () => {
+    await TrialSetting.updateOne({}, { $set: { isEnabled: true, durationMonths: 3, trialPlan: 'ALL' } });
+    const allTrialUserId = new mongoose.Types.ObjectId();
+    const allProfile = await createDefaultFarmProfile(allTrialUserId, { farmName: 'Nông trại All Packages' });
+
+    assert.strictEqual(allProfile.plan, 'ALL');
+    assert.strictEqual(allProfile.isTrial, true);
+    assert.strictEqual(getEffectivePlan(allProfile), 'ALL');
+    assert.strictEqual(isPlanExpired(allProfile), false);
+
+    const isLocked = await checkBoardLocked(allProfile._id.toString(), new mongoose.Types.ObjectId().toString(), 'ALL');
+    assert.strictEqual(isLocked, false);
+
+    // Dọn dẹp
+    await FarmProfile.deleteMany({ user: allTrialUserId });
+    await TrialSetting.updateOne({}, { $set: { isEnabled: true, durationMonths: 1, trialPlan: 'PREMIUM' } });
+  });
+
   await mongoose.disconnect();
 
   console.log(`\n========================================`);
