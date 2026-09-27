@@ -18,9 +18,13 @@ export default function ServicesPage() {
   // Trial Policy State
   const [trialPolicy, setTrialPolicy] = useState({
     isEnabled: true,
-    durationMonths: 1,
+    durationMonths: 6,
     trialPlan: 'ALL',
-    lockOnExpiry: true
+    lockOnExpiry: false,
+    expiryAction: 'SWITCH_TO_FREE',
+    trialPromptMessage: 'Chào mừng bạn đến với AgriLog! Bạn đang trong thời hạn dùng thử 6 tháng miễn phí. Vui lòng chọn gói dịch vụ để bắt đầu trải nghiệm và tạo bảng nhật ký.',
+    expiryNotificationMessage: 'Thời hạn dùng thử miễn phí của bạn đã kết thúc. Tài khoản đã được chuyển về gói Miễn phí với các chức năng cơ bản (tối đa 1 bảng mỗi loại nhật ký, không xuất Excel/PDF và không tải ảnh). Hãy nâng cấp gói cước bất cứ lúc nào để mở rộng không giới hạn!',
+    requirePlanSelection: true,
   });
   const [applyToExistingUsers, setApplyToExistingUsers] = useState(true);
   const [trialLoading, setTrialLoading] = useState(false);
@@ -67,9 +71,13 @@ export default function ServicesPage() {
       if (res.success && res.data) {
         setTrialPolicy({
           isEnabled: res.data.isEnabled ?? true,
-          durationMonths: res.data.durationMonths ?? 1,
+          durationMonths: res.data.durationMonths ?? 6,
           trialPlan: res.data.trialPlan || 'ALL',
-          lockOnExpiry: res.data.lockOnExpiry ?? true
+          lockOnExpiry: res.data.lockOnExpiry ?? false,
+          expiryAction: res.data.expiryAction || (res.data.lockOnExpiry ? 'LOCK' : 'SWITCH_TO_FREE'),
+          trialPromptMessage: res.data.trialPromptMessage || 'Chào mừng bạn đến với AgriLog! Bạn đang trong thời hạn dùng thử 6 tháng miễn phí. Vui lòng chọn gói dịch vụ để bắt đầu trải nghiệm và tạo bảng nhật ký.',
+          expiryNotificationMessage: res.data.expiryNotificationMessage || 'Thời hạn dùng thử miễn phí của bạn đã kết thúc. Tài khoản đã được chuyển về gói Miễn phí với các chức năng cơ bản (tối đa 1 bảng mỗi loại nhật ký, không xuất Excel/PDF và không tải ảnh). Hãy nâng cấp gói cước bất cứ lúc nào để mở rộng không giới hạn!',
+          requirePlanSelection: res.data.requirePlanSelection ?? true,
         });
       }
     } catch (err) {
@@ -274,9 +282,9 @@ export default function ServicesPage() {
           </div>
 
           <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: '1.25rem', padding: '1.25rem', backgroundColor: '#f8fafc',
-            borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '1rem'
+            borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '1.25rem'
           }}>
             {/* Bật/Tắt Dùng thử */}
             <div>
@@ -286,34 +294,35 @@ export default function ServicesPage() {
               <label style={{
                 display: 'inline-flex', alignItems: 'center', gap: '0.6rem',
                 cursor: 'pointer', padding: '0.5rem 0.75rem', backgroundColor: '#fff',
-                border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.875rem', fontWeight: 500
+                border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.875rem', fontWeight: 500, width: '100%'
               }}>
                 <input
                   type="checkbox"
-                  checked={trialPolicy.isEnabled}
+                  checked={!!trialPolicy.isEnabled}
                   onChange={(e) => setTrialPolicy({ ...trialPolicy, isEnabled: e.target.checked })}
                   style={{ width: '18px', height: '18px', accentColor: '#10b981', cursor: 'pointer' }}
                 />
-                <span>{trialPolicy.isEnabled ? 'Bật dùng thử tự động' : 'Tắt dùng thử (bắt buộc mua ngay)'}</span>
+                <span>{trialPolicy.isEnabled ? 'Bật dùng thử tự động' : 'Tắt dùng thử (bắt buộc mua)'}</span>
               </label>
             </div>
 
             {/* Thời hạn dùng thử (X tháng) */}
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>
-                Thời lượng dùng thử (Số tháng - X)
+                Thời lượng dùng thử (Số tháng)
               </label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <input
                   type="number"
                   min={1}
-                  max={24}
+                  max={36}
                   value={trialPolicy.durationMonths}
                   onChange={(e) => setTrialPolicy({ ...trialPolicy, durationMonths: Math.max(1, Number(e.target.value) || 1) })}
                   disabled={!trialPolicy.isEnabled}
                   style={{
                     width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1',
-                    borderRadius: '6px', fontSize: '0.875rem', backgroundColor: trialPolicy.isEnabled ? '#fff' : '#f1f5f9'
+                    borderRadius: '6px', fontSize: '0.875rem', backgroundColor: trialPolicy.isEnabled ? '#fff' : '#f1f5f9',
+                    fontWeight: 600
                   }}
                   required
                 />
@@ -324,7 +333,7 @@ export default function ServicesPage() {
             {/* Gói cước cấp trong thời gian dùng thử */}
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>
-                Gói tính năng được cấp
+                Gói tính năng dùng thử ban đầu
               </label>
               <select
                 value={trialPolicy.trialPlan}
@@ -336,32 +345,101 @@ export default function ServicesPage() {
                   fontWeight: 600
                 }}
               >
-                <option value="ALL">CẢ 3 GÓI (Toàn bộ gói Basic + Standard + Premium - Trọn quyền lợi)</option>
-                <option value="PREMIUM">PREMIUM (Đầy đủ tất cả chức năng - Khuyên dùng)</option>
+                <option value="ALL">CẢ 3 GÓI (Yêu cầu người dùng chọn gói trải nghiệm)</option>
+                <option value="PREMIUM">PREMIUM (Cấp thẳng toàn bộ tính năng cao cấp)</option>
                 <option value="STANDARD">STANDARD (Gói tiêu chuẩn)</option>
                 <option value="BASIC">BASIC (Gói cơ bản)</option>
               </select>
             </div>
 
-            {/* Tự động khóa sau khi hết hạn */}
+            {/* Lựa chọn sau khi hết hạn */}
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>
-                Khi hết hạn {trialPolicy.durationMonths} tháng
+                Hành động sau khi hết hạn {trialPolicy.durationMonths} tháng
               </label>
-              <label style={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.6rem',
-                cursor: 'pointer', padding: '0.5rem 0.75rem', backgroundColor: '#fff',
-                border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '0.875rem', fontWeight: 500
-              }}>
-                <input
-                  type="checkbox"
-                  checked={trialPolicy.lockOnExpiry}
-                  onChange={(e) => setTrialPolicy({ ...trialPolicy, lockOnExpiry: e.target.checked })}
-                  disabled={!trialPolicy.isEnabled}
-                  style={{ width: '18px', height: '18px', accentColor: '#10b981', cursor: 'pointer' }}
-                />
-                <span>Khóa tính năng &amp; yêu cầu mua gói</span>
+              <select
+                value={trialPolicy.expiryAction}
+                onChange={(e) => {
+                  const action = e.target.value;
+                  setTrialPolicy({
+                    ...trialPolicy,
+                    expiryAction: action,
+                    lockOnExpiry: action === 'LOCK'
+                  });
+                }}
+                disabled={!trialPolicy.isEnabled}
+                style={{
+                  width: '100%', padding: '0.5rem 0.75rem', border: '1px solid #cbd5e1',
+                  borderRadius: '6px', fontSize: '0.875rem', backgroundColor: trialPolicy.isEnabled ? '#fff' : '#f1f5f9',
+                  fontWeight: 600
+                }}
+              >
+                <option value="SWITCH_TO_FREE">Chuyển về gói Miễn phí (FREE): Tối đa 1 bảng/nhật ký, không xuất Excel/PDF, không tải ảnh</option>
+                <option value="LOCK">Khóa toàn bộ tính năng và yêu cầu nâng cấp gói cước</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Ô nhập thông báo nhắc chọn gói và cấu hình bắt buộc chọn gói */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: '1.25rem', padding: '1.25rem', backgroundColor: '#f8fafc',
+            borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '1.25rem'
+          }}>
+            {/* Thông báo nhắc chọn gói */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#334155' }}>
+                  Thông báo nhắc chọn gói dùng thử
+                </label>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: '#059669', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!trialPolicy.requirePlanSelection}
+                    onChange={(e) => setTrialPolicy({ ...trialPolicy, requirePlanSelection: e.target.checked })}
+                    disabled={!trialPolicy.isEnabled}
+                    style={{ accentColor: '#10b981' }}
+                  />
+                  <span>Yêu cầu chọn gói trước khi tạo bảng</span>
+                </label>
+              </div>
+              <textarea
+                value={trialPolicy.trialPromptMessage}
+                onChange={(e) => setTrialPolicy({ ...trialPolicy, trialPromptMessage: e.target.value })}
+                disabled={!trialPolicy.isEnabled}
+                rows={3}
+                placeholder="Nhập lời nhắn nhắc nhở người dùng chọn gói cước khi đang dùng thử..."
+                style={{
+                  width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #cbd5e1',
+                  borderRadius: '6px', fontSize: '0.85rem', backgroundColor: trialPolicy.isEnabled ? '#fff' : '#f1f5f9',
+                  lineHeight: 1.4, resize: 'vertical'
+                }}
+              />
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                Hiển thị tại banner và popup nhắc chọn gói khi người dùng vào nhật ký / chuẩn bị tạo bảng.
+              </span>
+            </div>
+
+            {/* Thông báo khi hết hạn dùng thử */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.4rem' }}>
+                Thông báo gửi tới người dùng khi hết hạn dùng thử
               </label>
+              <textarea
+                value={trialPolicy.expiryNotificationMessage}
+                onChange={(e) => setTrialPolicy({ ...trialPolicy, expiryNotificationMessage: e.target.value })}
+                disabled={!trialPolicy.isEnabled}
+                rows={3}
+                placeholder="Nhập nội dung thông báo gửi khi hết hạn dùng thử..."
+                style={{
+                  width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #cbd5e1',
+                  borderRadius: '6px', fontSize: '0.85rem', backgroundColor: trialPolicy.isEnabled ? '#fff' : '#f1f5f9',
+                  lineHeight: 1.4, resize: 'vertical'
+                }}
+              />
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                Gửi thông báo hòm thư cho người dùng khi thời hạn {trialPolicy.durationMonths} tháng kết thúc để thông báo chuyển về gói Free hoặc yêu cầu gia hạn.
+              </span>
             </div>
           </div>
 
@@ -391,8 +469,9 @@ export default function ServicesPage() {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.8rem', color: '#64748b' }}>
             <AlertCircle size={16} color="#0284c7" style={{ marginTop: '2px', flexShrink: 0 }} />
             <span>
-              Cơ chế: Khi người dùng Nông trại mới đăng ký (hoặc khi lưu áp dụng cho tài khoản trước đó), hệ thống sẽ kích hoạt {trialPolicy.trialPlan === 'ALL' ? 'toàn bộ cả 3 gói dịch vụ (Basic + Standard + Premium)' : `gói ${trialPolicy.trialPlan}`} với thời hạn {trialPolicy.durationMonths} tháng.
-              Sau {trialPolicy.durationMonths} tháng, nếu chưa mua gói cước, hệ thống sẽ khóa chức năng ghi chép canh tác/tạo bảng và hiển thị thông báo yêu cầu mua gói tại trang Thanh toán.
+              Cơ chế: Người dùng đăng ký sẽ được trải nghiệm dùng thử trong <strong>{trialPolicy.durationMonths} tháng</strong>.
+              Nếu chọn &quot;CẢ 3 GÓI&quot;, hệ thống sẽ yêu cầu người dùng chọn 1 gói muốn thử (Basic, Standard hoặc Premium) trước khi tạo bảng để tránh việc vào tạo bảng gặp lỗi.
+              Sau khi hết {trialPolicy.durationMonths} tháng, {trialPolicy.expiryAction === 'SWITCH_TO_FREE' ? 'hệ thống tự động chuyển tài khoản về gói Miễn phí (chỉ được tạo 1 bảng/nhật ký, không xuất Excel/PDF và không tải ảnh).' : 'hệ thống sẽ khóa tạo bảng và yêu cầu mua gói.'}
             </span>
           </div>
         </form>

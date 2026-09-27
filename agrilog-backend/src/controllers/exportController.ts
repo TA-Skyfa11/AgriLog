@@ -19,11 +19,17 @@ import {
  * Check if the farm profile is permitted to export PDF
  */
 const checkPlanPermission = (profile: any, res: Response): boolean => {
-  const plan = (profile.plan || 'BASIC').toUpperCase();
-  if (plan === 'BASIC') {
+  const { getEffectivePlan } = require('../utils/boardUtils');
+  const plan = getEffectivePlan(profile);
+  if (plan === 'FREE' || plan === 'BASIC' || plan === 'EXPIRED') {
     res.status(403).json({
       success: false,
-      message: 'Gói cước Basic không hỗ trợ xuất file PDF. Vui lòng nâng cấp gói cước.',
+      message:
+        plan === 'FREE'
+          ? 'Gói cước Miễn phí không hỗ trợ xuất báo cáo PDF/Excel. Vui lòng nâng cấp gói cước.'
+          : plan === 'EXPIRED'
+          ? 'Gói cước của bạn đã hết hạn. Vui lòng gia hạn gói cước để sử dụng tính năng xuất file.'
+          : 'Gói cước Basic không hỗ trợ xuất file PDF. Vui lòng nâng cấp gói cước.',
     });
     return false;
   }

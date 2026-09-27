@@ -454,7 +454,7 @@ export default function BillingPage() {
       <div className={styles.pricingGrid}>
         {packages.map((pkg) => {
           const isCurrentActive = profile?.plan === pkg.code && !isExpired;
-          const canSwitchTrial = profile?.isTrialAll && !isExpired && !isCurrentActive;
+          const canSwitchTrial = profile?.isTrial && !isExpired && !isCurrentActive;
           const isDisabled = isCurrentActive || (!canSwitchTrial && !pkg.isActive) || isCreatingPayment;
 
           return (

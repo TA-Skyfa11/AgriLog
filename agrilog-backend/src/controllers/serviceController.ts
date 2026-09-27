@@ -120,7 +120,18 @@ export const getTrialPolicy = async (req: AuthRequest, res: Response) => {
 export const updateTrialPolicy = async (req: AuthRequest, res: Response) => {
   try {
     const { getOrCreateTrialSetting } = await import('../utils/boardUtils');
-    const { isEnabled, durationMonths, trialPlan, lockOnExpiry, applyToExistingUsers } = req.body;
+    const {
+      isEnabled,
+      durationMonths,
+      trialPlan,
+      lockOnExpiry,
+      expiryAction,
+      trialPromptMessage,
+      expiryNotificationMessage,
+      requirePlanSelection,
+      applyToExistingUsers,
+    } = req.body;
+
     const setting = await getOrCreateTrialSetting();
 
     if (typeof isEnabled === 'boolean') setting.isEnabled = isEnabled;
@@ -130,7 +141,22 @@ export const updateTrialPolicy = async (req: AuthRequest, res: Response) => {
     if (trialPlan && ['BASIC', 'STANDARD', 'PREMIUM', 'ALL'].includes(trialPlan)) {
       setting.trialPlan = trialPlan;
     }
-    if (typeof lockOnExpiry === 'boolean') setting.lockOnExpiry = lockOnExpiry;
+    if (expiryAction && ['SWITCH_TO_FREE', 'LOCK'].includes(expiryAction)) {
+      setting.expiryAction = expiryAction;
+      setting.lockOnExpiry = expiryAction === 'LOCK';
+    } else if (typeof lockOnExpiry === 'boolean') {
+      setting.lockOnExpiry = lockOnExpiry;
+      setting.expiryAction = lockOnExpiry ? 'LOCK' : 'SWITCH_TO_FREE';
+    }
+    if (typeof trialPromptMessage === 'string') {
+      setting.trialPromptMessage = trialPromptMessage.trim();
+    }
+    if (typeof expiryNotificationMessage === 'string') {
+      setting.expiryNotificationMessage = expiryNotificationMessage.trim();
+    }
+    if (typeof requirePlanSelection === 'boolean') {
+      setting.requirePlanSelection = requirePlanSelection;
+    }
     setting.updatedBy = req.user?._id as any;
 
     await setting.save();
@@ -144,12 +170,16 @@ export const updateTrialPolicy = async (req: AuthRequest, res: Response) => {
 
       // Tìm tất cả tài khoản nông dân (FARM)
       const farmUsers = await User.find({ role: Role.FARM });
-      const durationDays = (setting.durationMonths || 1) * 30;
+      const durationDays = (setting.durationMonths || 6) * 30;
       const newExpiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
 
       const planNameText = setting.trialPlan === 'ALL'
-        ? 'toàn bộ cả 3 gói dịch vụ (Basic + Standard + Premium)'
+        ? 'toàn bộ các gói dịch vụ (Basic, Standard, Premium)'
         : `gói ${setting.trialPlan}`;
+
+      const notifMessage = setting.trialPlan === 'ALL' && setting.trialPromptMessage
+        ? `${setting.trialPromptMessage} (Thời hạn dùng thử đến ${newExpiresAt.toLocaleDateString('vi-VN')})`
+        : `Tài khoản của bạn đã được quản trị viên cấp quyền sử dụng ${planNameText} miễn phí trong ${setting.durationMonths} tháng (hạn sử dụng đến ngày ${newExpiresAt.toLocaleDateString('vi-VN')}). Hãy trải nghiệm ngay mọi tính năng!`;
 
       for (const user of farmUsers) {
         let profile = await FarmProfile.findOne({ user: user._id });
@@ -173,8 +203,8 @@ export const updateTrialPolicy = async (req: AuthRequest, res: Response) => {
         try {
           await Notification.create({
             user: user._id,
-            title: 'Kích hoạt quyền dùng thử dịch vụ',
-            message: `Tài khoản của bạn đã được quản trị viên cấp quyền sử dụng ${planNameText} miễn phí trong ${setting.durationMonths} tháng (hạn sử dụng đến ngày ${newExpiresAt.toLocaleDateString('vi-VN')}). Hãy trải nghiệm ngay mọi tính năng!`,
+            title: `Kích hoạt dùng thử ${setting.durationMonths} tháng`,
+            message: notifMessage,
             type: 'BILLING',
           });
         } catch (notifErr) {

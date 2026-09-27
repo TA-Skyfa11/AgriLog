@@ -199,8 +199,8 @@ export default function FertilizerDiaryDetailPage() {
           toast.success('Đã lưu và đồng bộ sang Canh tác & Phun thuốc');
         }
       }
-    } catch (error) {
-      console.error('Lỗi lưu', error);
+    } catch (error: any) {
+      toast.error(error.message || 'Lỗi lưu', { id: 'save-error' });
     } finally {
       setSavingId(null);
     }

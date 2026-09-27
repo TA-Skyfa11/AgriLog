@@ -203,8 +203,8 @@ export default function PesticideDiaryDetailPage() {
           toast.success('Đã lưu và đồng bộ sang Canh tác & Bón phân');
         }
       }
-    } catch (error) {
-      console.error('Lỗi lưu', error);
+    } catch (error: any) {
+      toast.error(error.message || 'Lỗi lưu', { id: 'save-error' });
     } finally {
       setSavingId(null);
     }

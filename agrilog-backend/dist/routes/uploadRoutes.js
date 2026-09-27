@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -34,9 +67,12 @@ const upload = (0, multer_1.default)({
     },
 });
 const IMAGE_LIMITS = {
+    FREE: 0,
+    EXPIRED: 0,
     BASIC: 50,
     STANDARD: 500,
     PREMIUM: Infinity,
+    ALL: 500, // Khi dùng thử ALL
 };
 // Check image limit middleware
 const checkImageLimit = async (req, res, next) => {
@@ -48,8 +84,17 @@ const checkImageLimit = async (req, res, next) => {
         if (!profile) {
             return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
         }
-        const normalizedPlan = (profile.plan || 'BASIC').toUpperCase();
-        const limit = IMAGE_LIMITS[normalizedPlan] || 50;
+        const { getEffectivePlan } = await Promise.resolve().then(() => __importStar(require('../utils/boardUtils')));
+        const effectivePlan = getEffectivePlan(profile);
+        const limit = IMAGE_LIMITS[effectivePlan] ?? (effectivePlan === 'FREE' || effectivePlan === 'EXPIRED' ? 0 : 50);
+        if (limit === 0) {
+            return res.status(403).json({
+                success: false,
+                message: effectivePlan === 'EXPIRED'
+                    ? 'Gói cước của bạn đã hết hạn. Vui lòng gia hạn gói cước để tiếp tục tải ảnh.'
+                    : 'Gói cước Miễn phí không hỗ trợ tính năng tải ảnh/cập nhật ảnh. Vui lòng nâng cấp gói cước để sử dụng tính năng này.'
+            });
+        }
         if (limit !== Infinity) {
             const startOfMonth = new Date();
             startOfMonth.setDate(1);

@@ -18,8 +18,8 @@ export const createDefaultFarmProfile = async (
 
   // Nếu chính sách dùng thử đang BẬT và tài khoản chưa từng mua gói
   if (trialSetting.isEnabled) {
-    const durationDays = (trialSetting.durationMonths || 1) * 30;
-    plan = trialSetting.trialPlan || 'PREMIUM';
+    const durationDays = (trialSetting.durationMonths || 6) * 30;
+    plan = trialSetting.trialPlan || 'ALL';
     planExpiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
     isTrial = true;
   }
@@ -42,12 +42,14 @@ export const createDefaultFarmProfile = async (
   if (isTrial && planExpiresAt) {
     try {
       const planNameText = plan === 'ALL'
-        ? 'toàn bộ cả 3 gói dịch vụ (Basic + Standard + Premium)'
+        ? 'toàn bộ các gói dịch vụ (Basic, Standard, Premium)'
         : `gói ${plan}`;
+      const welcomeMsg = trialSetting.trialPromptMessage || `Chào mừng bạn đến với AgriLog! Bạn được tặng ${trialSetting.durationMonths} tháng dùng thử miễn phí (${planNameText}). Vui lòng chọn gói dịch vụ để bắt đầu trải nghiệm (hạn dùng đến ${planExpiresAt.toLocaleDateString('vi-VN')}).`;
+      
       await Notification.create({
         user: userId,
-        title: 'Kích hoạt dùng thử miễn phí',
-        message: `Chào mừng bạn đến với AgriLog! Bạn được tặng gói dùng thử miễn phí ${planNameText} trong ${trialSetting.durationMonths} tháng (hạn dùng đến ${planExpiresAt.toLocaleDateString('vi-VN')}).`,
+        title: `Kích hoạt dùng thử miễn phí ${trialSetting.durationMonths} tháng`,
+        message: welcomeMsg,
         type: 'BILLING',
       });
     } catch (e) {
@@ -64,6 +66,32 @@ export const getFarmProfile = async (req: AuthRequest, res: Response) => {
     if (!profile) {
       profile = await createDefaultFarmProfile(req.user?._id);
     }
+
+    const trialSetting = await getOrCreateTrialSetting();
+
+    // Tự động kiểm tra hết hạn dùng thử -> Thông báo & Chuyển về gói FREE nếu cấu hình là SWITCH_TO_FREE
+    if (profile.isTrial && profile.planExpiresAt && new Date(profile.planExpiresAt) < new Date()) {
+      if (trialSetting.expiryAction === 'SWITCH_TO_FREE' || !trialSetting.lockOnExpiry) {
+        if (profile.plan !== 'FREE') {
+          profile.plan = 'FREE';
+          profile.isTrial = false;
+          await profile.save();
+
+          try {
+            await Notification.create({
+              user: req.user?._id,
+              title: 'Hết hạn dùng thử - Chuyển sang gói Miễn phí',
+              message:
+                trialSetting.expiryNotificationMessage ||
+                'Thời hạn dùng thử miễn phí của bạn đã kết thúc. Tài khoản của bạn đã được chuyển về gói Miễn phí với các chức năng cơ bản (tối đa 1 bảng mỗi loại nhật ký, không xuất Excel/PDF và không tải ảnh).',
+              type: 'BILLING',
+            });
+          } catch (notifErr) {
+            console.warn('Lỗi tạo thông báo hết hạn trial:', notifErr);
+          }
+        }
+      }
+    }
     
     // Gắn thông tin tính toán gói cước hiệu dụng và trạng thái hết hạn
     const profileObj: any = profile.toObject ? profile.toObject() : profile;
@@ -73,19 +101,29 @@ export const getFarmProfile = async (req: AuthRequest, res: Response) => {
     profileObj.effectivePlan = effectivePlan;
     profileObj.isPlanExpired = expired;
     profileObj.isTrial = profile.isTrial || false;
-    const trialSetting = await getOrCreateTrialSetting();
-    const isTrialAll = profile.isTrial && (profile.plan === 'ALL' || trialSetting.trialPlan === 'ALL' || profile.previousPlan === 'ALL');
+    const isTrialAll = profile.isTrial && profile.plan === 'ALL';
     profileObj.isTrialAll = isTrialAll;
+
+    // Gắn thông tin cấu hình dùng thử để frontend hiển thị thông báo & modal chọn gói
+    profileObj.trialPromptMessage = trialSetting.trialPromptMessage;
+    profileObj.expiryNotificationMessage = trialSetting.expiryNotificationMessage;
+    profileObj.requirePlanSelection = trialSetting.requirePlanSelection;
+    profileObj.trialDurationMonths = trialSetting.durationMonths;
+    profileObj.expiryAction = trialSetting.expiryAction;
     
     // Check if package allows export based on features
-    const { ServicePackage } = await import('../models/ServicePackage');
-    const pkg = await ServicePackage.findOne({ code: effectivePlan });
     let allowExport = false;
-    if (pkg) {
-      const featureString = pkg.features.join(' ').toLowerCase();
-      allowExport = featureString.includes('lưu trữ') || featureString.includes('hồ sơ') || featureString.includes('xuất');
+    if (effectivePlan === 'FREE' || effectivePlan === 'BASIC' || effectivePlan === 'EXPIRED') {
+      allowExport = false;
     } else {
-      allowExport = effectivePlan !== 'BASIC' && effectivePlan !== 'FREE';
+      const { ServicePackage } = await import('../models/ServicePackage');
+      const pkg = await ServicePackage.findOne({ code: effectivePlan });
+      if (pkg) {
+        const featureString = pkg.features.join(' ').toLowerCase();
+        allowExport = featureString.includes('lưu trữ') || featureString.includes('hồ sơ') || featureString.includes('xuất');
+      } else {
+        allowExport = true;
+      }
     }
     profileObj.allowExport = allowExport;
     
@@ -139,7 +177,7 @@ export const updateFarmProfile = async (req: AuthRequest, res: Response) => {
     profileObj.isPlanExpired = isPlanExpired(profile);
     profileObj.isTrial = profile.isTrial || false;
     const trialSetting = await getOrCreateTrialSetting();
-    profileObj.isTrialAll = profile.isTrial && (profile.plan === 'ALL' || trialSetting.trialPlan === 'ALL' || profile.previousPlan === 'ALL');
+    profileObj.isTrialAll = profile.isTrial && profile.plan === 'ALL';
     
     res.json({ success: true, data: profileObj });
   } catch (error) {
@@ -160,21 +198,23 @@ export const selectTrialPlan = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ nông trại' });
     }
 
-    const trialSetting = await getOrCreateTrialSetting();
-    const isTrialAll = profile.isTrial && (profile.plan === 'ALL' || trialSetting.trialPlan === 'ALL' || profile.previousPlan === 'ALL');
+    if (!profile.isTrial) {
+      return res.status(400).json({ success: false, message: 'Tài khoản của bạn hiện không trong thời gian dùng thử' });
+    }
 
-    if (!isTrialAll) {
-      return res.status(400).json({ success: false, message: 'Bạn không có quyền chuyển đổi gói dùng thử lúc này' });
+    if (isPlanExpired(profile)) {
+      return res.status(400).json({ success: false, message: 'Thời hạn dùng thử miễn phí của bạn đã kết thúc' });
     }
 
     profile.plan = packageCode;
     // We KEEP the isTrial=true and the original planExpiresAt!
     await profile.save();
 
+    const expiryDateStr = profile.planExpiresAt ? new Date(profile.planExpiresAt).toLocaleDateString('vi-VN') : '';
     await Notification.create({
       user: req.user?._id,
-      title: 'Bắt đầu dùng thử gói',
-      message: `Bạn đã chọn dùng thử gói ${packageCode}. Hạn dùng thử đến ngày ${profile.planExpiresAt ? profile.planExpiresAt.toLocaleDateString('vi-VN') : ''}.`,
+      title: `Bắt đầu dùng thử gói ${packageCode}`,
+      message: `Bạn đã bắt đầu dùng thử gói ${packageCode}. Hạn dùng thử đến ngày ${expiryDateStr}. Chúc bạn có trải nghiệm tuyệt vời và ghi chép mùa vụ thật hiệu quả!`,
       type: 'BILLING'
     });
 
@@ -183,7 +223,11 @@ export const selectTrialPlan = async (req: AuthRequest, res: Response) => {
     profileObj.isPlanExpired = isPlanExpired(profile);
     profileObj.isTrial = profile.isTrial;
     
-    res.json({ success: true, message: 'Đã chọn gói dùng thử', data: profileObj });
+    res.json({
+      success: true,
+      message: `Bắt đầu dùng thử theo gói ${packageCode} đã chọn! Hạn dùng đến ngày ${expiryDateStr}.`,
+      data: profileObj
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
   }

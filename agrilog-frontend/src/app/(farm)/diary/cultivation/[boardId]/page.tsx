@@ -283,8 +283,8 @@ export default function CultivationDiaryDetailPage() {
           toast.success('Đã lưu và đồng bộ sang Bón phân & Phun thuốc');
         }
       }
-    } catch (error) {
-      console.error('Lỗi khi lưu', error);
+    } catch (error: any) {
+      toast.error(error.message || 'Lỗi khi lưu', { id: 'save-error' });
     } finally {
       setSavingId(null);
     }

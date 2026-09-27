@@ -6,11 +6,11 @@ const FertilizerBoard_1 = require("../models/FertilizerBoard");
 const PesticideBoard_1 = require("../models/PesticideBoard");
 const TrialSetting_1 = require("../models/TrialSetting");
 exports.PLAN_LIMITS = {
-    FREE: { columns: 0, products: 1, retentionYears: 1 },
+    FREE: { columns: 5, products: 1, retentionYears: 1 },
     BASIC: { columns: 10, products: 3, retentionYears: 1 },
     STANDARD: { columns: 15, products: 5, retentionYears: 2 },
     PREMIUM: { columns: 25, products: 15, retentionYears: 3 },
-    ALL: { columns: 0, products: 0, retentionYears: 1 }, // Người dùng chưa chọn gói
+    ALL: { columns: 0, products: 0, retentionYears: 1 }, // Người dùng dùng thử chưa chọn gói cụ thể
     EXPIRED: { columns: 0, products: 0, retentionYears: 1 },
 };
 /**
@@ -21,9 +21,13 @@ const getOrCreateTrialSetting = async () => {
     if (!setting) {
         setting = await TrialSetting_1.TrialSetting.create({
             isEnabled: true,
-            durationMonths: 1, // Mặc định 1 tháng miễn phí toàn bộ chức năng
-            trialPlan: 'PREMIUM', // Cấp gói cao nhất full chức năng
-            lockOnExpiry: true,
+            durationMonths: 6, // Mặc định 6 tháng dùng thử miễn phí
+            trialPlan: 'ALL', // Mặc định cho phép trải nghiệm các gói, yêu cầu chọn gói
+            lockOnExpiry: false,
+            expiryAction: 'SWITCH_TO_FREE',
+            trialPromptMessage: 'Chào mừng bạn đến với AgriLog! Bạn đang trong thời hạn dùng thử 6 tháng miễn phí. Vui lòng chọn gói dịch vụ để bắt đầu trải nghiệm và tạo bảng nhật ký.',
+            expiryNotificationMessage: 'Thời hạn dùng thử miễn phí của bạn đã kết thúc. Tài khoản đã được chuyển về gói Miễn phí với các chức năng cơ bản (tối đa 1 bảng mỗi loại nhật ký, không xuất Excel/PDF và không tải ảnh). Hãy nâng cấp gói cước bất cứ lúc nào để mở rộng không giới hạn!',
+            requirePlanSelection: true,
         });
     }
     return setting;
@@ -42,7 +46,12 @@ const getEffectivePlan = (profile) => {
     let effectivePlan = (profile.plan || 'FREE').toUpperCase();
     if (profile.planExpiresAt) {
         if (new Date(profile.planExpiresAt) < new Date()) {
-            effectivePlan = 'EXPIRED';
+            if (profile.plan === 'FREE') {
+                effectivePlan = 'FREE';
+            }
+            else {
+                effectivePlan = 'EXPIRED';
+            }
         }
         else if (profile.previousPlan) {
             const prevPlan = profile.previousPlan.toUpperCase();

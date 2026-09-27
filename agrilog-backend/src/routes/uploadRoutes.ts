@@ -34,9 +34,12 @@ const upload = multer({
 });
 
 const IMAGE_LIMITS: Record<string, number> = {
+  FREE: 0,
+  EXPIRED: 0,
   BASIC: 50,
   STANDARD: 500,
   PREMIUM: Infinity,
+  ALL: 500, // Khi dùng thử ALL
 };
 
 interface UploadRequest extends AuthRequest {
@@ -55,9 +58,19 @@ const checkImageLimit = async (req: UploadRequest, res: express.Response, next: 
       return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
     }
     
-    const normalizedPlan = (profile.plan || 'BASIC').toUpperCase();
-    const limit = IMAGE_LIMITS[normalizedPlan] || 50;
+    const { getEffectivePlan } = await import('../utils/boardUtils');
+    const effectivePlan = getEffectivePlan(profile);
+    const limit = IMAGE_LIMITS[effectivePlan] ?? (effectivePlan === 'FREE' || effectivePlan === 'EXPIRED' ? 0 : 50);
     
+    if (limit === 0) {
+      return res.status(403).json({ 
+        success: false, 
+        message: effectivePlan === 'EXPIRED'
+          ? 'Gói cước của bạn đã hết hạn. Vui lòng gia hạn gói cước để tiếp tục tải ảnh.'
+          : 'Gói cước Miễn phí không hỗ trợ tính năng tải ảnh/cập nhật ảnh. Vui lòng nâng cấp gói cước để sử dụng tính năng này.'
+      });
+    }
+
     if (limit !== Infinity) {
       const startOfMonth = new Date();
       startOfMonth.setDate(1);

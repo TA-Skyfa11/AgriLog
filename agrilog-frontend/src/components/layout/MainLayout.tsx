@@ -10,12 +10,13 @@ import {
   Home, Leaf, FlaskConical, ShieldAlert, Package, 
   ShoppingBag, Calendar, BarChart2, CreditCard, 
   User, Settings, Search, Sun, Bell, ShoppingCart, LogOut, Check, X,
-  Building, PackagePlus, ClipboardList, PieChart, Menu, ChevronLeft
+  Building, PackagePlus, ClipboardList, PieChart, Menu, ChevronLeft, Sparkles, CheckCheck
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi, enUS } from 'date-fns/locale';
 import { Toaster, toast } from 'react-hot-toast';
 import { useAppContext } from '@/context/AppProvider';
+import SelectTrialModal from '@/components/trial/SelectTrialModal';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -38,6 +39,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const [time, setTime] = React.useState(new Date());
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
   const [farmProfile, setFarmProfile] = React.useState<any>(null);
+  const [showTrialModal, setShowTrialModal] = React.useState(false);
 
   React.useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000);
@@ -136,12 +138,6 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             const hasFetched = sessionStorage.getItem('has_fetched_notifications');
             
             unread.forEach((n: any) => {
-              if (hasFetched) {
-                toast(n.title + ': ' + n.message, {
-                  icon: n.type === 'BILLING' ? '💎' : n.type === 'TASK' ? '📅' : '🔔',
-                  duration: 6000,
-                });
-              }
               toastedIds.push(n._id);
             });
 
@@ -173,6 +169,15 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
         router.push('/billing');
       }
       setShowNotifications(false);
+    } catch (e) {}
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const unreadIds = notifications.filter(n => !n.isRead).map(n => n._id);
+      if (unreadIds.length === 0) return;
+      await Promise.all(unreadIds.map(id => fetchAPI(`/notifications/${id}/read`, { method: 'PUT' })));
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     } catch (e) {}
   };
 
@@ -313,7 +318,18 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
                 <div className={styles.notificationDropdown}>
                   <div className={styles.notificationHeader}>
                     <h4>Thông báo</h4>
-                    <button onClick={() => setShowNotifications(false)} className={styles.closeBtn}><X size={16} /></button>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {unreadCount > 0 && (
+                        <button 
+                          onClick={markAllAsRead} 
+                          title="Đánh dấu tất cả đã đọc"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10b981', display: 'flex' }}
+                        >
+                          <CheckCheck size={18} />
+                        </button>
+                      )}
+                      <button onClick={() => setShowNotifications(false)} className={styles.closeBtn}><X size={16} /></button>
+                    </div>
                   </div>
                   <div className={styles.notificationList}>
                     {notifications.length === 0 ? (
@@ -390,6 +406,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             <div className={styles.headerAvatar}>{userInitials}</div>
           </div>
         </header>
+        {/* Banner hết hạn gói cước */}
         {role === 'FARM' && farmProfile?.isPlanExpired && pathname !== '/billing' && (
           <div style={{
             backgroundColor: '#fef2f2',
@@ -425,6 +442,86 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
               }}
             >
               Mua gói gia hạn ngay &rarr;
+            </Link>
+          </div>
+        )}
+
+        {/* Banner nhắc chọn gói dùng thử */}
+        {role === 'FARM' && !farmProfile?.isPlanExpired && farmProfile?.isTrial && (farmProfile?.plan === 'ALL' || farmProfile?.isTrialAll) && pathname !== '/billing' && (
+          <div style={{
+            backgroundColor: '#ecfdf5',
+            borderBottom: '1px solid #a7f3d0',
+            padding: '0.65rem 1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+            color: '#065f46',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <Sparkles size={18} color="#059669" />
+              <span>
+                <strong>Dùng thử miễn phí {farmProfile?.trialDurationMonths || 6} tháng:</strong> {farmProfile?.trialPromptMessage || 'Vui lòng chọn 1 gói cước để bắt đầu trải nghiệm và tạo bảng nhật ký.'}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowTrialModal(true)}
+              style={{
+                padding: '0.35rem 0.95rem',
+                backgroundColor: '#10b981',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '0.825rem',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(16,185,129,0.25)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Chọn gói dùng thử ngay &rarr;
+            </button>
+          </div>
+        )}
+
+        {/* Banner thông báo tài khoản đang dùng gói Miễn phí (Free) */}
+        {role === 'FARM' && !farmProfile?.isTrial && farmProfile?.plan === 'FREE' && pathname !== '/billing' && !farmProfile?.isPlanExpired && (
+          <div style={{
+            backgroundColor: '#f8fafc',
+            borderBottom: '1px solid #e2e8f0',
+            padding: '0.55rem 1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+            color: '#475569',
+            fontSize: '0.825rem',
+            fontWeight: 500,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ShieldAlert size={16} color="#64748b" />
+              <span>
+                Tài khoản đang áp dụng <strong>Gói Miễn phí (Free)</strong>: Tối đa 1 bảng mỗi nhật ký, không xuất Excel/PDF và không tải ảnh.
+              </span>
+            </div>
+            <Link
+              href="/billing"
+              style={{
+                padding: '0.3rem 0.75rem',
+                backgroundColor: '#0284c7',
+                color: 'white',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '0.78rem',
+                textDecoration: 'none',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Nâng cấp gói cước &rarr;
             </Link>
           </div>
         )}
@@ -485,6 +582,16 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
           )}
         </div>
       </main>
+      <SelectTrialModal
+        isOpen={showTrialModal}
+        onClose={() => setShowTrialModal(false)}
+        subtitle={farmProfile?.trialPromptMessage}
+        onSuccess={() => {
+          if (typeof window !== 'undefined') {
+            window.location.reload();
+          }
+        }}
+      />
       <Toaster position="bottom-right" toastOptions={{ style: { background: '#333', color: '#fff' } }} />
     </div>
   );

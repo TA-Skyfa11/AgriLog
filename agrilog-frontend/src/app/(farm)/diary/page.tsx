@@ -11,12 +11,15 @@ import styles from '@/css/diary.module.css';
 import { Leaf, Search, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
+import SelectTrialModal from '@/components/trial/SelectTrialModal';
 
 export default function DiaryBoardsPage() {
   const router = useRouter();
   const [boards, setBoards] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showTrialModal, setShowTrialModal] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     cropType: '',
@@ -39,12 +42,35 @@ export default function DiaryBoardsPage() {
     }
   };
 
+  const loadProfile = async () => {
+    try {
+      const res = await fetchAPI('/farm/profile');
+      if (res.success && res.data) {
+        setProfile(res.data);
+      }
+    } catch (e) {
+      console.warn('Lỗi tải hồ sơ:', e);
+    }
+  };
+
   useEffect(() => {
     loadBoards();
+    loadProfile();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleOpenCreateModal = () => {
+    if (profile?.isTrial && (profile?.plan === 'ALL' || profile?.isTrialAll)) {
+      toast(profile?.trialPromptMessage || 'Vui lòng chọn 1 gói cước dùng thử để bắt đầu tạo bảng nhật ký!', {
+        icon: '🌱',
+      });
+      setShowTrialModal(true);
+      return;
+    }
+    setShowModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,10 +93,19 @@ export default function DiaryBoardsPage() {
         setShowModal(false);
         router.push(`/diary/cultivation/${res.data._id}`);
       } else {
+        if (res.requireSelectPlan) {
+          setShowModal(false);
+          setShowTrialModal(true);
+        }
         toast.error(res.message || 'Có lỗi xảy ra khi tạo bảng canh tác');
       }
     } catch (error: any) {
-      toast.error('Lỗi catch: ' + error.message);
+      const msg = error.message || '';
+      if (msg.includes('chọn gói') || msg.includes('dùng thử')) {
+        setShowModal(false);
+        setShowTrialModal(true);
+      }
+      toast.error(msg || 'Có lỗi xảy ra khi tạo bảng canh tác');
     }
   };
 
@@ -88,7 +123,7 @@ export default function DiaryBoardsPage() {
             <Search size={18} color="#9ca3af" />
             <input type="text" placeholder="Tìm bảng..." className={styles.searchInput} />
           </div>
-          <button className={styles.button} onClick={() => setShowModal(true)}>
+          <button className={styles.button} onClick={handleOpenCreateModal}>
             <Plus size={18} /> Tạo bảng nhật ký
           </button>
         </div>
@@ -102,7 +137,7 @@ export default function DiaryBoardsPage() {
           <div>
             <div className={styles.emptyTitle}>Chưa có bảng canh tác nào</div>
             <div className={styles.emptySubtitle}>Tạo bảng đầu tiên để bắt đầu ghi chép</div>
-            <button className={styles.button} style={{ margin: '0 auto' }} onClick={() => setShowModal(true)}>
+            <button className={styles.button} style={{ margin: '0 auto' }} onClick={handleOpenCreateModal}>
               <Plus size={18} /> Tạo bảng đầu tiên
             </button>
           </div>
@@ -228,6 +263,16 @@ export default function DiaryBoardsPage() {
           </div>
         </div>
       )}
+
+      <SelectTrialModal
+        isOpen={showTrialModal}
+        onClose={() => setShowTrialModal(false)}
+        subtitle={profile?.trialPromptMessage}
+        onSuccess={() => {
+          loadBoards();
+          loadProfile();
+        }}
+      />
     </div>
   );
 }

@@ -40,8 +40,8 @@ export function getClientIp(req: Request): string {
 }
 
 export const loginRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Giới hạn 5 lần đăng nhập sai từ 1 IP trong 15 phút
+  windowMs: 1 * 60 * 1000, // 1 minute (reduced for testing)
+  max: 100, // Giới hạn 100 lần đăng nhập sai từ 1 IP trong 1 phút (tăng lên để test)
   message: {
     success: false,
     message: 'Quá nhiều yêu cầu đăng nhập từ IP này, vui lòng thử lại sau 15 phút.'

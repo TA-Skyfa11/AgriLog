@@ -43,8 +43,24 @@ const createFertilizerBoard = async (req, res) => {
         const effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
         const planLimits = boardUtils_1.PLAN_LIMITS[effectivePlan] || boardUtils_1.PLAN_LIMITS.BASIC;
         const fertilizerCount = await FertilizerBoard_1.FertilizerBoard.countDocuments({ farmProfile: profile._id });
+        if (effectivePlan === 'ALL') {
+            return res.status(400).json({
+                success: false,
+                requireSelectPlan: true,
+                message: 'Bạn đang trong thời hạn dùng thử miễn phí. Vui lòng chọn gói dịch vụ (Basic, Standard hoặc Premium) trước khi tạo bảng!',
+            });
+        }
         if (fertilizerCount >= planLimits.products) {
-            return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.products} bảng phân bón. Vui lòng nâng cấp gói cước.` });
+            if (effectivePlan === 'FREE') {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Gói cước Miễn phí chỉ cho phép tạo tối đa 1 bảng phân bón. Vui lòng nâng cấp gói cước để tạo thêm bảng.',
+                });
+            }
+            return res.status(403).json({
+                success: false,
+                message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.products} bảng phân bón. Vui lòng nâng cấp gói cước.`,
+            });
         }
         if (req.body.customColumns && req.body.customColumns.length > planLimits.columns) {
             return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.columns} cột tùy chỉnh.` });
