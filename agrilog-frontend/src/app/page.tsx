@@ -337,9 +337,9 @@ export default function LandingPage() {
               autoPlay 
               muted
               playsInline
-              src="/demo.mp4?v=1"
               style={{ outline: 'none', backgroundColor: 'black' }}
             >
+              <source src="/demo.mp4?v=2" type="video/mp4" />
               Trình duyệt của bạn không hỗ trợ thẻ video.
             </video>
           </div>
