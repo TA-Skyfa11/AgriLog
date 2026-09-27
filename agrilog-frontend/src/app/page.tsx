@@ -34,13 +34,9 @@ export default function LandingPage() {
       {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerContent}>
-          <Link href="/" className={styles.logo} style={{ textDecoration: 'none' }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
-              <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            AgriLog
+          <Link href="/" className={styles.logo} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <img src="/images/landing/logo nhật ký.png" alt="AgriLog Logo" width="56" height="56" style={{ objectFit: 'contain' }} />
+            <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-primary-700, #15803d)' }}>AgriLog</span>
           </Link>
           <nav className={styles.navLinks}>
             <a href="#features" className={styles.navLink}>Tính năng</a>

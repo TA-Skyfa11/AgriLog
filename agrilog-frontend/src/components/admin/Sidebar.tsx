@@ -29,11 +29,11 @@ export function Sidebar() {
   return (
     <aside className={styles.sidebar}>
       <div className={styles.logoArea}>
-        <div className={styles.logoIcon}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 12"/></svg>
+        <div className={styles.logoIcon} style={{ background: 'transparent', width: 'auto', height: 'auto' }}>
+          <img src="/images/landing/logo nhật ký.png" alt="AgriLog" width="48" height="48" style={{ objectFit: 'contain' }} />
         </div>
         <div className={styles.logoText}>
-          <span className={styles.logoTitle}>AgriLog</span>
+          <span className={styles.logoTitle} style={{ fontSize: '1.4rem' }}>AgriLog</span>
           <span className={styles.logoSubtitle}>Admin Portal</span>
         </div>
       </div>
