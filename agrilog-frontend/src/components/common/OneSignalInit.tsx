@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Script from 'next/script';
 
 export default function OneSignalInit() {
   const router = useRouter();
@@ -57,5 +58,16 @@ export default function OneSignalInit() {
     });
   }, [router]);
 
-  return null;
+  return (
+    <Script
+      src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
+      strategy="afterInteractive"
+      onError={() => {
+        console.warn('[OneSignal] Script bị chặn bởi trình duyệt (ERR_BLOCKED_BY_CLIENT). Nguyên nhân thường do tiện ích AdBlock/Brave Shields.');
+        if (typeof window !== 'undefined') {
+          (window as any).__onesignal_blocked = true;
+        }
+      }}
+    />
+  );
 }
