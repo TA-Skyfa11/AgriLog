@@ -23,7 +23,11 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protect all other routes except landing page
+  // Protect all other routes except landing page and public assets
+  if (pathname === '/OneSignalSDKWorker.js') {
+    return NextResponse.next();
+  }
+
   if (!token && pathname !== '/') {
     return NextResponse.redirect(new URL('/login', request.url));
   }
@@ -58,6 +62,7 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|demo.mp4).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|demo.mp4|OneSignalSDKWorker.js).*)',
   ],
 };
+

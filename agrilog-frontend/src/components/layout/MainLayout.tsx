@@ -18,6 +18,8 @@ import { vi, enUS } from 'date-fns/locale';
 import { Toaster, toast } from 'react-hot-toast';
 import { useAppContext } from '@/context/AppProvider';
 import SelectTrialModal from '@/components/trial/SelectTrialModal';
+import { logoutOneSignal } from '@/lib/onesignal';
+
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -185,6 +187,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleLogout = () => {
+    logoutOneSignal();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';

@@ -4,6 +4,8 @@ import { Notification } from '../models/Notification';
 import { Task } from '../models/Task';
 import { FarmProfile } from '../models/FarmProfile';
 import { Material } from '../models/Material';
+import { sendTaskReminderPush, sendOneSignalNotification } from '../utils/oneSignalService';
+import { checkAndSendTaskReminders } from '../utils/taskScheduler';
 
 export const getNotifications = async (req: AuthRequest, res: Response) => {
   try {
@@ -37,6 +39,19 @@ export const getNotifications = async (req: AuthRequest, res: Response) => {
             type: 'TASK',
             referenceId: refId
           });
+
+          // Gửi thông báo đẩy OneSignal nếu người dùng bật nhận thông báo
+          const allowPush = profile.notificationPreferences?.push !== false;
+          const allowTasks = profile.notificationPreferences?.tasks !== false;
+          if (allowPush && allowTasks) {
+            sendTaskReminderPush({
+              userId: userId.toString(),
+              taskTitle: task.title,
+              dueDate: task.dueDate,
+              taskId: (task._id as any).toString(),
+              priority: task.priority
+            }).catch(err => console.error('[NotificationController] Lỗi gửi OneSignal push:', err));
+          }
         }
       }
 
@@ -143,3 +158,54 @@ export const markAllAsRead = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, message: (error as Error).message });
   }
 };
+
+/**
+ * Gửi thông báo thử nghiệm OneSignal đến người dùng đang đăng nhập
+ */
+export const testOneSignalNotification = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const result = await sendOneSignalNotification({
+      userIds: [userId.toString()],
+      title: '🔔 AgriLog: Kiểm tra thông báo nhắc lịch',
+      message: 'Tính năng gửi thông báo nhắc lịch công việc qua OneSignal đã được kích hoạt thành công!',
+      url: `${frontendUrl}/tasks`,
+      data: {
+        type: 'TEST_REMINDER',
+        timestamp: Date.now(),
+        url: '/tasks'
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Đã gửi yêu cầu thông báo OneSignal',
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
+/**
+ * Quét ngay các công việc sắp đến hạn và gửi thông báo nhắc nhở OneSignal
+ */
+export const triggerTaskReminders = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const result = await checkAndSendTaskReminders(userId.toString());
+    res.json({
+      success: true,
+      message: 'Đã hoàn tất quét và gửi nhắc lịch công việc',
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+

@@ -7,6 +7,8 @@ import styles from '@/css/settings.module.css';
 import { User, Lock, Bell, Globe, Layout, Shield, Save, Eye, EyeOff, Check } from 'lucide-react';
 import { useAppContext } from '@/context/AppProvider';
 import { toast } from 'react-hot-toast';
+import { requestPushPermission } from '@/lib/onesignal';
+
 
 export default function SettingsPage() {
   const [formData, setFormData] = useState({
@@ -452,12 +454,19 @@ export default function SettingsPage() {
               <div className={styles.settingsList}>
                 <div className={styles.settingItem}>
                   <div>
-                    <div className={styles.settingLabel}>Thông báo đẩy (Trình duyệt)</div>
-                    <div className={styles.settingDesc}>Nhận thông báo ngay trên màn hình khi bạn đang sử dụng ứng dụng.</div>
+                    <div className={styles.settingLabel}>Thông báo đẩy OneSignal (Trình duyệt)</div>
+                    <div className={styles.settingDesc}>Nhận thông báo nhắc việc ngay trên màn hình khi đến hạn.</div>
                   </div>
                   <label className={styles.switch}>
                     <input type="checkbox" checked={notifSettings.push} onChange={async (e) => {
-                      const newSet = {...notifSettings, push: e.target.checked};
+                      const willEnable = e.target.checked;
+                      if (willEnable) {
+                        const granted = await requestPushPermission();
+                        if (!granted) {
+                          toast('Vui lòng cho phép quyền Thông báo trong cài đặt trình duyệt để nhận thông báo.', { icon: 'ℹ️' });
+                        }
+                      }
+                      const newSet = {...notifSettings, push: willEnable};
                       setNotifSettings(newSet);
                       await fetchAPI('/farm/profile', { method: 'PUT', body: JSON.stringify({ notificationPreferences: newSet }) });
                       toast.success('Cập nhật thành công');
@@ -510,6 +519,34 @@ export default function SettingsPage() {
                     <span className={styles.slider}></span>
                   </label>
                 </div>
+              </div>
+
+              {/* Hộp kiểm tra thông báo OneSignal */}
+              <div style={{ marginTop: '1.5rem', padding: '1.25rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: '#1e293b' }}>🔔 Thử nghiệm thông báo OneSignal</div>
+                  <div style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: '0.25rem' }}>Gửi một thông báo đẩy thử nghiệm đến thiết bị của bạn để kiểm tra tính năng nhắc lịch.</div>
+                </div>
+                <button 
+                  type="button" 
+                  className={styles.button}
+                  style={{ padding: '0.5rem 1.25rem', fontSize: '0.8125rem', width: 'auto' }}
+                  onClick={async () => {
+                    try {
+                      await requestPushPermission();
+                      const res = await fetchAPI('/notifications/test-onesignal', { method: 'POST' });
+                      if (res.success) {
+                        toast.success('Đã gửi thông báo OneSignal thử nghiệm thành công! Hãy xem thông báo màn hình.');
+                      } else {
+                        toast.error(res.message || 'Lỗi gửi thông báo thử');
+                      }
+                    } catch (err: any) {
+                      toast.error('Lỗi: ' + (err.message || ''));
+                    }
+                  }}
+                >
+                  Gửi thông báo thử ngay
+                </button>
               </div>
             </>
           )}

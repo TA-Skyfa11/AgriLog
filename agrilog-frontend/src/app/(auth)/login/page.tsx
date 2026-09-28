@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { fetchAPI } from '@/lib/api';
+import { loginOneSignal } from '@/lib/onesignal';
 import styles from '@/css/login.module.css';
 
 export default function LoginPage() {
@@ -26,6 +27,12 @@ export default function LoginPage() {
     localStorage.setItem('token', data.token || '');
     localStorage.setItem('user', JSON.stringify(data.user));
     localStorage.removeItem('cart');
+
+    // Đồng bộ user ID với OneSignal để nhận thông báo nhắc lịch
+    const userId = data.user?._id || data.user?.id;
+    if (userId) {
+      loginOneSignal(userId);
+    }
 
     if (data.user.role === 'ADMIN') {
       router.push('/admin/dashboard');
