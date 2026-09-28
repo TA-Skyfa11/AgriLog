@@ -8,6 +8,7 @@ import { fetchAPI } from '@/lib/api';
 import { getSafeImageUrl } from '@/lib/image';
 import heroImg from '../../public/images/landing/hero_real.jpg';
 import greenhouseImg from '../../public/images/landing/greenhouse_real.jpg';
+import logoImg from '../../public/images/landing/logo.png';
 import { useAppContext } from '@/context/AppProvider';
 
 export default function LandingPage() {
@@ -34,14 +35,10 @@ export default function LandingPage() {
       {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerContent}>
-          <Link href="/" className={styles.logo} style={{ textDecoration: 'none' }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor"/>
-              <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            AgriLog
-          </Link>
+          <a href="/" className={styles.logo} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <img src={logoImg.src} alt="AgriLog Logo" width="56" height="56" style={{ objectFit: 'contain' }} />
+            <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-primary-700, #15803d)' }}>AgriLog</span>
+          </a>
           <nav className={styles.navLinks}>
             <a href="#features" className={styles.navLink}>Tính năng</a>
             {isFeatureEnabled('marketplace') && (
@@ -340,9 +337,9 @@ export default function LandingPage() {
               autoPlay 
               muted
               playsInline
-              src="/demo.mp4?v=1"
               style={{ outline: 'none', backgroundColor: 'black' }}
             >
+              <source src="/demo.mp4?v=2" type="video/mp4" />
               Trình duyệt của bạn không hỗ trợ thẻ video.
             </video>
           </div>
