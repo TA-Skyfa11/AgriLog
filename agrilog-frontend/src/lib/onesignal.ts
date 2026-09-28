@@ -110,3 +110,13 @@ export const isPushPermissionGranted = (): boolean => {
   if (typeof window === 'undefined' || typeof Notification === 'undefined') return false;
   return Notification.permission === 'granted';
 };
+
+/**
+ * Kiểm tra xem OneSignal SDK có bị tiện ích AdBlock chặn không
+ */
+export const isOneSignalBlocked = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return !!(window as any).__onesignal_blocked;
+};
+
+

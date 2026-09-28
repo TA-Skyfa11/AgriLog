@@ -8,7 +8,8 @@ import { Plus, ChevronLeft, ChevronRight, Clock, Repeat, CheckCircle2, Circle, T
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays, parseISO } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
-import { requestPushPermission, isPushPermissionGranted } from '@/lib/onesignal';
+import { requestPushPermission, isPushPermissionGranted, isOneSignalBlocked } from '@/lib/onesignal';
+
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -19,6 +20,7 @@ export default function TasksPage() {
   const [showDeletePrompt, setShowDeletePrompt] = useState(false);
   const [pushGranted, setPushGranted] = useState(false);
   const [testingPush, setTestingPush] = useState(false);
+  const [adblockDetected, setAdblockDetected] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -43,8 +45,15 @@ export default function TasksPage() {
 
   useEffect(() => {
     loadTasks();
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPushGranted(isPushPermissionGranted());
+    if (typeof window !== 'undefined') {
+      if ('Notification' in window) {
+        setPushGranted(isPushPermissionGranted());
+      }
+      setTimeout(() => {
+        if (isOneSignalBlocked()) {
+          setAdblockDetected(true);
+        }
+      }, 1000);
     }
   }, []);
 
@@ -65,6 +74,13 @@ export default function TasksPage() {
   const handleTestPushReminder = async () => {
     setTestingPush(true);
     try {
+      if (isOneSignalBlocked() || adblockDetected) {
+        toast(
+          '⚠️ Tiện ích chặn quảng cáo (AdBlock / Brave Shields) đang chặn OneSignal (ERR_BLOCKED_BY_CLIENT). Bạn hãy tắt AdBlock cho trang này để nhận thông báo.',
+          { icon: '🛡️', duration: 7000 }
+        );
+      }
+
       // Yêu cầu quyền nếu chưa cấp (không chặn nếu bị bỏ qua)
       if (!pushGranted && typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted') {
         try {
@@ -80,7 +96,7 @@ export default function TasksPage() {
         const errorList = res.data?.data?.errors;
         if (Array.isArray(errorList) && errorList.includes('All included players are not subscribed')) {
           toast.success(
-            '🔔 Đã gửi yêu cầu nhắc lịch đến OneSignal! (Trình duyệt chưa có subscription. Khi truy cập từ https://agrilog.io.vn hoặc cấp quyền đẩy, thông báo sẽ hiển thị trực tiếp).',
+            '🔔 Đã gửi yêu cầu nhắc lịch đến OneSignal! (Trình duyệt chưa có subscription. Khi truy cập từ https://agrilog.io.vn hoặc tắt AdBlock, thông báo sẽ hiển thị trực tiếp).',
             { duration: 7000 }
           );
         } else {
@@ -281,7 +297,19 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {!pushGranted && (
+      {adblockDetected ? (
+        <div className={styles.reminderBanner} style={{ background: '#fef2f2', borderColor: '#fca5a5', color: '#991b1b' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <AlertCircle size={22} color="#dc2626" style={{ flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Tiện ích chặn quảng cáo (AdBlock / Brave Shields) đang chặn OneSignal</div>
+              <div style={{ fontSize: '0.8rem', color: '#b91c1c' }}>
+                Trình duyệt đã chặn nạp OneSignal (net::ERR_BLOCKED_BY_CLIENT). Vui lòng tạm tắt AdBlock cho trang web này và tải lại trang để nhận thông báo đẩy.
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : !pushGranted ? (
         <div className={styles.reminderBanner}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <BellRing size={22} className={styles.bellIcon} />
@@ -296,7 +324,7 @@ export default function TasksPage() {
             Bật nhận thông báo
           </button>
         </div>
-      )}
+      ) : null}
 
 
       <div className={styles.content}>
