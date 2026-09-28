@@ -44,5 +44,7 @@ const materialSchema = new mongoose_1.Schema({
     expiryDate: { type: Date },
     minQuantityAlert: { type: Number, default: 10 },
     manufacturer: { type: String },
+    activeIngredient: { type: String },
+    supplier: { type: String },
 }, { timestamps: true });
 exports.Material = mongoose_1.default.model('Material', materialSchema);

@@ -153,9 +153,7 @@ export default function FertilizerDiaryDetailPage() {
       newEntries[index].materialName = selectedMaterial.name;
       newEntries[index].material = selectedMaterial._id;
       newEntries[index].unit = selectedMaterial.unit;
-      if (selectedMaterial.manufacturer) {
-        newEntries[index].manufacturer = selectedMaterial.manufacturer;
-      }
+      newEntries[index].manufacturer = selectedMaterial.manufacturer || '';
     } else {
       newEntries[index].materialName = '';
       newEntries[index].material = undefined;

@@ -9,6 +9,8 @@ export interface IMaterial extends Document {
   expiryDate?: Date;
   minQuantityAlert: number;
   manufacturer?: string;
+  activeIngredient?: string;
+  supplier?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +25,8 @@ const materialSchema = new Schema<IMaterial>(
     expiryDate: { type: Date },
     minQuantityAlert: { type: Number, default: 10 },
     manufacturer: { type: String },
+    activeIngredient: { type: String },
+    supplier: { type: String },
   },
   { timestamps: true }
 );

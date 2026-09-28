@@ -26,6 +26,7 @@ export default function InventoryPage() {
     expiryDate: '',
     supplier: '',
     manufacturer: '',
+    activeIngredient: '',
   });
 
   const loadInventory = async () => {
@@ -87,6 +88,7 @@ export default function InventoryPage() {
       expiryDate: material.expiryDate ? new Date(material.expiryDate).toISOString().split('T')[0] : '',
       supplier: material.supplier || '',
       manufacturer: material.manufacturer || '',
+      activeIngredient: material.activeIngredient || '',
     });
     setEditingId(material._id);
     setShowModal(true);
@@ -106,7 +108,7 @@ export default function InventoryPage() {
   const handleCloseModal = async () => {
     setShowModal(false);
     setEditingId(null);
-    setFormData({ name: '', type: 'FERTILIZER', quantity: '', unit: 'kg', expiryDate: '', supplier: '', manufacturer: '' });
+    setFormData({ name: '', type: 'FERTILIZER', quantity: '', unit: 'kg', expiryDate: '', supplier: '', manufacturer: '', activeIngredient: '' });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -148,7 +150,7 @@ export default function InventoryPage() {
           </div>
           <button className={styles.button} onClick={() => {
             setEditingId(null);
-            setFormData({ name: '', type: 'FERTILIZER', quantity: '', unit: 'kg', expiryDate: '', supplier: '', manufacturer: '' });
+            setFormData({ name: '', type: 'FERTILIZER', quantity: '', unit: 'kg', expiryDate: '', supplier: '', manufacturer: '', activeIngredient: '' });
             setShowModal(true);
           }}>
             <Plus size={18} /> Nhập kho
@@ -265,6 +267,13 @@ export default function InventoryPage() {
                 <label className={styles.label}>Nhà sản xuất (Tuỳ chọn)</label>
                 <input type="text" name="manufacturer" className={styles.input} value={formData.manufacturer} onChange={handleInputChange} placeholder="VD: Đạm Phú Mỹ" />
               </div>
+
+              {formData.type === 'PESTICIDE' && (
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Hoạt chất (Tuỳ chọn)</label>
+                  <input type="text" name="activeIngredient" className={styles.input} value={formData.activeIngredient} onChange={handleInputChange} placeholder="VD: Abamectin" />
+                </div>
+              )}
 
               <div className={styles.modalActions}>
                 <button type="button" className={styles.btnCancel} onClick={handleCloseModal}>Hủy</button>
