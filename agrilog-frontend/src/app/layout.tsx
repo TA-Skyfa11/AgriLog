@@ -1,9 +1,12 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import { AppProvider } from '@/context/AppProvider';
 import { DialogProvider } from '@/context/DialogContext';
+import OneSignalInit from '@/components/common/OneSignalInit';
 import "../css/globals.css";
+
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin", "vietnamese"],
@@ -21,7 +24,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className={inter.variable}>
+      <head>
+        <Script
+          src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
+          strategy="afterInteractive"
+        />
+      </head>
       <body className={inter.className}>
+        <OneSignalInit />
         <AppProvider>
           <DialogProvider>
             {children}
@@ -31,3 +41,4 @@ export default function RootLayout({
     </html>
   );
 }
+

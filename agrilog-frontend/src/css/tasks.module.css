@@ -459,3 +459,76 @@
   background-color: #bbf7d0;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btnTestPush {
+  padding: 0.625rem 1.125rem;
+  background-color: #ffffff;
+  color: var(--color-primary-700);
+  border: 1px solid var(--color-primary-600);
+  border-radius: var(--radius-full, 9999px);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: all 0.2s;
+}
+
+.btnTestPush:hover {
+  background-color: #f0fdf4;
+  border-color: var(--color-primary-700);
+}
+
+.btnTestPush:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reminderBanner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+  border: 1px solid #a7f3d0;
+  border-radius: var(--radius-md, 12px);
+  padding: 0.875rem 1.25rem;
+  color: #065f46;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.bellIcon {
+  color: #059669;
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+
+.btnBannerEnable {
+  padding: 0.5rem 1rem;
+  background-color: #059669;
+  color: white;
+  border: none;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btnBannerEnable:hover {
+  background-color: #047857;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+

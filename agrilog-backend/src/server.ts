@@ -99,6 +99,7 @@ import paymentRoutes from './routes/paymentRoutes';
 import featureRoutes from './routes/featureRoutes';
 import path from 'path';
 import { getFileFromR2 } from './utils/r2Storage';
+import { startTaskReminderScheduler } from './utils/taskScheduler';
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -160,6 +161,8 @@ connectDB();
 // Start Server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  // Khởi động scheduler quét thông báo nhắc lịch công việc
+  startTaskReminderScheduler(30);
 });
 
 // Export for Vercel

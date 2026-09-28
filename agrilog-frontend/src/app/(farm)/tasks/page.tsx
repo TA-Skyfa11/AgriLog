@@ -4,10 +4,11 @@
 import React, { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
 import styles from '@/css/tasks.module.css';
-import { Plus, ChevronLeft, ChevronRight, Clock, Repeat, CheckCircle2, Circle, Trash2, X, AlertCircle, Calendar } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Clock, Repeat, CheckCircle2, Circle, Trash2, X, AlertCircle, Calendar, Bell, BellRing } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays, parseISO } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { toast } from 'react-hot-toast';
+import { requestPushPermission, isPushPermissionGranted } from '@/lib/onesignal';
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -16,6 +17,8 @@ export default function TasksPage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [showDeletePrompt, setShowDeletePrompt] = useState(false);
+  const [pushGranted, setPushGranted] = useState(false);
+  const [testingPush, setTestingPush] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -40,7 +43,59 @@ export default function TasksPage() {
 
   useEffect(() => {
     loadTasks();
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPushGranted(isPushPermissionGranted());
+    }
   }, []);
+
+  const handleEnablePush = async () => {
+    try {
+      const granted = await requestPushPermission();
+      setPushGranted(granted);
+      if (granted) {
+        toast.success('Đã kích hoạt quyền nhận thông báo trên trình duyệt!');
+      } else {
+        toast('Vui lòng cho phép quyền Thông báo trong cài đặt trình duyệt để nhận nhắc việc.', { icon: 'ℹ️' });
+      }
+    } catch (e) {
+      toast('Vui lòng kiểm tra quyền thông báo trên trình duyệt.', { icon: 'ℹ️' });
+    }
+  };
+
+  const handleTestPushReminder = async () => {
+    setTestingPush(true);
+    try {
+      // Yêu cầu quyền nếu chưa cấp (không chặn nếu bị bỏ qua)
+      if (!pushGranted && typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted') {
+        try {
+          const granted = await requestPushPermission();
+          setPushGranted(granted);
+        } catch (permErr) {
+          // Bỏ qua lỗi permission để tiếp tục gửi test API
+        }
+      }
+
+      const res = await fetchAPI('/notifications/test-onesignal', { method: 'POST' });
+      if (res.success) {
+        const errorList = res.data?.data?.errors;
+        if (Array.isArray(errorList) && errorList.includes('All included players are not subscribed')) {
+          toast.success(
+            '🔔 Đã gửi yêu cầu nhắc lịch đến OneSignal! (Trình duyệt chưa có subscription. Khi truy cập từ https://agrilog.io.vn hoặc cấp quyền đẩy, thông báo sẽ hiển thị trực tiếp).',
+            { duration: 7000 }
+          );
+        } else {
+          toast.success('🔔 Đã gửi thông báo nhắc lịch qua OneSignal! Hãy xem thông báo trên màn hình.', { duration: 5000 });
+        }
+      } else {
+        toast.error('Chưa thể gửi thông báo: ' + (res.message || 'Lỗi server'));
+      }
+    } catch (err: any) {
+      toast.error('Lỗi kiểm tra thông báo: ' + (err.message || ''));
+    } finally {
+      setTestingPush(false);
+    }
+  };
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -210,10 +265,39 @@ export default function TasksPage() {
           <h1 className={styles.title}>Lịch công việc</h1>
           <div className={styles.subtitle}>Quản lý và lập kế hoạch công việc canh tác định kỳ</div>
         </div>
-        <button className={styles.button} onClick={() => setShowModal(true)}>
-          <Plus size={18} /> Thêm công việc
-        </button>
+        <div className={styles.headerActions}>
+          <button 
+            type="button"
+            className={styles.btnTestPush} 
+            onClick={handleTestPushReminder}
+            disabled={testingPush}
+            title="Thử gửi thông báo nhắc lịch đẩy qua OneSignal tới thiết bị của bạn"
+          >
+            <Bell size={16} /> {testingPush ? 'Đang gửi...' : 'Thử thông báo OneSignal'}
+          </button>
+          <button className={styles.button} onClick={() => setShowModal(true)}>
+            <Plus size={18} /> Thêm công việc
+          </button>
+        </div>
       </div>
+
+      {!pushGranted && (
+        <div className={styles.reminderBanner}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <BellRing size={22} className={styles.bellIcon} />
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Bật thông báo nhắc lịch công việc qua OneSignal</div>
+              <div style={{ fontSize: '0.8rem', color: '#047857' }}>
+                Hệ thống sẽ gửi thông báo đẩy đến máy tính và điện thoại của bạn ngay cả khi không mở ứng dụng.
+              </div>
+            </div>
+          </div>
+          <button type="button" className={styles.btnBannerEnable} onClick={handleEnablePush}>
+            Bật nhận thông báo
+          </button>
+        </div>
+      )}
+
 
       <div className={styles.content}>
         <div className={styles.calendarCard}>
