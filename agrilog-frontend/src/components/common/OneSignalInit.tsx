@@ -52,8 +52,13 @@ export default function OneSignalInit() {
             }
           });
         }
-      } catch (initErr) {
-        console.error('[OneSignal] Lỗi khi khởi tạo OneSignal Web SDK:', initErr);
+      } catch (initErr: any) {
+        const errMsg = initErr?.message || String(initErr);
+        if (errMsg.includes('Can only be used on')) {
+          console.warn('[OneSignal] Bỏ qua lỗi tên miền khi ở môi trường dev:', errMsg);
+        } else {
+          console.error('[OneSignal] Lỗi khi khởi tạo OneSignal Web SDK:', initErr);
+        }
       }
     });
   }, [router]);
