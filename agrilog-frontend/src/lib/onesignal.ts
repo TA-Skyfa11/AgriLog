@@ -18,12 +18,14 @@ export const loginOneSignal = async (userId: string) => {
 
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(async function (OneSignal: any) {
-    try {
-      await OneSignal.login(userId.toString());
-      console.log(`[OneSignal] Đã liên kết tài khoản user ID: ${userId}`);
-    } catch (err) {
-      console.error('[OneSignal] Lỗi khi login OneSignal:', err);
-    }
+      if (OneSignal && typeof OneSignal.login === 'function') {
+        try {
+          await OneSignal.login(userId.toString());
+          console.log(`[OneSignal] Đã liên kết tài khoản user ID: ${userId}`);
+        } catch (err: any) {
+          console.warn('[OneSignal] Bỏ qua lỗi login OneSignal (thường do môi trường dev/tên miền):', err?.message || err);
+        }
+      }
   });
 };
 
@@ -35,12 +37,14 @@ export const logoutOneSignal = async () => {
 
   window.OneSignalDeferred = window.OneSignalDeferred || [];
   window.OneSignalDeferred.push(async function (OneSignal: any) {
-    try {
-      await OneSignal.logout();
-      console.log('[OneSignal] Đã đăng xuất khỏi OneSignal');
-    } catch (err) {
-      console.error('[OneSignal] Lỗi khi logout OneSignal:', err);
-    }
+      if (OneSignal && typeof OneSignal.logout === 'function') {
+        try {
+          await OneSignal.logout();
+          console.log('[OneSignal] Đã đăng xuất khỏi OneSignal');
+        } catch (err: any) {
+          console.warn('[OneSignal] Lỗi khi logout OneSignal:', err?.message || err);
+        }
+      }
   });
 };
 

@@ -23,12 +23,15 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protect all other routes except landing page and public assets
-  if (pathname === '/OneSignalSDKWorker.js' || pathname.endsWith('.mp4')) {
+  // Protect all other routes except landing page, public assets, and legal pages
+  const publicRoutes = ['/', '/terms', '/privacy', '/docs', '/OneSignalSDKWorker.js'];
+  const isPublicAsset = pathname.endsWith('.mp4');
+
+  if (publicRoutes.includes(pathname) || isPublicAsset) {
     return NextResponse.next();
   }
 
-  if (!token && pathname !== '/') {
+  if (!token) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
