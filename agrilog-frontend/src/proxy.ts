@@ -24,7 +24,7 @@ export function proxy(request: NextRequest) {
   }
 
   // Protect all other routes except landing page and public assets
-  if (pathname === '/OneSignalSDKWorker.js') {
+  if (pathname === '/OneSignalSDKWorker.js' || pathname.endsWith('.mp4')) {
     return NextResponse.next();
   }
 
@@ -62,7 +62,7 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|demo.mp4|OneSignalSDKWorker.js).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.mp4|demo4.mp4|demo.mp4|OneSignalSDKWorker.js).*)',
   ],
 };
 
