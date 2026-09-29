@@ -18,7 +18,7 @@ export default function DocsPage() {
       </div>
 
       <h2 style={{ color: '#374151' }}>1. Quản lý Nhật ký canh tác</h2>
-      <p>Tại giao diện chính, bấm vào nút <strong>"Thêm nhật ký"</strong>. Điền đầy đủ các thông tin về phân bón, thuốc bảo vệ thực vật, và lưu lại để hệ thống tự động theo dõi thời gian cách ly.</p>
+      <p>Tại giao diện chính, bấm vào nút <strong>&quot;Thêm nhật ký&quot;</strong>. Điền đầy đủ các thông tin về phân bón, thuốc bảo vệ thực vật, và lưu lại để hệ thống tự động theo dõi thời gian cách ly.</p>
       
       <h2 style={{ color: '#374151', marginTop: '1.5rem' }}>2. Xuất báo cáo VietGAP</h2>
       <p>Hệ thống hỗ trợ xuất báo cáo dưới dạng Excel/PDF định kỳ. Hãy đảm bảo bạn cập nhật đầy đủ nhật ký theo từng lô thửa trước khi kết xuất để nộp cho đơn vị chứng nhận.</p>
