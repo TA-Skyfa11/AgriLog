@@ -8,6 +8,20 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts', 'jspdf', 'jspdf-autotable', 'date-fns'],
   },
+  async rewrites() {
+    const backendUrl = (
+      process.env.BACKEND_INTERNAL_URL ||
+      process.env.BACKEND_URL ||
+      'http://127.0.0.1:5000/api'
+    ).replace(/\/$/, '');
+
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${backendUrl}/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

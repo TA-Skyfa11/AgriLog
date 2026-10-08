@@ -51,11 +51,48 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-// Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+// Danh sách origin được phép truy cập
+const allowedOrigins = new Set([
+  'https://agrilog.io.vn',
+  'https://www.agrilog.io.vn',
+  'http://agrilog.io.vn',
+  'http://www.agrilog.io.vn',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+]);
+
+if (process.env.FRONTEND_URL) {
+  process.env.FRONTEND_URL.split(',').forEach((url) => {
+    const trimmed = url.trim().replace(/\/$/, '');
+    if (trimmed) allowedOrigins.add(trimmed);
+  });
+}
+
+// Middleware CORS
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Cho phép requests không có origin (mobile apps, Postman, server-to-server)
+      if (!origin) return callback(null, true);
+
+      const isAllowed =
+        allowedOrigins.has(origin) ||
+        /^https?:\/\/([a-zA-Z0-9-]+\.)?agrilog\.io\.vn$/.test(origin) ||
+        /^http:\/\/localhost(:\d+)?$/.test(origin) ||
+        /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
+
+      if (isAllowed) {
+        return callback(null, true);
+      }
+
+      console.warn(`[CORS] Blocked request from origin: ${origin}`);
+      return callback(null, false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  })
+);
 
 // Lưu rawBody để xác thực chữ ký webhook (HMAC-SHA256 của SePay)
 app.use(express.json({

@@ -1,8 +1,29 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+export const getApiUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const { hostname, origin } = window.location;
+    // Khi chạy trên domain thực tế (như agrilog.io.vn)
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      const envUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (
+        envUrl &&
+        !envUrl.includes('localhost') &&
+        !envUrl.includes('127.0.0.1')
+      ) {
+        return envUrl.replace(/\/$/, '');
+      }
+      // Dùng proxy /api cùng domain để tránh CORS và Mixed Content
+      return `${origin}/api`;
+    }
+  }
+
+  return (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/$/, '');
+};
+
+export const API_URL = getApiUrl();
 
 export const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const baseUrl = getApiUrl();
 
   const headers = {
     'Content-Type': 'application/json',
@@ -10,7 +31,7 @@ export const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const response = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
     headers,
     credentials: 'include',
