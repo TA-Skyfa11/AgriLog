@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema, Types } from 'mongoose';
+import mongoose, { Document, Schema, Types } from './supabaseModel';
 
 export enum PaymentStatus {
   PENDING = 'PENDING',

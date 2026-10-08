@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import { connectDB } from './config/db';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { User, Role } from './models/User';
@@ -12,8 +12,8 @@ dotenv.config();
 
 const seedMarketplace = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/agrilog');
-    console.log('MongoDB Connected for Seeding Marketplace...');
+    await connectDB();
+    console.log('Supabase Connected for Seeding Marketplace...');
 
     // 1. Commission Setting
     const existingCommission = await CommissionSetting.findOne({ rate: 5 });

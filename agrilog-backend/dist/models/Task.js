@@ -34,9 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Task = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const taskSchema = new mongoose_1.Schema({
-    farmProfile: { type: mongoose_1.Schema.Types.ObjectId, ref: 'FarmProfile', required: true },
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const taskSchema = new supabaseModel_1.Schema({
+    farmProfile: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'FarmProfile', required: true },
     title: { type: String, required: true },
     dueDate: { type: Date, required: true },
     status: { type: String, enum: ['PENDING', 'COMPLETED'], default: 'PENDING' },
@@ -45,6 +45,6 @@ const taskSchema = new mongoose_1.Schema({
     recurrence: { type: String, enum: ['NONE', 'DAILY', 'WEEKLY', 'MONTHLY', 'CUSTOM'], default: 'NONE' },
     recurrenceCustomDays: { type: Number },
     recurrenceEndDate: { type: Date },
-    parentTaskId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Task' },
+    parentTaskId: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'Task' },
 }, { timestamps: true });
-exports.Task = mongoose_1.default.model('Task', taskSchema);
+exports.Task = supabaseModel_1.default.model('Task', taskSchema);

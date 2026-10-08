@@ -8,7 +8,7 @@ declare global {
 }
 
 /**
- * Gắn External ID (MongoDB User ID) vào OneSignal để nhận push notification
+ * Gắn External ID (Supabase User ID) vào OneSignal để nhận push notification
  */
 export const loginOneSignal = async (userId: string) => {
   if (typeof window === 'undefined' || !userId) return;

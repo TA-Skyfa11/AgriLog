@@ -43,7 +43,7 @@ export const sendOneSignalNotification = async (options: OneSignalNotificationOp
 
   const payload: Record<string, any> = {
     app_id: appId,
-    // Chỉ định người nhận bằng external_id (User._id trong MongoDB)
+    // Chỉ định người nhận bằng external_id (User._id trong Supabase)
     include_aliases: {
       external_id: options.userIds.map(id => id.toString()),
     },

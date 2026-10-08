@@ -12,6 +12,7 @@ const authValidation_1 = require("../validations/authValidation");
 const router = express_1.default.Router();
 router.post('/register', (0, validate_1.validate)(authValidation_1.registerSchema), authController_1.register);
 router.post('/login', rateLimit_1.loginRateLimiter, (0, validate_1.validate)(authValidation_1.loginSchema), authController_1.login);
+router.post('/google', rateLimit_1.loginRateLimiter, (0, validate_1.validate)(authValidation_1.googleAuthSchema), authController_1.googleAuth);
 router.post('/verify-mfa', (0, validate_1.validate)(authValidation_1.verifyMfaSchema), authController_1.verifyMfa);
 router.post('/logout', authController_1.logout);
 router.post('/forgot-password', (0, validate_1.validate)(authValidation_1.forgotPasswordSchema), authController_1.forgotPassword);

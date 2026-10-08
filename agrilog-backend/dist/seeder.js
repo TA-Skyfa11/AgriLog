@@ -16,6 +16,8 @@ const PesticideBoard_1 = require("./models/PesticideBoard");
 const PesticideEntry_1 = require("./models/PesticideEntry");
 const Material_1 = require("./models/Material");
 const Task_1 = require("./models/Task");
+const ServicePackage_1 = require("./models/ServicePackage");
+const seedServicePackages_1 = require("./seedServicePackages");
 dotenv_1.default.config();
 const importData = async () => {
     try {
@@ -87,6 +89,12 @@ const importData = async () => {
         await Task_1.Task.create({ farmProfile: farmProfile._id, title: 'Bón phân NPK đợt 3', dueDate: nextWeek, status: 'PENDING', notes: 'Chuẩn bị 30kg NPK' });
         await Task_1.Task.create({ farmProfile: farmProfile._id, title: 'Thu dọn cỏ dại', dueDate: today, status: 'COMPLETED' });
         console.log(`Đã tạo dữ liệu Lịch công việc (Tasks)`);
+        // 5. Tạo Gói dịch vụ (Service Packages)
+        await ServicePackage_1.ServicePackage.deleteMany();
+        for (const pkg of seedServicePackages_1.SERVICE_PACKAGES_DATA) {
+            await ServicePackage_1.ServicePackage.create(pkg);
+        }
+        console.log(`Đã tạo dữ liệu Gói dịch vụ (BASIC, STANDARD, PREMIUM)`);
         console.log('Dữ liệu mẫu đã được tạo thành công!');
         process.exit();
     }

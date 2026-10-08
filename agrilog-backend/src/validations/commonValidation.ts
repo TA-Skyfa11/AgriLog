@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const objectIdSchema = z
   .string('ID không được để trống')
-  .regex(/^[0-9a-fA-F]{24}$/, 'ID không đúng định dạng MongoDB ObjectId');
+  .regex(/^[0-9a-fA-F]{24}$|^[0-9a-fA-F-]{36}$/, 'ID không hợp lệ');
 
 export const idParamSchema = z.object({
   id: objectIdSchema,

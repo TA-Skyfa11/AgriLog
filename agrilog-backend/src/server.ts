@@ -5,7 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './config/db';
 import session from 'express-session';
-import MongoStore from 'connect-mongo';
+import { SupabaseSessionStore } from './config/supabaseSessionStore';
 dotenv.config();
 
 // Fail fast on startup if JWT_SECRET is missing or empty
@@ -68,10 +68,7 @@ app.use(session({
   secret: JWT_SECRET,
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGO_URI || 'mongodb://localhost:27017/agrilog',
-    collectionName: 'sessions'
-  }),
+  store: new SupabaseSessionStore(),
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
     httpOnly: true,

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { fetchAPI } from '@/lib/api';
 import { loginOneSignal } from '@/lib/onesignal';
+import GoogleAuthButton from '@/components/common/GoogleAuthButton';
 import styles from '@/css/login.module.css';
 
 export default function LoginPage() {
@@ -217,6 +218,15 @@ export default function LoginPage() {
               {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </form>
+
+          <div className={styles.divider}>
+            <span className={styles.dividerText}>Hoặc</span>
+          </div>
+
+          <GoogleAuthButton
+            mode="signin"
+            onError={(msg) => setError(msg)}
+          />
 
           <div className={styles.footer}>
             Chưa có tài khoản?{' '}

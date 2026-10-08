@@ -34,13 +34,13 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Notification = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const notificationSchema = new mongoose_1.Schema({
-    user: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const notificationSchema = new supabaseModel_1.Schema({
+    user: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'User', required: true },
     title: { type: String, required: true },
     message: { type: String, required: true },
     type: { type: String, enum: ['TASK', 'BILLING', 'SYSTEM'], default: 'SYSTEM' },
     isRead: { type: Boolean, default: false },
     referenceId: { type: String },
 }, { timestamps: true });
-exports.Notification = mongoose_1.default.model('Notification', notificationSchema);
+exports.Notification = supabaseModel_1.default.model('Notification', notificationSchema);

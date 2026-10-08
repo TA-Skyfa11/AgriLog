@@ -34,11 +34,11 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FertilizerEntry = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const fertilizerEntrySchema = new mongoose_1.Schema({
-    fertilizerBoard: { type: mongoose_1.Schema.Types.ObjectId, ref: 'FertilizerBoard', required: true },
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const fertilizerEntrySchema = new supabaseModel_1.Schema({
+    fertilizerBoard: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'FertilizerBoard', required: true },
     date: { type: Date, required: true },
-    material: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Material' },
+    material: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'Material' },
     materialName: { type: String },
     manufacturer: { type: String },
     quantity: { type: String },
@@ -50,7 +50,7 @@ const fertilizerEntrySchema = new mongoose_1.Schema({
     cost: { type: Number, default: 0 },
     notes: { type: String },
     imageUrls: [{ type: String }],
-    customValues: { type: mongoose_1.Schema.Types.Mixed, default: {} },
+    customValues: { type: supabaseModel_1.Schema.Types.Mixed, default: {} },
     entryGroupId: { type: String },
 }, { timestamps: true });
-exports.FertilizerEntry = mongoose_1.default.model('FertilizerEntry', fertilizerEntrySchema);
+exports.FertilizerEntry = supabaseModel_1.default.model('FertilizerEntry', fertilizerEntrySchema);

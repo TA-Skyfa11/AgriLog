@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Order = exports.OrderStatus = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
 var OrderStatus;
 (function (OrderStatus) {
     OrderStatus["PENDING"] = "PENDING";
@@ -43,15 +43,15 @@ var OrderStatus;
     OrderStatus["DELIVERED"] = "DELIVERED";
     OrderStatus["CANCELLED"] = "CANCELLED";
 })(OrderStatus || (exports.OrderStatus = OrderStatus = {}));
-const orderItemSchema = new mongoose_1.Schema({
-    product: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Product', required: true },
+const orderItemSchema = new supabaseModel_1.Schema({
+    product: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'Product', required: true },
     productName: { type: String, required: true },
     quantity: { type: Number, required: true, min: 1 },
     priceAtPurchase: { type: Number, required: true, min: 0 },
 }, { _id: false });
-const orderSchema = new mongoose_1.Schema({
-    farm: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
-    company: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
+const orderSchema = new supabaseModel_1.Schema({
+    farm: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'User', required: true },
+    company: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'User', required: true },
     items: [orderItemSchema],
     totalAmount: { type: Number, required: true, default: 0 },
     commissionRate: { type: Number, required: true, default: 0 },
@@ -59,4 +59,4 @@ const orderSchema = new mongoose_1.Schema({
     status: { type: String, enum: Object.values(OrderStatus), default: OrderStatus.PENDING },
     note: { type: String, default: '' },
 }, { timestamps: true });
-exports.Order = mongoose_1.default.model('Order', orderSchema);
+exports.Order = supabaseModel_1.default.model('Order', orderSchema);

@@ -1,7 +1,8 @@
 import assert from 'assert';
 import dotenv from 'dotenv';
 dotenv.config();
-import mongoose from 'mongoose';
+import { connectDB, sql } from '../config/db';
+import { Types } from '../models/supabaseModel';
 import { TrialSetting } from '../models/TrialSetting';
 import { FarmProfile } from '../models/FarmProfile';
 import {
@@ -39,7 +40,7 @@ function it(name: string, fn: () => void | Promise<void>) {
 }
 
 async function runTests() {
-  await mongoose.connect(process.env.MONGO_URI as string);
+  await connectDB();
 
   console.log('📌 1. Kiểm thử cấu hình chính sách Dùng thử mặc định:');
   await it('Khởi tạo TrialSetting mặc định có đủ các trường', async () => {
@@ -52,7 +53,7 @@ async function runTests() {
   });
 
   console.log('\n📌 2. Kiểm thử cấp gói dùng thử cho tài khoản mới:');
-  const testUserId = new mongoose.Types.ObjectId();
+  const testUserId = new Types.ObjectId();
   await it('Tạo FarmProfile mới tự động nhận gói dùng thử PREMIUM trong X tháng', async () => {
     // Đảm bảo trial đang bật 2 tháng
     await TrialSetting.updateOne({}, { $set: { isEnabled: true, durationMonths: 2, trialPlan: 'PREMIUM' } });
@@ -83,8 +84,8 @@ async function runTests() {
     assert.strictEqual(getEffectivePlan(expiredProfile), 'EXPIRED');
 
     // Kiểm tra hàm checkBoardLocked
-    const dummyProfileId = new mongoose.Types.ObjectId().toString();
-    const dummyBoardId = new mongoose.Types.ObjectId().toString();
+    const dummyProfileId = new Types.ObjectId().toString();
+    const dummyBoardId = new Types.ObjectId().toString();
     const isLocked = await checkBoardLocked(dummyProfileId, dummyBoardId, 'EXPIRED');
     assert.strictEqual(isLocked, true);
   });
@@ -92,7 +93,7 @@ async function runTests() {
   console.log('\n📌 4. Kiểm thử tắt tính năng dùng thử:');
   await it('Khi Admin tắt Dùng thử (isEnabled: false), tài khoản mới tạo nhận gói FREE', async () => {
     await TrialSetting.updateOne({}, { $set: { isEnabled: false } });
-    const noTrialUserId = new mongoose.Types.ObjectId();
+    const noTrialUserId = new Types.ObjectId();
     const noTrialProfile = await createDefaultFarmProfile(noTrialUserId, { farmName: 'Nông trại Không Trial' });
 
     assert.strictEqual(noTrialProfile.plan, 'FREE');
@@ -108,7 +109,7 @@ async function runTests() {
   console.log('\n📌 5. Kiểm thử gói cước dùng thử trọn bộ (ALL - Cả 3 gói):');
   await it('Cấu hình trialPlan là ALL cho phép truy cập đầy đủ quyền lợi cao nhất', async () => {
     await TrialSetting.updateOne({}, { $set: { isEnabled: true, durationMonths: 3, trialPlan: 'ALL' } });
-    const allTrialUserId = new mongoose.Types.ObjectId();
+    const allTrialUserId = new Types.ObjectId();
     const allProfile = await createDefaultFarmProfile(allTrialUserId, { farmName: 'Nông trại All Packages' });
 
     assert.strictEqual(allProfile.plan, 'ALL');
@@ -116,7 +117,7 @@ async function runTests() {
     assert.strictEqual(getEffectivePlan(allProfile), 'ALL');
     assert.strictEqual(isPlanExpired(allProfile), false);
 
-    const isLocked = await checkBoardLocked(allProfile._id.toString(), new mongoose.Types.ObjectId().toString(), 'ALL');
+    const isLocked = await checkBoardLocked(allProfile._id.toString(), new Types.ObjectId().toString(), 'ALL');
     assert.strictEqual(isLocked, false);
 
     // Dọn dẹp
@@ -124,7 +125,7 @@ async function runTests() {
     await TrialSetting.updateOne({}, { $set: { isEnabled: true, durationMonths: 1, trialPlan: 'PREMIUM' } });
   });
 
-  await mongoose.disconnect();
+  await sql.end();
 
   console.log(`\n========================================`);
   console.log(`🏁 Kết quả kiểm thử: ${passedTests} passed, ${failedTests} failed`);

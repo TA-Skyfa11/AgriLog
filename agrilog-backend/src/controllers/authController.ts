@@ -1,10 +1,14 @@
 import { Request, Response } from 'express';
+import 'express-session';
 import { AuthRequest } from '../middleware/authMiddleware';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User, Role } from '../models/User';
 import { LoginHistory } from '../models/LoginHistory';
 import { Notification } from '../models/Notification';
+import { CompanyProfile } from '../models/CompanyProfile';
+import { createDefaultFarmProfile } from './farmProfileController';
+import { supabase } from '../config/db';
 import crypto from 'crypto';
 import { sendEmail } from '../utils/emailService';
 
@@ -53,7 +57,9 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    (req.session as any).userId = user._id.toString();
+    if ((req as any).session) {
+      (req as any).session.userId = user._id.toString();
+    }
     const token = generateToken(user._id.toString());
 
     res.status(201).json({
@@ -94,7 +100,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const normalizedPassword = password?.trim() || '';
-    const isMatch = await bcrypt.compare(normalizedPassword, user.passwordHash);
+    const isMatch = user.passwordHash ? await bcrypt.compare(normalizedPassword, user.passwordHash) : false;
     
     if (!isMatch) {
       user.loginAttempts = (user.loginAttempts || 0) + 1;
@@ -121,7 +127,9 @@ export const login = async (req: Request, res: Response) => {
 
 
     // Set session
-    (req.session as any).userId = user._id.toString();
+    if ((req as any).session) {
+      (req as any).session.userId = user._id.toString();
+    }
     const token = generateToken(user._id.toString());
 
     res.json({
@@ -164,7 +172,9 @@ export const verifyMfa = async (req: Request, res: Response) => {
     user.mfaOtpExpire = undefined;
     await user.save();
 
-    (req.session as any).userId = user._id.toString();
+    if ((req as any).session) {
+      (req as any).session.userId = user._id.toString();
+    }
     const token = generateToken(user._id.toString());
 
     res.json({
@@ -185,13 +195,18 @@ export const verifyMfa = async (req: Request, res: Response) => {
 };
 
 export const logout = (req: Request, res: Response) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ success: false, message: 'Lỗi khi đăng xuất' });
-    }
+  if ((req as any).session) {
+    (req as any).session.destroy((err: any) => {
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Lỗi khi đăng xuất' });
+      }
+      res.clearCookie('connect.sid');
+      res.json({ success: true, message: 'Đăng xuất thành công' });
+    });
+  } else {
     res.clearCookie('connect.sid');
     res.json({ success: true, message: 'Đăng xuất thành công' });
-  });
+  }
 };
 
 export const getMe = async (req: AuthRequest, res: Response) => {
@@ -224,7 +239,7 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' });
     }
 
-    const isMatch = await bcrypt.compare(currentPassword.trim(), user.passwordHash);
+    const isMatch = user.passwordHash ? await bcrypt.compare(currentPassword.trim(), user.passwordHash) : false;
     if (!isMatch) {
       return res.status(400).json({ success: false, message: 'Mật khẩu hiện tại không đúng' });
     }
@@ -360,3 +375,185 @@ export const resetPassword = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: (error as Error).message });
   }
 };
+
+export const googleAuth = async (req: Request, res: Response) => {
+  try {
+    let { email, name, googleId, avatar, role: requestedRole, supabaseToken, idToken } = req.body;
+
+    // 1. Verify Supabase token if provided
+    if (supabaseToken) {
+      try {
+        const { data, error } = await supabase.auth.getUser(supabaseToken);
+        if (!error && data?.user) {
+          const sUser = data.user;
+          email = sUser.email || email;
+          googleId = sUser.id || googleId;
+          name = sUser.user_metadata?.full_name || sUser.user_metadata?.name || name;
+          avatar = sUser.user_metadata?.avatar_url || sUser.user_metadata?.picture || avatar;
+        }
+      } catch (tokenErr) {
+        console.warn('Supabase token verification failed, using payload info:', tokenErr);
+      }
+    }
+
+    // 2. Decode Google ID token if provided
+    if (idToken && !email) {
+      try {
+        const decoded: any = jwt.decode(idToken);
+        if (decoded && decoded.email) {
+          email = decoded.email;
+          googleId = decoded.sub || googleId;
+          name = decoded.name || name;
+          avatar = decoded.picture || avatar;
+        }
+      } catch (jwtErr) {
+        console.warn('Google idToken decode error:', jwtErr);
+      }
+    }
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email là bắt buộc để đăng nhập hoặc đăng ký bằng Google' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // 3. Check existing user by email or googleId
+    let user = await User.findOne({ email: normalizedEmail });
+    if (!user && googleId) {
+      user = await User.findOne({ googleId });
+    }
+
+    let isNewUser = false;
+
+    if (user) {
+      // Check lockout & active status
+      if (user.lockUntil && user.lockUntil > new Date()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Tài khoản đang bị khóa tạm thời. Vui lòng thử lại sau 15 phút.',
+        });
+      }
+      if (!user.isActive) {
+        return res.status(403).json({ success: false, message: 'Tài khoản đã bị vô hiệu hóa' });
+      }
+
+      let modified = false;
+      if (googleId && user.googleId !== googleId) {
+        user.googleId = googleId;
+        modified = true;
+      }
+      if (avatar && user.avatar !== avatar) {
+        user.avatar = avatar;
+        modified = true;
+      }
+      if (name && (!user.name || user.name === user.email)) {
+        user.name = name;
+        modified = true;
+      }
+      if (user.loginAttempts > 0) {
+        user.loginAttempts = 0;
+        user.lockUntil = undefined;
+        modified = true;
+      }
+      if (modified) {
+        await user.save();
+      }
+    } else {
+      // 4. Create new user (Google Signup)
+      isNewUser = true;
+      const allowedRoles = [Role.FARM, Role.COMPANY];
+      const finalRole = allowedRoles.includes(requestedRole) ? requestedRole : Role.FARM;
+
+      const randomPassword = crypto.randomBytes(32).toString('hex');
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(randomPassword, salt);
+
+      user = await User.create({
+        name: name || normalizedEmail.split('@')[0],
+        email: normalizedEmail,
+        passwordHash,
+        role: finalRole,
+        googleId,
+        avatar,
+        authProvider: 'google',
+        isActive: true,
+      });
+
+      // Automatically create corresponding profile
+      if (finalRole === Role.FARM) {
+        try {
+          await createDefaultFarmProfile(user._id, {
+            farmName: name ? `Nông trại của ${name}` : 'Nông trại của tôi',
+          });
+        } catch (profileErr) {
+          console.warn('Lỗi tạo FarmProfile mặc định cho Google user:', profileErr);
+        }
+      } else if (finalRole === Role.COMPANY) {
+        try {
+          await CompanyProfile.create({
+            user: user._id,
+            companyName: name ? `Doanh nghiệp của ${name}` : 'Doanh nghiệp của tôi',
+          });
+        } catch (profileErr) {
+          console.warn('Lỗi tạo CompanyProfile mặc định cho Google user:', profileErr);
+        }
+      }
+
+      // Notification for admin
+      try {
+        const admin = await User.findOne({ role: Role.ADMIN });
+        if (admin) {
+          await Notification.create({
+            user: admin._id,
+            title: 'Người dùng mới đăng ký qua Google',
+            message: `Tài khoản Google ${normalizedEmail} (${finalRole}) vừa tham gia hệ thống.`,
+            type: 'SYSTEM',
+            referenceId: user._id.toString(),
+          });
+        }
+      } catch (notifErr) {
+        console.warn('Lỗi tạo notification admin:', notifErr);
+      }
+    }
+
+    // 5. Record login history
+    try {
+      const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
+      const userAgent = req.headers['user-agent'] || 'unknown';
+      await LoginHistory.create({
+        user: user._id,
+        ipAddress,
+        userAgent,
+      });
+    } catch (histErr) {
+      console.warn('Lỗi ghi LoginHistory:', histErr);
+    }
+
+    // 6. Set session and generate AgriLog JWT token
+    if ((req as any).session) {
+      (req as any).session.userId = user._id.toString();
+    }
+    const token = generateToken(user._id.toString());
+
+    return res.status(isNewUser ? 201 : 200).json({
+      success: true,
+      message: isNewUser ? 'Đăng ký bằng Google thành công' : 'Đăng nhập bằng Google thành công',
+      token,
+      user: {
+        id: user._id,
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        authProvider: user.authProvider || 'google',
+        allowDevPayment: user.allowDevPayment || false,
+      },
+      isNewUser,
+    });
+  } catch (error) {
+    console.error('Google Auth Error:', error);
+    return res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+

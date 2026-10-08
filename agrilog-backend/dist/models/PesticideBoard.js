@@ -34,9 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PesticideBoard = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const pesticideBoardSchema = new mongoose_1.Schema({
-    farmProfile: { type: mongoose_1.Schema.Types.ObjectId, ref: 'FarmProfile', required: true },
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const pesticideBoardSchema = new supabaseModel_1.Schema({
+    farmProfile: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'FarmProfile', required: true },
     name: { type: String, required: true },
     cropType: { type: String, required: true },
     areaSqm: { type: Number, required: true },
@@ -47,4 +47,4 @@ const pesticideBoardSchema = new mongoose_1.Schema({
     customColumns: [{ type: String }],
     groupId: { type: String },
 }, { timestamps: true });
-exports.PesticideBoard = mongoose_1.default.model('PesticideBoard', pesticideBoardSchema);
+exports.PesticideBoard = supabaseModel_1.default.model('PesticideBoard', pesticideBoardSchema);

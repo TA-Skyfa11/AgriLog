@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema, Types } from 'mongoose';
+import mongoose, { Document, Schema, Types } from './supabaseModel';
 
 export interface IUploadLog extends Document {
   farmProfile: Types.ObjectId;

@@ -1,7 +1,7 @@
 import assert from 'assert';
 import dotenv from 'dotenv';
 dotenv.config();
-import mongoose from 'mongoose';
+import { connectDB, sql } from '../config/db';
 import { SystemFeature } from '../models/SystemFeature';
 import {
   DEFAULT_SYSTEM_FEATURES,
@@ -35,7 +35,7 @@ function it(name: string, fn: () => void | Promise<void>) {
 }
 
 async function runTests() {
-  await mongoose.connect(process.env.MONGO_URI as string);
+  await connectDB();
 
   console.log('📌 1. Kiểm thử khởi tạo và nạp tính năng mặc định:');
   await it('Đảm bảo danh sách tính năng mặc định có đủ 11 module', () => {
@@ -96,7 +96,7 @@ async function runTests() {
     await SystemFeature.updateOne({ key: 'reports' }, { $set: { isEnabled: true } });
   });
 
-  await mongoose.disconnect();
+  await sql.end();
 
   console.log(`\n========================================`);
   console.log(`🏁 Kết quả kiểm thử: ${passedTests} passed, ${failedTests} failed`);

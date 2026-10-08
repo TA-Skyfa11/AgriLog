@@ -34,17 +34,17 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.User = exports.Role = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
 var Role;
 (function (Role) {
     Role["FARM"] = "FARM";
     Role["ADMIN"] = "ADMIN";
     Role["COMPANY"] = "COMPANY";
 })(Role || (exports.Role = Role = {}));
-const userSchema = new mongoose_1.Schema({
+const userSchema = new supabaseModel_1.Schema({
     name: { type: String, required: false, trim: true },
     email: { type: String, required: true, unique: true, trim: true, lowercase: true },
-    passwordHash: { type: String, required: true },
+    passwordHash: { type: String, required: false },
     role: { type: String, enum: Object.values(Role), default: Role.FARM },
     isActive: { type: Boolean, default: true },
     allowAdminReset: { type: Boolean, default: false },
@@ -55,5 +55,8 @@ const userSchema = new mongoose_1.Schema({
     lockUntil: { type: Date },
     mfaOtp: { type: String },
     mfaOtpExpire: { type: Date },
+    googleId: { type: String },
+    avatar: { type: String },
+    authProvider: { type: String, default: 'local' },
 }, { timestamps: true });
-exports.User = mongoose_1.default.model('User', userSchema);
+exports.User = supabaseModel_1.default.model('User', userSchema);

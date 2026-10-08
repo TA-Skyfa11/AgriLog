@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { fetchAPI } from '@/lib/api';
+import GoogleAuthButton from '@/components/common/GoogleAuthButton';
 import styles from '@/css/login.module.css';
 import billingStyles from '@/css/billing.module.css';
 import {
@@ -598,6 +599,16 @@ export default function RegisterPage() {
                   {loading ? 'Đang xử lý...' : 'Đăng ký & Bắt đầu sử dụng'}
                 </button>
               </form>
+
+              <div className={styles.divider}>
+                <span className={styles.dividerText}>Hoặc</span>
+              </div>
+
+              <GoogleAuthButton
+                mode="signup"
+                role={role}
+                onError={(msg) => setError(msg)}
+              />
 
               <div className={styles.footer}>
                 Đã có tài khoản?{' '}

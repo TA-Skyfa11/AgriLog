@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema } from './supabaseModel';
 
 export interface IServicePackage extends Document {
   name: string;

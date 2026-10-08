@@ -34,9 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CultivationEntry = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const cultivationEntrySchema = new mongoose_1.Schema({
-    cultivationBoard: { type: mongoose_1.Schema.Types.ObjectId, ref: 'CultivationBoard', required: true },
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const cultivationEntrySchema = new supabaseModel_1.Schema({
+    cultivationBoard: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'CultivationBoard', required: true },
     date: { type: Date, required: true },
     stage: { type: String },
     activityName: { type: String, default: 'Chưa đặt tên' },
@@ -45,8 +45,8 @@ const cultivationEntrySchema = new mongoose_1.Schema({
     cost: { type: Number, default: 0 },
     notes: { type: String },
     imageUrls: [{ type: String }],
-    customValues: { type: mongoose_1.Schema.Types.Mixed, default: {} },
+    customValues: { type: supabaseModel_1.Schema.Types.Mixed, default: {} },
     isCompleted: { type: Boolean, default: false },
     entryGroupId: { type: String },
 }, { timestamps: true });
-exports.CultivationEntry = mongoose_1.default.model('CultivationEntry', cultivationEntrySchema);
+exports.CultivationEntry = supabaseModel_1.default.model('CultivationEntry', cultivationEntrySchema);

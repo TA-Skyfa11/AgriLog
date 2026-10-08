@@ -78,6 +78,17 @@ export const changePasswordSchema = z
     path: ['newPassword'],
   });
 
+export const googleAuthSchema = z.object({
+  email: z.string().trim().toLowerCase().email().optional(),
+  name: z.string().trim().optional(),
+  googleId: z.string().trim().optional(),
+  avatar: z.string().trim().optional(),
+  role: z.enum([Role.FARM, Role.COMPANY]).optional().default(Role.FARM),
+  supabaseToken: z.string().trim().optional(),
+  idToken: z.string().trim().optional(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type GoogleAuthInput = z.infer<typeof googleAuthSchema>;

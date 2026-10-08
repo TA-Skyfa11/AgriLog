@@ -34,9 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UploadLog = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const uploadLogSchema = new mongoose_1.Schema({
-    farmProfile: { type: mongoose_1.Schema.Types.ObjectId, ref: 'FarmProfile', required: true },
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const uploadLogSchema = new supabaseModel_1.Schema({
+    farmProfile: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'FarmProfile', required: true },
     imageUrl: { type: String, required: true },
 }, { timestamps: true });
-exports.UploadLog = mongoose_1.default.model('UploadLog', uploadLogSchema);
+exports.UploadLog = supabaseModel_1.default.model('UploadLog', uploadLogSchema);

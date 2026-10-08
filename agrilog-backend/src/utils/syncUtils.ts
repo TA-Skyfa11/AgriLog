@@ -1,4 +1,4 @@
-import mongoose, { Types } from 'mongoose';
+import { Types } from '../models/supabaseModel';
 import { CultivationBoard } from '../models/CultivationBoard';
 import { FertilizerBoard } from '../models/FertilizerBoard';
 import { PesticideBoard } from '../models/PesticideBoard';

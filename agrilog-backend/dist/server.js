@@ -10,7 +10,7 @@ const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const db_1 = require("./config/db");
 const express_session_1 = __importDefault(require("express-session"));
-const connect_mongo_1 = __importDefault(require("connect-mongo"));
+const supabaseSessionStore_1 = require("./config/supabaseSessionStore");
 dotenv_1.default.config();
 // Fail fast on startup if JWT_SECRET is missing or empty
 if (!process.env.JWT_SECRET || !process.env.JWT_SECRET.trim()) {
@@ -66,10 +66,7 @@ app.use((0, express_session_1.default)({
     secret: JWT_SECRET,
     resave: false,
     saveUninitialized: false,
-    store: connect_mongo_1.default.create({
-        mongoUrl: process.env.MONGO_URI || 'mongodb://localhost:27017/agrilog',
-        collectionName: 'sessions'
-    }),
+    store: new supabaseSessionStore_1.SupabaseSessionStore(),
     cookie: {
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         httpOnly: true,
@@ -97,6 +94,7 @@ const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
 const featureRoutes_1 = __importDefault(require("./routes/featureRoutes"));
 const path_1 = __importDefault(require("path"));
 const r2Storage_1 = require("./utils/r2Storage");
+const taskScheduler_1 = require("./utils/taskScheduler");
 // Routes
 app.use('/api/auth', authRoutes_1.default);
 app.use('/api/farm', farmRoutes_1.default);
@@ -152,6 +150,8 @@ app.use((err, req, res, next) => {
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
+    // Khởi động scheduler quét thông báo nhắc lịch công việc
+    (0, taskScheduler_1.startTaskReminderScheduler)(30);
 });
 // Export for Vercel
 exports.default = app;

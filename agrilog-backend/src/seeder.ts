@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { User, Role } from './models/User';
@@ -12,6 +11,8 @@ import { PesticideBoard } from './models/PesticideBoard';
 import { PesticideEntry } from './models/PesticideEntry';
 import { Material } from './models/Material';
 import { Task } from './models/Task';
+import { ServicePackage } from './models/ServicePackage';
+import { SERVICE_PACKAGES_DATA } from './seedServicePackages';
 
 dotenv.config();
 
@@ -96,6 +97,13 @@ const importData = async () => {
     await Task.create({ farmProfile: farmProfile._id, title: 'Bón phân NPK đợt 3', dueDate: nextWeek, status: 'PENDING', notes: 'Chuẩn bị 30kg NPK' });
     await Task.create({ farmProfile: farmProfile._id, title: 'Thu dọn cỏ dại', dueDate: today, status: 'COMPLETED' });
     console.log(`Đã tạo dữ liệu Lịch công việc (Tasks)`);
+
+    // 5. Tạo Gói dịch vụ (Service Packages)
+    await ServicePackage.deleteMany();
+    for (const pkg of SERVICE_PACKAGES_DATA) {
+      await ServicePackage.create(pkg);
+    }
+    console.log(`Đã tạo dữ liệu Gói dịch vụ (BASIC, STANDARD, PREMIUM)`);
 
     console.log('Dữ liệu mẫu đã được tạo thành công!');
     process.exit();

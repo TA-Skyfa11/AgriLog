@@ -34,13 +34,13 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CompanyProfile = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const companyProfileSchema = new mongoose_1.Schema({
-    user: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const companyProfileSchema = new supabaseModel_1.Schema({
+    user: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     companyName: { type: String, required: true },
     address: { type: String, required: false },
     contactPhone: { type: String, required: false },
     businessType: { type: String, required: false },
     taxCode: { type: String, required: false },
 }, { timestamps: true });
-exports.CompanyProfile = mongoose_1.default.model('CompanyProfile', companyProfileSchema);
+exports.CompanyProfile = supabaseModel_1.default.model('CompanyProfile', companyProfileSchema);

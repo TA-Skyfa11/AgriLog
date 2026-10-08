@@ -39,7 +39,7 @@ export const checkAndSendTaskReminders = async (filterUserId?: string) => {
         const exists = await Notification.findOne({ user: profile.user, referenceId: refId });
 
         if (!exists) {
-          const dateStr = task.dueDate.toLocaleDateString('vi-VN');
+          const dateStr = new Date(task.dueDate).toLocaleDateString('vi-VN');
           const notif = await Notification.create({
             user: profile.user,
             title: 'Công việc sắp đến hạn',

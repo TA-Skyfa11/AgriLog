@@ -34,10 +34,10 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LoginHistory = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const loginHistorySchema = new mongoose_1.Schema({
-    user: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const loginHistorySchema = new supabaseModel_1.Schema({
+    user: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'User', required: true },
     ipAddress: { type: String },
     userAgent: { type: String },
 }, { timestamps: true });
-exports.LoginHistory = mongoose_1.default.model('LoginHistory', loginHistorySchema);
+exports.LoginHistory = supabaseModel_1.default.model('LoginHistory', loginHistorySchema);

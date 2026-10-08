@@ -34,11 +34,11 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PesticideEntry = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const pesticideEntrySchema = new mongoose_1.Schema({
-    pesticideBoard: { type: mongoose_1.Schema.Types.ObjectId, ref: 'PesticideBoard', required: true },
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const pesticideEntrySchema = new supabaseModel_1.Schema({
+    pesticideBoard: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'PesticideBoard', required: true },
     date: { type: Date, required: true },
-    material: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Material' },
+    material: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'Material' },
     materialName: { type: String },
     manufacturer: { type: String },
     activeIngredient: { type: String },
@@ -52,7 +52,7 @@ const pesticideEntrySchema = new mongoose_1.Schema({
     cost: { type: Number, default: 0 },
     notes: { type: String },
     imageUrls: [{ type: String }],
-    customValues: { type: mongoose_1.Schema.Types.Mixed, default: {} },
+    customValues: { type: supabaseModel_1.Schema.Types.Mixed, default: {} },
     entryGroupId: { type: String },
 }, { timestamps: true });
-exports.PesticideEntry = mongoose_1.default.model('PesticideEntry', pesticideEntrySchema);
+exports.PesticideEntry = supabaseModel_1.default.model('PesticideEntry', pesticideEntrySchema);

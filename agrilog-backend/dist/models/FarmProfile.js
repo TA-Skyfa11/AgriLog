@@ -34,9 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.FarmProfile = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const farmProfileSchema = new mongoose_1.Schema({
-    user: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const farmProfileSchema = new supabaseModel_1.Schema({
+    user: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     farmName: { type: String, required: true },
     address: { type: String, required: false },
     areaSqm: { type: Number, required: false },
@@ -53,4 +53,4 @@ const farmProfileSchema = new mongoose_1.Schema({
         billing: { type: Boolean, default: true },
     }
 }, { timestamps: true });
-exports.FarmProfile = mongoose_1.default.model('FarmProfile', farmProfileSchema);
+exports.FarmProfile = supabaseModel_1.default.model('FarmProfile', farmProfileSchema);

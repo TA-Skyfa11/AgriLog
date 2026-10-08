@@ -1,28 +1,6 @@
 services:
   # ============================================================================
-  # 1. Database: MongoDB 7.0
-  # ============================================================================
-  mongo:
-    image: mongo:7.0
-    container_name: agrilog-mongo
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_DATABASE: agrilog
-    volumes:
-      - mongo_data:/data/db
-    healthcheck:
-      test: ["CMD-SHELL", "mongosh --eval 'db.adminCommand(\"ping\")' --quiet || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - agrilog-net
-
-  # ============================================================================
-  # 2. Backend: Node.js Express & TypeScript API + Puppeteer PDF
+  # 1. Backend: Node.js Express & TypeScript API + Puppeteer PDF (Supabase Edition)
   # ============================================================================
   backend:
     build:
@@ -32,16 +10,18 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
-    depends_on:
-      mongo:
-        condition: service_healthy
     env_file:
       - path: ./agrilog-backend/.env
         required: false
     environment:
       PORT: 5000
       NODE_ENV: production
-      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/agrilog}
+      DATABASE_URL: ${DATABASE_URL:-}
+      DATABASE_POOLER_URL: ${DATABASE_POOLER_URL:-}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:-}
+      SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:-}
+      SUPABASE_JWKS_URL: ${SUPABASE_JWKS_URL:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       JWT_SECRET: "${JWT_SECRET:?Bat buoc phai cau hinh JWT_SECRET trong file .env}"
       RESEND_API_KEY: ${RESEND_API_KEY:-}
@@ -57,11 +37,15 @@ services:
       SEPAY_BANK: ${SEPAY_BANK:-MBBank}
       SEPAY_ACC_NAME: ${SEPAY_ACC_NAME:-}
       SEPAY_WEBHOOK_KEY: ${SEPAY_WEBHOOK_KEY:-}
+      SEPAY_WEBHOOK_SECRET: ${SEPAY_WEBHOOK_SECRET:-}
+      ALLOW_DEV_SIMULATE: ${ALLOW_DEV_SIMULATE:-true}
+      ONESIGNAL_APP_ID: ${ONESIGNAL_APP_ID:-}
+      ONESIGNAL_REST_API_KEY: ${ONESIGNAL_REST_API_KEY:-}
     networks:
       - agrilog-net
 
   # ============================================================================
-  # 3. Frontend: Next.js 16 (Standalone Production Build)
+  # 2. Frontend: Next.js 16 (Standalone Production Build)
   # ============================================================================
   frontend:
     build:
@@ -69,6 +53,10 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
+        NEXT_PUBLIC_ONESIGNAL_APP_ID: ${NEXT_PUBLIC_ONESIGNAL_APP_ID:-}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
     container_name: agrilog-frontend
     restart: unless-stopped
     ports:
@@ -78,16 +66,17 @@ services:
     environment:
       PORT: 3000
       NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
+      NEXT_PUBLIC_ONESIGNAL_APP_ID: ${NEXT_PUBLIC_ONESIGNAL_APP_ID:-}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
     networks:
       - agrilog-net
 
 # ==============================================================================
-# Persistent Volumes & Network Topology
+# Network Topology
 # ==============================================================================
-volumes:
-  mongo_data:
-    name: agrilog_mongo_data
-
 networks:
   agrilog-net:
     name: agrilog-net

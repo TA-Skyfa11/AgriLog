@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const mongoose_1 = __importDefault(require("mongoose"));
+const db_1 = require("./config/db");
 const dotenv_1 = __importDefault(require("dotenv"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const User_1 = require("./models/User");
@@ -15,8 +15,8 @@ const CommissionSetting_1 = require("./models/CommissionSetting");
 dotenv_1.default.config();
 const seedMarketplace = async () => {
     try {
-        await mongoose_1.default.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/agrilog');
-        console.log('MongoDB Connected for Seeding Marketplace...');
+        await (0, db_1.connectDB)();
+        console.log('Supabase Connected for Seeding Marketplace...');
         // 1. Commission Setting
         const existingCommission = await CommissionSetting_1.CommissionSetting.findOne({ rate: 5 });
         if (!existingCommission) {

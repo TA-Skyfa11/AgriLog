@@ -11,4 +11,6 @@ router.use(authMiddleware_1.protect);
 router.get('/', notificationController_1.getNotifications);
 router.put('/mark-all-read', notificationController_1.markAllAsRead);
 router.put('/:id/read', notificationController_1.markAsRead);
+router.post('/test-onesignal', notificationController_1.testOneSignalNotification);
+router.post('/remind-tasks', notificationController_1.triggerTaskReminders);
 exports.default = router;

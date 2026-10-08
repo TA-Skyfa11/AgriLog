@@ -34,9 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Material = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const materialSchema = new mongoose_1.Schema({
-    farmProfile: { type: mongoose_1.Schema.Types.ObjectId, ref: 'FarmProfile', required: true },
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const materialSchema = new supabaseModel_1.Schema({
+    farmProfile: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'FarmProfile', required: true },
     name: { type: String, required: true },
     type: { type: String, enum: ['FERTILIZER', 'PESTICIDE'], required: true },
     quantity: { type: Number, default: 0 },
@@ -47,4 +47,4 @@ const materialSchema = new mongoose_1.Schema({
     activeIngredient: { type: String },
     supplier: { type: String },
 }, { timestamps: true });
-exports.Material = mongoose_1.default.model('Material', materialSchema);
+exports.Material = supabaseModel_1.default.model('Material', materialSchema);

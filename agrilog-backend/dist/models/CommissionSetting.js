@@ -34,10 +34,10 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CommissionSetting = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const commissionSettingSchema = new mongoose_1.Schema({
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const commissionSettingSchema = new supabaseModel_1.Schema({
     rate: { type: Number, required: true, default: 5, min: 0, max: 100 },
     description: { type: String, default: 'Mức hoa hồng mặc định' },
-    updatedBy: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User' },
+    updatedBy: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
-exports.CommissionSetting = mongoose_1.default.model('CommissionSetting', commissionSettingSchema);
+exports.CommissionSetting = supabaseModel_1.default.model('CommissionSetting', commissionSettingSchema);

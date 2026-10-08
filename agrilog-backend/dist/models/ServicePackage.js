@@ -34,8 +34,8 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ServicePackage = void 0;
-const mongoose_1 = __importStar(require("mongoose"));
-const servicePackageSchema = new mongoose_1.Schema({
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
+const servicePackageSchema = new supabaseModel_1.Schema({
     name: { type: String, required: true },
     code: { type: String, required: true, unique: true, uppercase: true },
     price: { type: Number, required: true, min: 0 },
@@ -45,4 +45,4 @@ const servicePackageSchema = new mongoose_1.Schema({
     maxBoards: { type: Number, default: 3 },
     isActive: { type: Boolean, default: true },
 }, { timestamps: true });
-exports.ServicePackage = mongoose_1.default.model('ServicePackage', servicePackageSchema);
+exports.ServicePackage = supabaseModel_1.default.model('ServicePackage', servicePackageSchema);

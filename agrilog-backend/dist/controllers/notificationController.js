@@ -1,10 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.markAllAsRead = exports.markAsRead = exports.getNotifications = void 0;
+exports.triggerTaskReminders = exports.testOneSignalNotification = exports.markAllAsRead = exports.markAsRead = exports.getNotifications = void 0;
 const Notification_1 = require("../models/Notification");
 const Task_1 = require("../models/Task");
 const FarmProfile_1 = require("../models/FarmProfile");
 const Material_1 = require("../models/Material");
+const oneSignalService_1 = require("../utils/oneSignalService");
+const taskScheduler_1 = require("../utils/taskScheduler");
 const getNotifications = async (req, res) => {
     try {
         const userId = req.user?._id;
@@ -34,6 +36,18 @@ const getNotifications = async (req, res) => {
                         type: 'TASK',
                         referenceId: refId
                     });
+                    // Gửi thông báo đẩy OneSignal nếu người dùng bật nhận thông báo
+                    const allowPush = profile.notificationPreferences?.push !== false;
+                    const allowTasks = profile.notificationPreferences?.tasks !== false;
+                    if (allowPush && allowTasks) {
+                        (0, oneSignalService_1.sendTaskReminderPush)({
+                            userId: userId.toString(),
+                            taskTitle: task.title,
+                            dueDate: task.dueDate,
+                            taskId: task._id.toString(),
+                            priority: task.priority
+                        }).catch(err => console.error('[NotificationController] Lỗi gửi OneSignal push:', err));
+                    }
                 }
             }
             // 2. Check for plan expiration
@@ -135,3 +149,54 @@ const markAllAsRead = async (req, res) => {
     }
 };
 exports.markAllAsRead = markAllAsRead;
+/**
+ * Gửi thông báo thử nghiệm OneSignal đến người dùng đang đăng nhập
+ */
+const testOneSignalNotification = async (req, res) => {
+    try {
+        const userId = req.user?._id;
+        if (!userId)
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const result = await (0, oneSignalService_1.sendOneSignalNotification)({
+            userIds: [userId.toString()],
+            title: '🔔 AgriLog: Kiểm tra thông báo nhắc lịch',
+            message: 'Tính năng gửi thông báo nhắc lịch công việc qua OneSignal đã được kích hoạt thành công!',
+            url: `${frontendUrl}/tasks`,
+            data: {
+                type: 'TEST_REMINDER',
+                timestamp: Date.now(),
+                url: '/tasks'
+            }
+        });
+        res.json({
+            success: true,
+            message: 'Đã gửi yêu cầu thông báo OneSignal',
+            data: result
+        });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.testOneSignalNotification = testOneSignalNotification;
+/**
+ * Quét ngay các công việc sắp đến hạn và gửi thông báo nhắc nhở OneSignal
+ */
+const triggerTaskReminders = async (req, res) => {
+    try {
+        const userId = req.user?._id;
+        if (!userId)
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        const result = await (0, taskScheduler_1.checkAndSendTaskReminders)(userId.toString());
+        res.json({
+            success: true,
+            message: 'Đã hoàn tất quét và gửi nhắc lịch công việc',
+            data: result
+        });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.triggerTaskReminders = triggerTaskReminders;

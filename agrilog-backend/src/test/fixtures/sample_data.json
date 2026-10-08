@@ -1,0 +1,302 @@
+{
+  "users": [
+    {
+      "id": "test_user_admin_001",
+      "email": "test.admin@agrilog.test",
+      "name": "Test System Administrator",
+      "role": "ADMIN",
+      "isActive": true,
+      "allowDevPayment": true
+    },
+    {
+      "id": "test_user_farm_001",
+      "email": "test.farmer@agrilog.test",
+      "name": "Test Farmer Nguyen Van A",
+      "role": "FARM",
+      "isActive": true,
+      "allowDevPayment": false
+    },
+    {
+      "id": "test_user_company_001",
+      "email": "test.company@agrilog.test",
+      "name": "Test Company Agrico Supplies",
+      "role": "COMPANY",
+      "isActive": true,
+      "allowDevPayment": false
+    },
+    {
+      "id": "test_user_locked_001",
+      "email": "test.locked@agrilog.test",
+      "name": "Test Locked Farmer",
+      "role": "FARM",
+      "isActive": false,
+      "allowDevPayment": false
+    }
+  ],
+  "farmProfiles": [
+    {
+      "id": "test_farm_profile_001",
+      "user": "test_user_farm_001",
+      "farmName": "Test Organic Farm Da Lat",
+      "address": "Phuong 7, Da Lat, Lam Dong",
+      "areaSqm": 12000,
+      "mainCropType": "Dau tay & Rau thuy canh",
+      "subscription": {
+        "plan": "PREMIUM",
+        "effectivePlan": "PREMIUM",
+        "isTrial": true,
+        "status": "ACTIVE"
+      },
+      "notificationPreferences": {
+        "push": true,
+        "email": true,
+        "tasks": true
+      }
+    }
+  ],
+  "companyProfiles": [
+    {
+      "id": "test_comp_profile_001",
+      "user": "test_user_company_001",
+      "companyName": "Agrico Supplies Vietnam Ltd",
+      "taxCode": "0109988776",
+      "address": "KCN Tan Binh, TP Ho Chi Minh",
+      "phone": "0987654321",
+      "email": "contact@agrico-supplies.test",
+      "isVerified": true
+    }
+  ],
+  "materials": [
+    {
+      "id": "test_mat_fert_001",
+      "farmProfile": "test_farm_profile_001",
+      "name": "Phan huu co vi sinh Trichoderma",
+      "type": "FERTILIZER",
+      "quantity": 500,
+      "unit": "kg",
+      "supplier": "Agrico Supplies Vietnam Ltd"
+    },
+    {
+      "id": "test_mat_pest_001",
+      "farmProfile": "test_farm_profile_001",
+      "name": "Che pham sinh hoc Neem Oil 1000EC",
+      "type": "PESTICIDE",
+      "quantity": 25,
+      "unit": "lit",
+      "supplier": "Agrico Supplies Vietnam Ltd"
+    },
+    {
+      "id": "test_mat_seed_001",
+      "farmProfile": "test_farm_profile_001",
+      "name": "Hat giong Dau tay Nhat Ban F1",
+      "type": "SEED",
+      "quantity": 50,
+      "unit": "goi",
+      "supplier": "Agrico Supplies Vietnam Ltd"
+    }
+  ],
+  "cultivationBoards": [
+    {
+      "id": "test_cult_board_001",
+      "farmProfile": "test_farm_profile_001",
+      "cropName": "Dau tay Nhat Ban",
+      "variety": "Tochiotome",
+      "areaSqm": 3000,
+      "startDate": "2026-10-01T00:00:00.000Z",
+      "status": "IN_PROGRESS"
+    }
+  ],
+  "cultivationEntries": [
+    {
+      "id": "test_cult_entry_001",
+      "cultivationBoard": "test_cult_board_001",
+      "date": "2026-10-02T08:00:00.000Z",
+      "stage": "Lam dat & len luong",
+      "action": "Cay xoi dat, tron phan huu co vi sinh Trichoderma lot day luong",
+      "notes": "Dat tuoi xop, do am dat dat khoang 65%"
+    },
+    {
+      "id": "test_cult_entry_002",
+      "cultivationBoard": "test_cult_board_001",
+      "date": "2026-10-05T07:30:00.000Z",
+      "stage": "Xuong giong",
+      "action": "Cac cay con vao luong, mat do 30x35cm",
+      "notes": "Ty le song 99%, tuoi giu am bang he thong nho giot"
+    }
+  ],
+  "fertilizerBoards": [
+    {
+      "id": "test_fert_board_001",
+      "farmProfile": "test_farm_profile_001",
+      "cropName": "Dau tay Nhat Ban",
+      "season": "Thu Dong 2026",
+      "status": "ACTIVE"
+    }
+  ],
+  "fertilizerEntries": [
+    {
+      "id": "test_fert_entry_001",
+      "fertilizerBoard": "test_fert_board_001",
+      "material": "test_mat_fert_001",
+      "date": "2026-10-02T08:30:00.000Z",
+      "amount": 100,
+      "unit": "kg",
+      "method": "Bon lot",
+      "notes": "Bon lot truoc khi phu mang nilon"
+    }
+  ],
+  "pesticideBoards": [
+    {
+      "id": "test_pest_board_001",
+      "farmProfile": "test_farm_profile_001",
+      "cropName": "Dau tay Nhat Ban",
+      "season": "Thu Dong 2026",
+      "status": "ACTIVE"
+    }
+  ],
+  "pesticideEntries": [
+    {
+      "id": "test_pest_entry_001",
+      "pesticideBoard": "test_pest_board_001",
+      "material": "test_mat_pest_001",
+      "date": "2026-10-06T16:00:00.000Z",
+      "targetPest": "Bo tri & Nhen do hai la non",
+      "dosage": 1.5,
+      "unit": "lit",
+      "quarantineDays": 3,
+      "safeHarvestDate": "2026-10-09T16:00:00.000Z",
+      "notes": "Phun suong deu 2 mat la vao buoi chieu mat"
+    }
+  ],
+  "products": [
+    {
+      "id": "test_prod_001",
+      "company": "test_comp_profile_001",
+      "name": "Phan bon la vi luong cao cap SuperMicro 500ml",
+      "description": "Bo sung bo, kem, magie giup cay tang truong va dau hoa",
+      "category": "FERTILIZER",
+      "price": 125000,
+      "stockQuantity": 200,
+      "unit": "chai",
+      "status": "ACTIVE",
+      "isAvailable": true
+    },
+    {
+      "id": "test_prod_002",
+      "company": "test_comp_profile_001",
+      "name": "Che pham sinh hoc Neem Oil dac tri sau benh 1L",
+      "description": "An toan cho rau sach, dat tieu chuan GlobalGAP",
+      "category": "PESTICIDE",
+      "price": 280000,
+      "stockQuantity": 150,
+      "unit": "chai",
+      "status": "ACTIVE",
+      "isAvailable": true
+    },
+    {
+      "id": "test_prod_003",
+      "company": "test_comp_profile_001",
+      "name": "He thong tuoi nho giot tu dong 50 dau tuoi",
+      "description": "Tiet kiem 50% nuoc tuoi va toi uu hoa dinh duong",
+      "category": "EQUIPMENT",
+      "price": 1450000,
+      "stockQuantity": 30,
+      "unit": "bo",
+      "status": "ACTIVE",
+      "isAvailable": true
+    }
+  ],
+  "orders": [
+    {
+      "id": "test_order_001",
+      "farm": "test_farm_profile_001",
+      "company": "test_comp_profile_001",
+      "items": [
+        {
+          "product": "test_prod_001",
+          "quantity": 2,
+          "price": 125000
+        },
+        {
+          "product": "test_prod_002",
+          "quantity": 1,
+          "price": 280000
+        }
+      ],
+      "totalAmount": 530000,
+      "commissionFee": 26500,
+      "status": "PENDING",
+      "shippingAddress": "Phuong 7, Da Lat, Lam Dong",
+      "paymentMethod": "SEPAY"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "test_task_001",
+      "farmProfile": "test_farm_profile_001",
+      "title": "Kiem tra do am luong dau tay buoi sang",
+      "description": "Do do am dat va bat he thong tuoi nho giot trong 15 phut",
+      "status": "PENDING",
+      "priority": "HIGH",
+      "dueDate": "2026-10-09T07:00:00.000Z"
+    },
+    {
+      "id": "test_task_002",
+      "farmProfile": "test_farm_profile_001",
+      "title": "Tia nhanh va la vang duoi goc cay",
+      "description": "Loai bo la gia tranh phat sinh nam benh",
+      "status": "PENDING",
+      "priority": "MEDIUM",
+      "dueDate": "2026-10-10T15:30:00.000Z"
+    },
+    {
+      "id": "test_task_003",
+      "farmProfile": "test_farm_profile_001",
+      "title": "Cong viec da hoan thanh thu hoach thu",
+      "description": "Kiem tra qua chin dot 1",
+      "status": "COMPLETED",
+      "priority": "LOW",
+      "dueDate": "2026-10-07T10:00:00.000Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "test_notif_001",
+      "user": "test_user_farm_001",
+      "title": "Chao mung den voi AgriLog",
+      "message": "Tai khoan cua ban da duoc kich hoat thanh cong.",
+      "type": "SYSTEM",
+      "referenceId": "welcome_001",
+      "isRead": false
+    }
+  ],
+  "servicePackages": [
+    {
+      "id": "test_pkg_free_001",
+      "code": "FREE",
+      "name": "Goi Nho Co Ban (Free)",
+      "price": 0,
+      "durationMonths": 12,
+      "features": ["diary", "inventory"],
+      "isActive": true
+    },
+    {
+      "id": "test_pkg_standard_001",
+      "code": "STANDARD",
+      "name": "Goi Canh Tac Tieu Chuan (Standard)",
+      "price": 199000,
+      "durationMonths": 1,
+      "features": ["diary", "inventory", "weather", "tasks"],
+      "isActive": true
+    },
+    {
+      "id": "test_pkg_premium_001",
+      "code": "PREMIUM",
+      "name": "Goi Nhat Ky & Thuong Mai Dien Tu (Premium)",
+      "price": 499000,
+      "durationMonths": 1,
+      "features": ["diary", "inventory", "weather", "tasks", "reports", "marketplace"],
+      "isActive": true
+    }
+  ]
+}

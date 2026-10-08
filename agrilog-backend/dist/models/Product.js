@@ -35,7 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Product = exports.ProductStatus = exports.ProductCategory = void 0;
 exports.checkAgricultureRelevance = checkAgricultureRelevance;
-const mongoose_1 = __importStar(require("mongoose"));
+const supabaseModel_1 = __importStar(require("./supabaseModel"));
 var ProductCategory;
 (function (ProductCategory) {
     ProductCategory["FERTILIZER"] = "FERTILIZER";
@@ -50,8 +50,8 @@ var ProductStatus;
     ProductStatus["APPROVED"] = "APPROVED";
     ProductStatus["REJECTED"] = "REJECTED";
 })(ProductStatus || (exports.ProductStatus = ProductStatus = {}));
-const productSchema = new mongoose_1.Schema({
-    company: { type: mongoose_1.Schema.Types.ObjectId, ref: 'User', required: true },
+const productSchema = new supabaseModel_1.Schema({
+    company: { type: supabaseModel_1.Schema.Types.ObjectId, ref: 'User', required: true },
     name: { type: String, required: true },
     description: { type: String, required: true },
     category: { type: String, enum: Object.values(ProductCategory), required: true },
@@ -92,4 +92,4 @@ function checkAgricultureRelevance(name, description, category) {
     }
     return { passed: false, reason: 'Sản phẩm không liên quan đến nông nghiệp. Vui lòng kiểm tra lại tên, mô tả hoặc chọn danh mục phù hợp.' };
 }
-exports.Product = mongoose_1.default.model('Product', productSchema);
+exports.Product = supabaseModel_1.default.model('Product', productSchema);

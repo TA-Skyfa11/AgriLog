@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema } from './supabaseModel';
 
 export enum Role {
   FARM = 'FARM',
@@ -9,7 +9,7 @@ export enum Role {
 export interface IUser extends Document {
   name: string;
   email: string;
-  passwordHash: string;
+  passwordHash?: string;
   role: Role;
   isActive: boolean;
   allowAdminReset: boolean;
@@ -20,6 +20,9 @@ export interface IUser extends Document {
   lockUntil?: Date;
   mfaOtp?: string;
   mfaOtpExpire?: Date;
+  googleId?: string;
+  avatar?: string;
+  authProvider?: 'local' | 'google';
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,7 +31,7 @@ const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: false, trim: true },
     email: { type: String, required: true, unique: true, trim: true, lowercase: true },
-    passwordHash: { type: String, required: true },
+    passwordHash: { type: String, required: false },
     role: { type: String, enum: Object.values(Role), default: Role.FARM },
     isActive: { type: Boolean, default: true },
     allowAdminReset: { type: Boolean, default: false },
@@ -39,6 +42,9 @@ const userSchema = new Schema<IUser>(
     lockUntil: { type: Date },
     mfaOtp: { type: String },
     mfaOtpExpire: { type: Date },
+    googleId: { type: String },
+    avatar: { type: String },
+    authProvider: { type: String, default: 'local' },
   },
   { timestamps: true }
 );

@@ -10,6 +10,7 @@ import {
   resetPassword,
   verifyMfa,
   logout,
+  googleAuth,
 } from '../controllers/authController';
 import { protect } from '../middleware/authMiddleware';
 import { loginRateLimiter } from '../middleware/rateLimit';
@@ -21,12 +22,14 @@ import {
   forgotPasswordSchema,
   resetPasswordSchema,
   changePasswordSchema,
+  googleAuthSchema,
 } from '../validations/authValidation';
 
 const router = express.Router();
 
 router.post('/register', validate(registerSchema), register);
 router.post('/login', loginRateLimiter, validate(loginSchema), login);
+router.post('/google', loginRateLimiter, validate(googleAuthSchema), googleAuth);
 router.post('/verify-mfa', validate(verifyMfaSchema), verifyMfa);
 router.post('/logout', logout);
 router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
