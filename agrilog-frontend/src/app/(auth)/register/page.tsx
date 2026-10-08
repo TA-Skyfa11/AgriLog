@@ -20,7 +20,6 @@ import {
   AlertTriangle,
   Gift,
   Sparkles,
-  Crown,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 

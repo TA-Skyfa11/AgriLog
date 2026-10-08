@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { fetchAPI } from '@/lib/api';
@@ -22,7 +22,73 @@ export default function GoogleAuthButton({
 }: GoogleAuthButtonProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [gisLoaded, setGisLoaded] = useState(false);
+
+  const handleGisResponse = useCallback(
+    async (response: any) => {
+      if (!response?.credential) return;
+      setLoading(true);
+
+      try {
+        const intendedRole = localStorage.getItem('oauth_role') || role;
+        const res = await fetchAPI('/auth/google', {
+          method: 'POST',
+          body: JSON.stringify({
+            idToken: response.credential,
+            role: intendedRole,
+          }),
+        });
+
+        if (res.success && res.token) {
+          document.cookie = `token=${res.token}; path=/; max-age=2592000`;
+          document.cookie = `role=${res.user.role}; path=/; max-age=2592000`;
+
+          localStorage.setItem('token', res.token);
+          localStorage.setItem('user', JSON.stringify(res.user));
+          localStorage.removeItem('oauth_role');
+          localStorage.removeItem('cart');
+
+          const userId = res.user?._id || res.user?.id;
+          if (userId) {
+            loginOneSignal(userId);
+          }
+
+          if (res.user.role === 'ADMIN') {
+            router.push('/admin/dashboard');
+          } else if (res.user.role === 'COMPANY') {
+            router.push('/company/dashboard');
+          } else {
+            router.push('/dashboard');
+          }
+        } else {
+          throw new Error(res.message || 'Xác thực Google thất bại');
+        }
+      } catch (err: any) {
+        console.error('Lỗi GIS Login:', err);
+        if (onError) {
+          onError(err.message || 'Đăng nhập Google thất bại');
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [role, router, onError]
+  );
+
+  const initGis = useCallback(
+    (clientId: string) => {
+      try {
+        if ((window as any).google?.accounts?.id) {
+          (window as any).google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGisResponse,
+          });
+        }
+      } catch (e) {
+        console.warn('Không thể khởi tạo Google Identity Services:', e);
+      }
+    },
+    [handleGisResponse]
+  );
 
   // Khởi tạo Google Identity Services (GIS) nếu có NEXT_PUBLIC_GOOGLE_CLIENT_ID
   useEffect(() => {
@@ -42,67 +108,34 @@ export default function GoogleAuthButton({
       initGis(googleClientId);
     };
     document.body.appendChild(script);
-  }, [role]);
+  }, [initGis]);
 
-  const initGis = (clientId: string) => {
-    try {
-      if ((window as any).google?.accounts?.id) {
-        (window as any).google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleGisResponse,
-        });
-        setGisLoaded(true);
-      }
-    } catch (e) {
-      console.warn('Không thể khởi tạo Google Identity Services:', e);
-    }
-  };
+  const fallbackToSupabaseOAuth = async () => {
+    const redirectTo = typeof window !== 'undefined'
+      ? `${window.location.origin}/auth/callback`
+      : undefined;
 
-  const handleGisResponse = async (response: any) => {
-    if (!response?.credential) return;
-    setLoading(true);
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'select_account',
+        },
+      },
+    });
 
-    try {
-      const intendedRole = localStorage.getItem('oauth_role') || role;
-      const res = await fetchAPI('/auth/google', {
-        method: 'POST',
-        body: JSON.stringify({
-          idToken: response.credential,
-          role: intendedRole,
-        }),
-      });
-
-      if (res.success && res.token) {
-        document.cookie = `token=${res.token}; path=/; max-age=2592000`;
-        document.cookie = `role=${res.user.role}; path=/; max-age=2592000`;
-
-        localStorage.setItem('token', res.token);
-        localStorage.setItem('user', JSON.stringify(res.user));
-        localStorage.removeItem('oauth_role');
-        localStorage.removeItem('cart');
-
-        const userId = res.user?._id || res.user?.id;
-        if (userId) {
-          loginOneSignal(userId);
-        }
-
-        if (res.user.role === 'ADMIN') {
-          router.push('/admin/dashboard');
-        } else if (res.user.role === 'COMPANY') {
-          router.push('/company/dashboard');
-        } else {
-          router.push('/dashboard');
-        }
-      } else {
-        throw new Error(res.message || 'Xác thực Google thất bại');
-      }
-    } catch (err: any) {
-      console.error('Lỗi GIS Login:', err);
-      if (onError) {
-        onError(err.message || 'Đăng nhập Google thất bại');
-      }
-    } finally {
+    if (error) {
       setLoading(false);
+      if (onError) {
+        onError(error.message);
+      }
+      return;
+    }
+
+    if (data?.url && typeof window !== 'undefined') {
+      window.location.href = data.url;
     }
   };
 
@@ -134,35 +167,6 @@ export default function GoogleAuthButton({
       if (onError) {
         onError(errMsg);
       }
-    }
-  };
-
-  const fallbackToSupabaseOAuth = async () => {
-    const redirectTo = typeof window !== 'undefined'
-      ? `${window.location.origin}/auth/callback`
-      : undefined;
-
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo,
-        queryParams: {
-          access_type: 'offline',
-          prompt: 'select_account',
-        },
-      },
-    });
-
-    if (error) {
-      setLoading(false);
-      if (onError) {
-        onError(error.message);
-      }
-      return;
-    }
-
-    if (data?.url && typeof window !== 'undefined') {
-      window.location.href = data.url;
     }
   };
 
