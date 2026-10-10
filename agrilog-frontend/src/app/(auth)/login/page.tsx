@@ -218,6 +218,7 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {/* Ẩn tính năng đăng nhập bằng Google
           <div className={styles.divider}>
             <span className={styles.dividerText}>Hoặc</span>
           </div>
@@ -226,6 +227,7 @@ export default function LoginPage() {
             mode="signin"
             onError={(msg) => setError(msg)}
           />
+          */}
 
           <div className={styles.footer}>
             Chưa có tài khoản?{' '}

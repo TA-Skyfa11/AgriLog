@@ -49,5 +49,6 @@ const cultivationBoardSchema = new supabaseModel_1.Schema({
     harvestDate: { type: Date },
     customColumns: [{ type: String }],
     groupId: { type: String },
+    hasInitializedEntries: { type: Boolean, default: false },
 }, { timestamps: true });
 exports.CultivationBoard = supabaseModel_1.default.model('CultivationBoard', cultivationBoardSchema);

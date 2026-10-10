@@ -131,6 +131,7 @@ import notificationRoutes from './routes/notificationRoutes';
 import exportRoutes from './routes/exportRoutes';
 import paymentRoutes from './routes/paymentRoutes';
 import featureRoutes from './routes/featureRoutes';
+import cropStandardRoutes from './routes/cropStandardRoutes';
 import path from 'path';
 import { getFileFromR2 } from './utils/r2Storage';
 import { startTaskReminderScheduler } from './utils/taskScheduler';
@@ -154,6 +155,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/features', featureRoutes);
+app.use('/api/crop-standards', cropStandardRoutes);
 
 // Support direct /images/* routing for R2 stored files
 app.get(/^\/images\/(.+)$/, async (req: Request, res: Response) => {

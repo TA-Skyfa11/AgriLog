@@ -72,7 +72,7 @@ export default function InventoryPage() {
     const { name, value } = e.target;
     
     if (name === 'type') {
-      const defaultUnit = value === 'FERTILIZER' ? 'kg' : 'ml';
+      const defaultUnit = value === 'FERTILIZER' ? 'kg' : 'lít';
       setFormData({ ...formData, [name]: value, unit: defaultUnit });
     } else {
       setFormData({ ...formData, [name]: value });
@@ -247,9 +247,28 @@ export default function InventoryPage() {
                   <label className={styles.label}>Số lượng nhập</label>
                   <input type="number" name="quantity" className={styles.input} required value={formData.quantity} onChange={handleInputChange} placeholder="0" />
                 </div>
-                <div className={styles.formGroup} style={{ width: '100px' }}>
+                <div className={styles.formGroup} style={{ width: '130px' }}>
                   <label className={styles.label}>Đơn vị</label>
-                  <input type="text" name="unit" className={styles.input} required value={formData.unit} onChange={handleInputChange} placeholder="kg, lít..." />
+                  <select name="unit" className={styles.input} required value={formData.unit} onChange={handleInputChange}>
+                    {formData.type === 'FERTILIZER' ? (
+                      <>
+                        <option value="kg">kg</option>
+                        <option value="bao">bao</option>
+                        <option value="tấn">tấn</option>
+                        <option value="g">g</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="lít">lít</option>
+                        <option value="ml">ml</option>
+                        <option value="chai">chai</option>
+                        <option value="gói">gói</option>
+                      </>
+                    )}
+                    {formData.unit && !['kg', 'bao', 'tấn', 'g', 'lít', 'ml', 'chai', 'gói'].includes(formData.unit) && (
+                      <option value={formData.unit}>{formData.unit}</option>
+                    )}
+                  </select>
                 </div>
               </div>
 

@@ -123,6 +123,7 @@ const notificationRoutes_1 = __importDefault(require("./routes/notificationRoute
 const exportRoutes_1 = __importDefault(require("./routes/exportRoutes"));
 const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
 const featureRoutes_1 = __importDefault(require("./routes/featureRoutes"));
+const cropStandardRoutes_1 = __importDefault(require("./routes/cropStandardRoutes"));
 const path_1 = __importDefault(require("path"));
 const r2Storage_1 = require("./utils/r2Storage");
 const taskScheduler_1 = require("./utils/taskScheduler");
@@ -145,6 +146,7 @@ app.use('/api/products', productRoutes_1.default);
 app.use('/api/orders', orderRoutes_1.default);
 app.use('/api/payment', paymentRoutes_1.default);
 app.use('/api/features', featureRoutes_1.default);
+app.use('/api/crop-standards', cropStandardRoutes_1.default);
 // Support direct /images/* routing for R2 stored files
 app.get(/^\/images\/(.+)$/, async (req, res) => {
     const key = `images/${req.params[0]}`;

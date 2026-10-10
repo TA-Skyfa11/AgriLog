@@ -11,6 +11,7 @@ export interface IPesticideBoard extends Document {
   description?: string;
   customColumns?: string[];
   groupId?: string;
+  hasInitializedEntries?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +28,7 @@ const pesticideBoardSchema = new Schema<IPesticideBoard>(
     description: { type: String },
     customColumns: [{ type: String }],
     groupId: { type: String },
+    hasInitializedEntries: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -230,6 +230,7 @@
   justify-content: center;
   z-index: 50;
   backdrop-filter: blur(4px);
+  padding: 1rem;
 }
 
 .modal {
@@ -238,8 +239,27 @@
   padding: 2rem;
   width: 100%;
   max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
   box-shadow: var(--shadow-lg);
   animation: modalIn 0.3s ease-out;
+}
+
+.modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.modal::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 @keyframes modalIn {

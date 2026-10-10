@@ -46,5 +46,6 @@ const fertilizerBoardSchema = new supabaseModel_1.Schema({
     description: { type: String },
     customColumns: [{ type: String }],
     groupId: { type: String },
+    hasInitializedEntries: { type: Boolean, default: false },
 }, { timestamps: true });
 exports.FertilizerBoard = supabaseModel_1.default.model('FertilizerBoard', fertilizerBoardSchema);

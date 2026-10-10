@@ -35,6 +35,7 @@ exports.sql = (0, postgres_1.default)(activeConnString || 'postgresql://localhos
     max: 10,
     idle_timeout: 20,
     connect_timeout: 15,
+    prepare: false, // Recommended for PgBouncer / Supabase transaction pooler
 });
 const getSql = () => exports.sql;
 exports.getSql = getSql;
@@ -61,15 +62,21 @@ exports.ALL_TABLES = [
     'upload_logs',
     'commission_settings',
     'login_histories',
-    'sessions'
+    'sessions',
+    'crop_standards'
 ];
+let isSchemaInitialized = false;
 /**
  * Initializes all required tables and performance indexes in Supabase PostgreSQL
+ * Optimized into a single batch query to eliminate roundtrip latency.
  */
 const initSupabaseSchema = async () => {
+    if (isSchemaInitialized)
+        return;
+    const statements = [];
     for (const tbl of exports.ALL_TABLES) {
         if (tbl === 'sessions') {
-            await exports.sql.unsafe(`
+            statements.push(`
         CREATE TABLE IF NOT EXISTS public.sessions (
           sid VARCHAR(255) PRIMARY KEY,
           sess JSONB NOT NULL,
@@ -79,7 +86,7 @@ const initSupabaseSchema = async () => {
       `);
             continue;
         }
-        await exports.sql.unsafe(`
+        statements.push(`
       CREATE TABLE IF NOT EXISTS public.${tbl} (
         id VARCHAR(64) PRIMARY KEY,
         data JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -126,9 +133,10 @@ const initSupabaseSchema = async () => {
         `CREATE INDEX IF NOT EXISTS idx_payment_txcode ON payment_transactions ((data->>'transactionCode'))`,
         `CREATE INDEX IF NOT EXISTS idx_payment_order ON payment_transactions ((data->>'orderId'))`
     ];
-    for (const idx of indexes) {
-        await exports.sql.unsafe(idx);
-    }
+    statements.push(...indexes);
+    // Execute all DDL statements in a single network roundtrip
+    await exports.sql.unsafe(statements.join(';\n'));
+    isSchemaInitialized = true;
 };
 exports.initSupabaseSchema = initSupabaseSchema;
 /**

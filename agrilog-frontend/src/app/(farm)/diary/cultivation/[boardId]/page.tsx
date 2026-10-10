@@ -46,83 +46,12 @@ const AutoResizeTextarea = (props: any) => {
   );
 };
 
-const STAGE_OPTIONS = [
-  'Chuẩn bị đất',
-  'Gieo hạt/Trồng cây',
-  'Nảy mầm/Đâm chồi',
-  'Phát triển thân lá',
-  'Ra hoa',
-  'Đậu quả/Kết hạt',
-  'Chín/Thu hoạch'
-];
-
-const ACTIVITY_OPTIONS = [
-  'Làm đất',
-  'Ngâm ủ hạt giống',
-  'Gieo hạt',
-  'Bón lót',
-  'Bón thúc',
-  'Tưới nước',
-  'Phun thuốc',
-  'Làm cỏ',
-  'Cắt tỉa/Bấm ngọn',
-  'Thu hoạch'
-];
-
-const DropdownWithOther = ({ value, options, onChange, onBlur, placeholder, className, style, maxLength }: any) => {
-  const isOther = value && !options.includes(value) && value !== '';
-  const [showInput, setShowInput] = React.useState(isOther);
-
-  React.useEffect(() => {
-    setShowInput(value && !options.includes(value) && value !== '');
-  }, [value, options]);
-
-  if (showInput) {
-    return (
-      <AutoResizeTextarea 
-        style={style}
-        className={className}
-        value={value || ''}
-        maxLength={maxLength}
-        onChange={(e: any) => {
-          onChange(e.target.value);
-        }}
-        onBlur={() => {
-          if (!value || value.trim() === '') {
-            setShowInput(false);
-            onChange('');
-          }
-          if (onBlur) onBlur();
-        }}
-        placeholder="Nhập khác..."
-        autoFocus
-      />
-    );
-  }
-
-  return (
-    <CustomSelect 
-      style={{ ...style, padding: 0, border: 'none', background: 'transparent' }} 
-      className={className}
-      value={value || ''} 
-      onChange={(val) => {
-        if (val === 'Khác') {
-          setShowInput(true);
-          onChange('');
-        } else {
-          setShowInput(false);
-          onChange(val);
-        }
-        if (onBlur) setTimeout(onBlur, 100);
-      }}
-      options={[...options.map((opt: string) => ({ label: opt, value: opt })), { label: 'Khác', value: 'Khác' }]}
-      placeholder={placeholder}
-    />
-  );
-};
+import { useCropStandards } from '@/hooks/useCropStandards';
+import DropdownWithOther from '@/components/ui/DropdownWithOther';
 
 export default function CultivationDiaryDetailPage() {
   const dialog = useDialog();
+  const standards = useCropStandards();
 
   const params = useParams();
   const boardId = params?.boardId as string;
@@ -190,31 +119,20 @@ export default function CultivationDiaryDetailPage() {
         });
       }
       if (entriesRes.success) {
-        if (entriesRes.data.length === 0) {
-          // Auto generate 3 blank rows for new boards
-          let weatherData = '';
-          try {
-            const wRes = await fetchAPI('/weather');
-            if (wRes.success && wRes.data) {
-              weatherData = `${wRes.data.temp}°C, ${wRes.data.desc}`;
-            }
-          } catch (e) {}
+        let weatherData = '';
+        try {
+          const wRes = await fetchAPI('/weather');
+          if (wRes.success && wRes.data) {
+            weatherData = `${wRes.data.temp}°C, ${wRes.data.desc}`;
+          }
+        } catch (e) {}
 
-          const initialRows = Array(3).fill(null).map((_, idx) => ({
-            _id: `temp-${idx}`, // temporary ID to satisfy key
-            date: new Date().toISOString().split('T')[0],
-            stage: '',
-            activityName: '',
-            performer: '',
-            weather: weatherData,
-            notes: '',
-            customValues: {}
-          }));
-          setEntries(initialRows);
-        } else {
-          const sorted = entriesRes.data.sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-          setEntries(sorted);
-        }
+        const sorted = (entriesRes.data || []).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        const withWeather = sorted.map((entry: any) => ({
+          ...entry,
+          weather: entry.weather || weatherData,
+        }));
+        setEntries(withWeather);
       }
       if (profileRes.success) {
         setProfile(profileRes.data);
@@ -247,6 +165,13 @@ export default function CultivationDiaryDetailPage() {
       newEntries[index][field] = value;
     }
     setEntries(newEntries);
+  };
+
+  const handleStageChange = (index: number, stageVal: string) => {
+    const newEntries = [...entries];
+    newEntries[index].stage = stageVal;
+    setEntries(newEntries);
+    setTimeout(() => handleBlurSave(index), 100);
   };
 
   const handleBlurSave = async (index: number, updatedEntry?: any) => {
@@ -357,22 +282,23 @@ export default function CultivationDiaryDetailPage() {
   const handleAddNewRow = async () => {
     const weather = await fetchWeather();
     const today = new Date().toISOString();
+
     try {
       const res = await fetchAPI(`/cultivation-boards/${boardId}/entries`, {
         method: 'POST',
         body: JSON.stringify({
           date: today,
-          activityName: 'Chưa đặt tên',
-          weather: weather,
           stage: '',
+          activityName: '',
+          weather: weather,
           performer: '',
           notes: '',
           customValues: {},
         }),
       });
       if (res.success) {
-        setEntries((prev) => [...prev.filter((e: any) => !e._id?.startsWith('temp-')), res.data]);
-        toast.success('Đã thêm hàng mới và tự động sinh hàng ở Bón phân & Phun thuốc');
+        setEntries((prev) => [...prev, res.data]);
+        toast.success('Đã thêm hàng mới');
       } else {
         toast.error(res.message || 'Lỗi khi thêm hàng');
       }
@@ -564,7 +490,7 @@ export default function CultivationDiaryDetailPage() {
       const res = await fetchAPI(`/cultivation-boards/entries/${id}`, { method: 'DELETE' });
       if (res.success) {
         toast.success('Đã xóa hàng và đồng bộ sang các bảng liên quan');
-        loadBoardData();
+        setEntries((prev) => prev.filter((e: any) => e._id !== id));
       }
     } catch (error) {
       toast.error('Lỗi xóa bản ghi');
@@ -761,11 +687,11 @@ export default function CultivationDiaryDetailPage() {
                   <td>
                     <DropdownWithOther
                       style={inlineInputStyle}
-                      options={STAGE_OPTIONS}
+                      options={standards.stages}
                       value={entry.stage || ''}
-                      onChange={(val: string) => updateLocalEntry(index, 'stage', val)}
+                      onChange={(val: string) => handleStageChange(index, val)}
                       onBlur={() => handleBlurSave(index)}
-                      placeholder="—"
+                      placeholder="-- Chọn giai đoạn --"
                       className={styles.inlineInputHover}
                       maxLength={50}
                     />
@@ -773,33 +699,35 @@ export default function CultivationDiaryDetailPage() {
                   <td style={{ color: 'var(--color-primary-700)', fontWeight: 600 }}>
                     <DropdownWithOther
                       style={inlineInputStyle}
-                      options={ACTIVITY_OPTIONS}
+                      options={standards.stageToActivities[entry.stage]?.length ? standards.stageToActivities[entry.stage] : standards.activities}
                       value={entry.activityName || ''}
                       onChange={(val: string) => updateLocalEntry(index, 'activityName', val)}
                       onBlur={() => handleBlurSave(index)}
-                      placeholder="Tên hoạt động..."
+                      placeholder="-- Chọn hoạt động --"
                       className={styles.inlineInputHover}
                       maxLength={100}
                     />
                   </td>
                   <td>
-                    <AutoResizeTextarea 
+                    <DropdownWithOther 
                       style={inlineInputStyle}
+                      options={standards.performers}
                       value={entry.performer || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'performer', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'performer', val)}
                       onBlur={() => handleBlurSave(index)}
-                      placeholder="—"
+                      placeholder="-- Người thực hiện --"
                       className={styles.inlineInputHover}
                       maxLength={50}
                     />
                   </td>
                   <td>
-                    <AutoResizeTextarea 
+                    <DropdownWithOther 
                       style={inlineInputStyle}
+                      options={standards.weatherOptions}
                       value={entry.weather || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'weather', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'weather', val)}
                       onBlur={() => handleBlurSave(index)}
-                      placeholder="—"
+                      placeholder="-- Thời tiết --"
                       className={styles.inlineInputHover}
                       maxLength={50}
                     />

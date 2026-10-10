@@ -145,6 +145,10 @@ export const TABLE_MAP: Record<string, string> = {
   commission_settings: 'commission_settings',
   LoginHistory: 'login_histories',
   login_histories: 'login_histories',
+  CropStandard: 'crop_standards',
+  cropStandard: 'crop_standards',
+  crop_standards: 'crop_standards',
+  CropStandards: 'crop_standards',
 };
 
 function formatParam(val: any): any {
@@ -459,7 +463,7 @@ export class Query<T = any> {
     }
 
     const rows = await sql.unsafe(querySql, params);
-    let results: any[] = rows.map(r => createDoc(this.tableName, r, this.modelInstance));
+    let results: any[] = rows.map((r: any) => createDoc(this.tableName, r, this.modelInstance));
 
     // Handle populates
     for (const pop of this._populates) {
@@ -545,8 +549,8 @@ export interface ModelType<T extends Document = any> {
   countDocuments(filter?: any, options?: any, ...args: any[]): Promise<number>;
 }
 
-export function model<T extends Document = any>(modelName: string, schema?: any): ModelType<T> {
-  const table = TABLE_MAP[modelName] || modelName.toLowerCase();
+export function model<T extends Document = any>(modelName: string, schema?: any, collectionName?: string): ModelType<T> {
+  const table = collectionName || TABLE_MAP[modelName] || modelName.toLowerCase();
 
   function ModelConstructor(this: any, data?: any) {
     const id = data?._id ? String(data._id) : (data?.id ? String(data.id) : generateId());

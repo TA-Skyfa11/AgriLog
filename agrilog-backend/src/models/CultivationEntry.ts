@@ -22,7 +22,7 @@ const cultivationEntrySchema = new Schema<ICultivationEntry>(
     cultivationBoard: { type: Schema.Types.ObjectId, ref: 'CultivationBoard', required: true },
     date: { type: Date, required: true },
     stage: { type: String },
-    activityName: { type: String, default: 'Chưa đặt tên' },
+    activityName: { type: String, default: '' },
     performer: { type: String },
     weather: { type: String },
     cost: { type: Number, default: 0 },

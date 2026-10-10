@@ -198,10 +198,36 @@ export const getPesticideEntries = async (req: AuthRequest, res: Response) => {
     const effectivePlan = profile ? getEffectivePlan(profile) : 'BASIC';
     const retentionDate = getRetentionDate(effectivePlan);
 
-    const entries = await PesticideEntry.find({ 
+    let entries = await PesticideEntry.find({ 
       pesticideBoard: req.params.boardId,
       date: { $gte: retentionDate }
     }).sort({ date: 1, createdAt: 1 });
+
+    if (entries.length === 0 && !board.hasInitializedEntries) {
+      const today = board.startDate ? new Date(board.startDate) : new Date();
+      const createdEntries: any[] = [];
+      for (let i = 0; i < 3; i++) {
+        const entryGroupId = 'eid_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7);
+        const entry = await PesticideEntry.create({
+          pesticideBoard: board._id,
+          date: today,
+          materialName: '',
+          activeIngredient: '',
+          targetPest: '',
+          quantity: '',
+          phiDays: 7,
+          performer: '',
+          weather: '',
+          notes: '',
+          entryGroupId,
+        });
+        await syncCreateDiaryEntry('PESTICIDE', board, entry);
+        createdEntries.push(entry);
+      }
+      await PesticideBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
+      entries = createdEntries;
+    }
+
     res.json({ success: true, data: entries });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });

@@ -10,6 +10,8 @@ import { Trash2, Plus, FlaskConical, Download, Printer, ArrowLeft, X, Image as I
 import { format } from 'date-fns';
 import Link from 'next/link';
 import CustomSelect from '@/components/ui/CustomSelect';
+import DropdownWithOther from '@/components/ui/DropdownWithOther';
+import { useCropStandards } from '@/hooks/useCropStandards';
 import { toast } from 'react-hot-toast';
 import { getSafeImageUrl } from '@/lib/image';
 
@@ -46,6 +48,7 @@ const AutoResizeTextarea = (props: any) => {
 };
 
 export default function FertilizerDiaryDetailPage() {
+  const standards = useCropStandards();
   const params = useParams();
   const router = useRouter();
   const [board, setBoard] = useState<any>(null);
@@ -98,25 +101,21 @@ export default function FertilizerDiaryDetailPage() {
           description: boardRes.data.description || ''
         });
       }
-      if (entriesRes.success) {
-        if (entriesRes.data.length === 0) {
-          const initialRows = Array(3).fill(null).map((_, idx) => ({
-            _id: `temp-${idx}`,
-            date: new Date().toISOString().split('T')[0],
-            materialName: '',
-            quantity: '',
-            unit: '',
-            appliedArea: '',
-            performer: '',
-            weather: '',
-            cost: '',
-            notes: '',
-            customValues: {}
-          }));
-          setEntries(initialRows);
-        } else {
-          setEntries(entriesRes.data);
+      let weatherData = '';
+      try {
+        const wRes = await fetchAPI('/weather');
+        if (wRes.success && wRes.data) {
+          weatherData = `${wRes.data.temp}°C, ${wRes.data.desc}`;
         }
+      } catch (e) {}
+
+      if (entriesRes.success) {
+        const withWeather = (entriesRes.data || []).map((entry: any) => ({
+          ...entry,
+          weather: entry.weather || weatherData,
+          appliedArea: entry.appliedArea || boardRes.data?.areaSqm || '',
+        }));
+        setEntries(withWeather);
       }
       if (materialsRes.success) setMaterials(materialsRes.data);
       if (profileRes.success) {
@@ -153,10 +152,22 @@ export default function FertilizerDiaryDetailPage() {
       newEntries[index].materialName = selectedMaterial.name;
       newEntries[index].material = selectedMaterial._id;
       newEntries[index].unit = selectedMaterial.unit;
-      newEntries[index].manufacturer = selectedMaterial.manufacturer || '';
+
+      // Auto-fill Nhà sản xuất & Nhà cung cấp từ kho vật tư
+      let mfg = selectedMaterial.manufacturer || '';
+      if (selectedMaterial.supplier) {
+        mfg = mfg ? `${mfg} (NCC: ${selectedMaterial.supplier})` : selectedMaterial.supplier;
+      }
+      newEntries[index].manufacturer = mfg;
+
+      // Auto liên kết diện tích áp dụng từ bảng
+      if (!newEntries[index].appliedArea && board?.areaSqm) {
+        newEntries[index].appliedArea = board.areaSqm;
+      }
     } else {
       newEntries[index].materialName = '';
       newEntries[index].material = undefined;
+      newEntries[index].manufacturer = '';
     }
     setEntries(newEntries);
     setTimeout(() => handleBlurSave(index), 100);
@@ -357,14 +368,14 @@ export default function FertilizerDiaryDetailPage() {
           materialName: '',
           quantity: '',
           unit: '',
-          appliedArea: 0,
+          appliedArea: board?.areaSqm || 0,
           performer: '',
           cost: 0,
           notes: '',
         }),
       });
       if (res.success) {
-        setEntries((prev) => [...prev.filter((e: any) => !e._id?.startsWith('temp-')), res.data]);
+        setEntries((prev) => [...prev, res.data]);
         toast.success('Đã thêm hàng mới và tự động sinh hàng ở Canh tác & Phun thuốc');
       } else {
         toast.error(res.message || 'Lỗi khi thêm hàng');
@@ -386,7 +397,7 @@ export default function FertilizerDiaryDetailPage() {
       const res = await fetchAPI(`/fertilizer-boards/entries/${id}`, { method: 'DELETE' });
       if (res.success) {
         toast.success('Đã xóa hàng và đồng bộ sang các bảng liên quan');
-        loadData();
+        setEntries((prev) => prev.filter((e: any) => e._id !== id));
       } else {
         toast.error(res.message || 'Lỗi xóa hàng');
       }
@@ -658,64 +669,74 @@ export default function FertilizerDiaryDetailPage() {
                     })()}
                   </td>
                   <td>
-                    <AutoResizeTextarea 
-                      style={inlineInputStyle}
-                      value={entry.manufacturer || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'manufacturer', e.target.value)}
-                      onBlur={() => handleBlurSave(index)}
-                      placeholder="—"
-                      className={styles.inlineInputHover}
-                    />
+                    {entry.material || entry.materialName ? (
+                      <div 
+                        style={{ ...inlineInputStyle, background: '#f0fdf4', color: '#166534', fontWeight: 500 }}
+                        title={entry.manufacturer || 'Chưa có thông tin NSX trong kho'}
+                      >
+                        {entry.manufacturer || '—'}
+                      </div>
+                    ) : (
+                      <div style={{ ...inlineInputStyle, color: '#9ca3af', background: '#f3f4f6', cursor: 'not-allowed' }}>
+                        — (Chọn phân bón)
+                      </div>
+                    )}
                   </td>
                   <td>
-                    <AutoResizeTextarea 
+                    <DropdownWithOther 
                       style={inlineInputStyle}
+                      options={standards.fertilizerDosages}
                       value={entry.quantity || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'quantity', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'quantity', val)}
                       onBlur={() => handleBlurSave(index)}
-                      placeholder="VD: 50kg, 2 lít..."
+                      placeholder="-- Chọn liều lượng bón --"
                       className={styles.inlineInputHover}
+                      maxLength={50}
                     />
                   </td>
                   <td>
                     <input 
                       type="number" 
-                      style={inlineInputStyle}
-                      value={entry.appliedArea || ''}
+                      style={{ ...inlineInputStyle, fontWeight: 500 }}
+                      value={entry.appliedArea !== undefined && entry.appliedArea !== '' ? entry.appliedArea : (board?.areaSqm || '')}
                       onChange={(e) => updateLocalEntry(index, 'appliedArea', e.target.value)}
                       onBlur={() => handleBlurSave(index)}
-                      placeholder="—"
+                      placeholder={board?.areaSqm ? String(board.areaSqm) : '—'}
                       className={styles.inlineInputHover}
                     />
                   </td>
                   <td>
-                    <AutoResizeTextarea 
+                    <DropdownWithOther 
                       style={inlineInputStyle}
+                      options={standards.performers}
                       value={entry.performer || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'performer', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'performer', val)}
                       onBlur={() => handleBlurSave(index)}
-                      placeholder="—"
+                      placeholder="-- Người thực hiện --"
                       className={styles.inlineInputHover}
+                      maxLength={50}
                     />
                   </td>
                   <td>
-                    <AutoResizeTextarea 
+                    <DropdownWithOther 
                       style={inlineInputStyle}
+                      options={standards.weatherOptions}
                       value={entry.weather || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'weather', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'weather', val)}
                       onBlur={() => handleBlurSave(index)}
-                      placeholder="—"
+                      placeholder="-- Thời tiết --"
                       className={styles.inlineInputHover}
                       maxLength={50}
                     />
                   </td>
                   <td style={{ color: 'var(--color-text-muted)' }}>
-                    <AutoResizeTextarea 
+                    <DropdownWithOther 
                       style={inlineInputStyle}
+                      options={standards.fertilizerPurposes}
                       value={entry.notes || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'notes', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'notes', val)}
                       onBlur={() => handleBlurSave(index)}
-                      placeholder="—"
+                      placeholder="-- Mục đích / Ghi chú --"
                       className={styles.inlineInputHover}
                     />
                   </td>

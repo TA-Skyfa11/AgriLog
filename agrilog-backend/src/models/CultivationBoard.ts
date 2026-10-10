@@ -14,6 +14,7 @@ export interface ICultivationBoard extends Document {
   harvestDate?: Date;
   customColumns: string[];
   groupId?: string;
+  hasInitializedEntries?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +34,7 @@ const cultivationBoardSchema = new Schema<ICultivationBoard>(
     harvestDate: { type: Date },
     customColumns: [{ type: String }],
     groupId: { type: String },
+    hasInitializedEntries: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

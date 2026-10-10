@@ -599,6 +599,7 @@ export default function RegisterPage() {
                 </button>
               </form>
 
+              {/* Ẩn tính năng đăng ký bằng Google
               <div className={styles.divider}>
                 <span className={styles.dividerText}>Hoặc</span>
               </div>
@@ -608,6 +609,7 @@ export default function RegisterPage() {
                 role={role}
                 onError={(msg) => setError(msg)}
               />
+              */}
 
               <div className={styles.footer}>
                 Đã có tài khoản?{' '}

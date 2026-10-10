@@ -10,6 +10,8 @@ import { Trash2, Plus, ShieldAlert, Download, Printer, ArrowLeft, Image as Image
 import { format } from 'date-fns';
 import Link from 'next/link';
 import CustomSelect from '@/components/ui/CustomSelect';
+import DropdownWithOther from '@/components/ui/DropdownWithOther';
+import { useCropStandards } from '@/hooks/useCropStandards';
 import { toast } from 'react-hot-toast';
 import { getSafeImageUrl } from '@/lib/image';
 
@@ -46,6 +48,7 @@ const AutoResizeTextarea = (props: any) => {
 };
 
 export default function PesticideDiaryDetailPage() {
+  const standards = useCropStandards();
   const params = useParams();
   const router = useRouter();
   const [board, setBoard] = useState<any>(null);
@@ -98,27 +101,21 @@ export default function PesticideDiaryDetailPage() {
           description: boardRes.data.description || ''
         });
       }
-      if (entriesRes.success) {
-        if (entriesRes.data.length === 0) {
-          const initialRows = Array(3).fill(null).map((_, idx) => ({
-            _id: `temp-${idx}`,
-            date: new Date().toISOString().split('T')[0],
-            materialName: '',
-            activeIngredient: '',
-            targetPest: '',
-            quantity: '',
-            unit: '',
-            phiDays: '',
-            performer: '',
-            weather: '',
-            cost: '',
-            notes: '',
-            customValues: {}
-          }));
-          setEntries(initialRows);
-        } else {
-          setEntries(entriesRes.data);
+      let weatherData = '';
+      try {
+        const wRes = await fetchAPI('/weather');
+        if (wRes.success && wRes.data) {
+          weatherData = `${wRes.data.temp}°C, ${wRes.data.desc}`;
         }
+      } catch (e) {}
+
+      if (entriesRes.success) {
+        const withWeather = (entriesRes.data || []).map((entry: any) => ({
+          ...entry,
+          weather: entry.weather || weatherData,
+          phiDays: (entry.phiDays === '-1' || !entry.phiDays) ? '7' : entry.phiDays,
+        }));
+        setEntries(withWeather);
       }
       if (materialsRes.success) setMaterials(materialsRes.data);
       if (profileRes.success) {
@@ -156,12 +153,18 @@ export default function PesticideDiaryDetailPage() {
       newEntries[index].material = selectedMaterial._id;
       newEntries[index].unit = selectedMaterial.unit;
       newEntries[index].manufacturer = selectedMaterial.manufacturer || '';
+      // Tự động điền hoạt chất từ kho vật tư
       newEntries[index].activeIngredient = selectedMaterial.activeIngredient || '';
+      if (!newEntries[index].phiDays || newEntries[index].phiDays === '-1') {
+        newEntries[index].phiDays = '7';
+      }
     } else {
       newEntries[index].materialName = '';
       newEntries[index].material = undefined;
+      newEntries[index].activeIngredient = '';
     }
     setEntries(newEntries);
+    setTimeout(() => handleBlurSave(index), 100);
   };
 
   const handleBlurSave = async (index: number) => {
@@ -393,7 +396,7 @@ export default function PesticideDiaryDetailPage() {
           activeIngredient: '',
           targetPest: '',
           quantity: '',
-          phiDays: 0,
+          phiDays: 7,
           performer: '',
           cost: 0,
           notes: '',
@@ -401,7 +404,7 @@ export default function PesticideDiaryDetailPage() {
         }),
       });
       if (res.success) {
-        setEntries((prev) => [...prev.filter((e: any) => !e._id?.startsWith('temp-')), res.data]);
+        setEntries((prev) => [...prev, res.data]);
         toast.success('Đã thêm hàng mới và tự động sinh hàng ở Canh tác & Bón phân');
       } else {
         toast.error(res.message || 'Lỗi khi thêm hàng');
@@ -423,7 +426,7 @@ export default function PesticideDiaryDetailPage() {
       const res = await fetchAPI(`/pesticide-boards/entries/${id}`, { method: 'DELETE' });
       if (res.success) {
         toast.success('Đã xóa hàng và đồng bộ sang các bảng liên quan');
-        loadData();
+        setEntries((prev) => prev.filter((e: any) => e._id !== id));
       } else {
         toast.error(res.message || 'Lỗi xóa hàng');
       }
@@ -692,60 +695,92 @@ export default function PesticideDiaryDetailPage() {
                     })()}
                   </td>
                   <td>
-                    <AutoResizeTextarea 
-                      style={inlineInputStyle}
-                      value={entry.activeIngredient || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'activeIngredient', e.target.value)}
-                      onBlur={() => handleBlurSave(index)}
-                    />
+                    {entry.material || entry.materialName ? (
+                      <div 
+                        style={{ ...inlineInputStyle, background: '#fef2f2', color: '#991b1b', fontWeight: 500 }}
+                        title={entry.activeIngredient || 'Chưa có thông tin hoạt chất trong kho'}
+                      >
+                        {entry.activeIngredient || '—'}
+                      </div>
+                    ) : (
+                      <div style={{ ...inlineInputStyle, color: '#9ca3af', background: '#f3f4f6', cursor: 'not-allowed' }}>
+                        — (Chọn thuốc)
+                      </div>
+                    )}
                   </td>
                   <td>
-                    <AutoResizeTextarea 
+                    <DropdownWithOther 
                       style={inlineInputStyle}
+                      options={standards.pests}
                       value={entry.targetPest || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'targetPest', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'targetPest', val)}
                       onBlur={() => handleBlurSave(index)}
+                      placeholder="-- Đối tượng phòng trừ --"
+                      maxLength={100}
                     />
                   </td>
                   <td>
-                    <AutoResizeTextarea 
+                    <DropdownWithOther 
                       style={inlineInputStyle}
+                      options={standards.pesticideDosages}
                       value={entry.quantity || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'quantity', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'quantity', val)}
                       onBlur={() => handleBlurSave(index)}
+                      placeholder="-- Chọn liều lượng phun --"
+                      maxLength={50}
                     />
                   </td>
                   <td>
-                    <input 
-                      type="number" 
+                    <DropdownWithOther 
                       style={inlineInputStyle}
-                      value={entry.phiDays || ''}
-                      onChange={(e) => updateLocalEntry(index, 'phiDays', e.target.value)}
+                      options={standards.phiOptions}
+                      value={entry.phiDays ? `${entry.phiDays} ngày` : '7 ngày'}
+                      onChange={(val: string) => {
+                        const numeric = val.match(/\d+/)?.[0] || val;
+                        updateLocalEntry(index, 'phiDays', numeric);
+                      }}
                       onBlur={() => handleBlurSave(index)}
+                      placeholder="-- Cách ly (PHI) --"
+                      maxLength={20}
                     />
                   </td>
                   <td>
-                    <AutoResizeTextarea 
+                    <DropdownWithOther 
                       style={inlineInputStyle}
+                      options={standards.performers}
                       value={entry.performer || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'performer', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'performer', val)}
                       onBlur={() => handleBlurSave(index)}
+                      placeholder="-- Người phun --"
+                      maxLength={50}
                     />
                   </td>
                   <td>
-                    <AutoResizeTextarea 
+                    <DropdownWithOther 
                       style={inlineInputStyle}
+                      options={standards.weatherOptions}
                       value={entry.weather || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'weather', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'weather', val)}
                       onBlur={() => handleBlurSave(index)}
+                      placeholder="-- Thời tiết --"
+                      maxLength={50}
                     />
                   </td>
-                  <td>
-                    <AutoResizeTextarea 
+                  <td style={{ color: 'var(--color-text-muted)' }}>
+                    <DropdownWithOther 
                       style={inlineInputStyle}
+                      options={[
+                        'Phun phòng định kỳ',
+                        'Phun dập dịch khi chớm bệnh',
+                        'Phun sáng sớm lúc tạnh sương',
+                        'Phun chiều mát tránh bốc hơi',
+                        'Phun nhắc lại sau 5 - 7 ngày',
+                        'Tuân thủ thời gian cách ly trước thu hoạch'
+                      ]}
                       value={entry.notes || ''}
-                      onChange={(e: any) => updateLocalEntry(index, 'notes', e.target.value)}
+                      onChange={(val: string) => updateLocalEntry(index, 'notes', val)}
                       onBlur={() => handleBlurSave(index)}
+                      placeholder="-- Ghi chú / Khuyến cáo --"
                     />
                   </td>
                   {board.customColumns?.map((col: string, cIdx: number) => (
