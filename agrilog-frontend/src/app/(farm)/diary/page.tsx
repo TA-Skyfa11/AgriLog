@@ -276,8 +276,7 @@ export default function DiaryBoardsPage() {
         onClose={() => setShowTrialModal(false)}
         subtitle={profile?.trialPromptMessage}
         onSuccess={() => {
-          loadBoards();
-          loadProfile();
+          loadData();
         }}
       />
     </div>
