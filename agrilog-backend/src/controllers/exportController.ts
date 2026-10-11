@@ -7,6 +7,7 @@ import { FertilizerBoard } from '../models/FertilizerBoard';
 import { FertilizerEntry } from '../models/FertilizerEntry';
 import { PesticideBoard } from '../models/PesticideBoard';
 import { PesticideEntry } from '../models/PesticideEntry';
+import { Material } from '../models/Material';
 import {
   generatePdfFromHtml,
   buildCultivationHtml,
@@ -174,45 +175,53 @@ export const exportReportsPdf = async (req: AuthRequest, res: Response) => {
       monthLabel = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
     }
 
-    const cultivationBoards = await CultivationBoard.find({ farmProfile: profile._id }).select('_id');
-    const fertilizerBoards = await FertilizerBoard.find({ farmProfile: profile._id }).select('_id');
-    const pesticideBoards = await PesticideBoard.find({ farmProfile: profile._id }).select('_id');
+    const [cBoards, fBoards, pBoards, materials] = await Promise.all([
+      CultivationBoard.find({ farmProfile: profile._id }),
+      FertilizerBoard.find({ farmProfile: profile._id }),
+      PesticideBoard.find({ farmProfile: profile._id }),
+      Material.find({ farmProfile: profile._id }),
+    ]);
 
-    const cbIds = cultivationBoards.map((b) => b._id);
-    const fbIds = fertilizerBoards.map((b) => b._id);
-    const pbIds = pesticideBoards.map((b) => b._id);
+    const cBoardMap = new Map<string, any>(cBoards.map(b => [b._id.toString(), b.toObject()]));
+    const fBoardMap = new Map<string, any>(fBoards.map(b => [b._id.toString(), b.toObject()]));
+    const pBoardMap = new Map<string, any>(pBoards.map(b => [b._id.toString(), b.toObject()]));
 
-    const cultivationEntries = await CultivationEntry.find({
-      cultivationBoard: { $in: cbIds },
-      date: { $gte: startDate, $lte: endDate },
-    });
+    const cbIds = cBoards.map((b) => b._id);
+    const fbIds = fBoards.map((b) => b._id);
+    const pbIds = pBoards.map((b) => b._id);
 
-    const fertilizerEntries = await FertilizerEntry.find({
-      fertilizerBoard: { $in: fbIds },
-      date: { $gte: startDate, $lte: endDate },
-      isNotUsed: { $ne: true },
-    });
+    const [cultivationEntries, fertilizerEntries, pesticideEntries] = await Promise.all([
+      cbIds.length > 0 ? CultivationEntry.find({ cultivationBoard: { $in: cbIds }, date: { $gte: startDate, $lte: endDate } }) : Promise.resolve([]),
+      fbIds.length > 0 ? FertilizerEntry.find({ fertilizerBoard: { $in: fbIds }, date: { $gte: startDate, $lte: endDate }, isNotUsed: { $ne: true } }) : Promise.resolve([]),
+      pbIds.length > 0 ? PesticideEntry.find({ pesticideBoard: { $in: pbIds }, date: { $gte: startDate, $lte: endDate }, isNotUsed: { $ne: true } }) : Promise.resolve([]),
+    ]);
 
-    const pesticideEntries = await PesticideEntry.find({
-      pesticideBoard: { $in: pbIds },
-      date: { $gte: startDate, $lte: endDate },
-      isNotUsed: { $ne: true },
-    });
+    const materialUsageMap = new Map<string, number>();
 
     // Cultivation Aggregation
+    let totalCultCost = 0;
+    let totalCultLabor = 0;
     const cultStats: Record<string, any> = {};
     for (const entry of cultivationEntries) {
       const act = entry.activityName || 'Hoạt động khác';
+      const b = cBoardMap.get(entry.cultivationBoard?.toString()) || {};
+      const people = entry.performer ? entry.performer.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
+      const labor = people.length > 0 ? people.length : 1;
+      const cost = Number(entry.cost) || 0;
+      totalCultCost += cost;
+      totalCultLabor += labor;
+
       if (!cultStats[act]) {
-        cultStats[act] = { activity: act, taskCount: 0, uniquePeople: new Set(), uniqueDates: new Set(), laborCount: 0 };
+        cultStats[act] = { activity: act, taskCount: 0, uniquePeople: new Set(), uniqueDates: new Set(), laborCount: 0, totalCost: 0, crops: new Set() };
       }
       cultStats[act].taskCount += 1;
+      cultStats[act].laborCount += labor;
+      cultStats[act].totalCost += cost;
       if (entry.date) {
         cultStats[act].uniqueDates.add(new Date(entry.date).toISOString().split('T')[0]);
       }
-      const people = entry.performer ? entry.performer.split(',').map((p) => p.trim()).filter(Boolean) : [];
-      people.forEach((p) => cultStats[act].uniquePeople.add(p));
-      cultStats[act].laborCount += people.length || 1;
+      people.forEach((p: string) => cultStats[act].uniquePeople.add(p));
+      if (b.cropType) cultStats[act].crops.add(b.cropType);
     }
 
     const cultivationReport = Object.values(cultStats).map((s: any) => ({
@@ -221,34 +230,117 @@ export const exportReportsPdf = async (req: AuthRequest, res: Response) => {
       peopleCount: s.uniquePeople.size,
       daysCount: s.uniqueDates.size,
       laborCount: s.laborCount,
+      totalCost: s.totalCost,
+      crops: Array.from(s.crops).join(', ') || '—'
     }));
 
     // Fertilizer Aggregation
+    let totalFertCost = 0;
+    let totalFertLabor = 0;
     const fertStats: Record<string, any> = {};
     for (const entry of fertilizerEntries) {
       const name = entry.materialName || 'Phân bón khác';
+      const people = entry.performer ? entry.performer.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
+      const labor = people.length > 0 ? people.length : 1;
+      const cost = Number(entry.cost) || 0;
+      const qtyNum = parseFloat(String(entry.quantity).replace(/[^\d.-]/g, '')) || 0;
+      totalFertCost += cost;
+      totalFertLabor += labor;
+
+      const matKey = name.toLowerCase();
+      materialUsageMap.set(matKey, (materialUsageMap.get(matKey) || 0) + qtyNum);
+
       if (!fertStats[name]) {
-        fertStats[name] = { materialName: name, timesUsed: 0, totalQuantity: 0, totalArea: 0 };
+        fertStats[name] = { name, manufacturer: entry.manufacturer || '—', timesUsed: 0, totalQuantity: 0, unit: entry.unit || 'kg', totalArea: 0, totalCost: 0 };
       }
       fertStats[name].timesUsed += 1;
-      fertStats[name].totalQuantity += parseFloat(entry.quantity as string) || 1;
+      fertStats[name].totalQuantity += qtyNum;
       fertStats[name].totalArea += (entry.appliedArea || 0);
+      fertStats[name].totalCost += cost;
     }
-    const fertilizerReport = Object.values(fertStats);
+    const fertilizerReport = Object.values(fertStats).map((s: any) => ({
+      name: s.name,
+      manufacturer: s.manufacturer,
+      timesUsed: s.timesUsed,
+      totalQuantity: `${Number(s.totalQuantity.toFixed(2))} ${s.unit}`,
+      totalArea: s.totalArea,
+      totalCost: s.totalCost
+    }));
 
     // Pesticide Aggregation
+    let totalPestCost = 0;
+    let totalPestLabor = 0;
     const pestStats: Record<string, any> = {};
     for (const entry of pesticideEntries) {
       const name = entry.materialName || 'Thuốc BVTV khác';
-      if (!pestStats[name]) {
-        pestStats[name] = { materialName: name, targetPest: entry.targetPest || '—', timesUsed: 0, totalQuantity: 0 };
-      }
-      pestStats[name].timesUsed += 1;
-      pestStats[name].totalQuantity += parseFloat(entry.quantity as string) || 1;
-    }
-    const pesticideReport = Object.values(pestStats);
+      const people = entry.performer ? entry.performer.split(',').map((p: string) => p.trim()).filter(Boolean) : [];
+      const labor = people.length > 0 ? people.length : 1;
+      const cost = Number(entry.cost) || 0;
+      const qtyNum = parseFloat(String(entry.quantity).replace(/[^\d.-]/g, '')) || 0;
+      totalPestCost += cost;
+      totalPestLabor += labor;
 
-    const stats = { cultivationReport, fertilizerReport, pesticideReport };
+      const matKey = name.toLowerCase();
+      materialUsageMap.set(matKey, (materialUsageMap.get(matKey) || 0) + qtyNum);
+
+      const groupKey = `${name}_${entry.targetPest || ''}`;
+      if (!pestStats[groupKey]) {
+        pestStats[groupKey] = {
+          name,
+          activeIngredient: entry.activeIngredient || '—',
+          targetPest: entry.targetPest || '—',
+          phiDays: Number(entry.phiDays) || 7,
+          timesUsed: 0,
+          totalQuantity: 0,
+          unit: entry.unit || 'lít',
+          totalCost: 0
+        };
+      }
+      pestStats[groupKey].timesUsed += 1;
+      pestStats[groupKey].totalQuantity += qtyNum;
+      pestStats[groupKey].totalCost += cost;
+    }
+    const pesticideReport = Object.values(pestStats).map((s: any) => ({
+      name: s.name,
+      activeIngredient: s.activeIngredient,
+      targetPest: s.targetPest,
+      phiDays: s.phiDays,
+      timesUsed: s.timesUsed,
+      totalQuantity: `${Number(s.totalQuantity.toFixed(2))} ${s.unit}`,
+      totalCost: s.totalCost
+    }));
+
+    // Inventory report
+    const now = new Date();
+    const inventoryReport = materials.map(mat => {
+      const matKey = mat.name.toLowerCase();
+      const usedInMonth = Number((materialUsageMap.get(matKey) || 0).toFixed(2));
+      const qty = Number(mat.quantity) || 0;
+      const minAlert = Number(mat.minQuantityAlert) || 10;
+      let statusText = 'Đủ tồn kho';
+      if (mat.expiryDate && new Date(mat.expiryDate) < now) statusText = 'Đã hết hạn';
+      else if (qty <= 0) statusText = 'Hết hàng';
+      else if (qty <= minAlert) statusText = 'Sắp hết hàng';
+
+      return {
+        name: mat.name,
+        typeLabel: mat.type === 'FERTILIZER' ? 'Phân bón' : 'Thuốc BVTV',
+        quantity: qty,
+        unit: mat.unit || 'kg',
+        usedInMonth: `${usedInMonth} ${mat.unit || 'kg'}`,
+        expiryDate: mat.expiryDate ? new Date(mat.expiryDate).toISOString().split('T')[0] : '—',
+        statusText
+      };
+    });
+
+    const summary = {
+      totalTasks: cultivationEntries.length + fertilizerEntries.length + pesticideEntries.length,
+      totalLabor: totalCultLabor + totalFertLabor + totalPestLabor,
+      totalCost: totalCultCost + totalFertCost + totalPestCost,
+      materialsTotal: materials.length
+    };
+
+    const stats = { summary, cultivationReport, fertilizerReport, pesticideReport, inventoryReport };
     const html = buildReportsHtml(stats, monthLabel, profile);
     const pdfBuffer = await generatePdfFromHtml(html, false); // Portrait orientation for reports
 

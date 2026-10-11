@@ -4,14 +4,17 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 import styles from '@/css/dialog.module.css';
 
 interface DialogOptions {
+  title?: string;
   message: string;
   type: 'confirm' | 'prompt';
   defaultValue?: string;
 }
 
+export type DialogTitleOption = string | { title?: string };
+
 interface DialogContextType {
-  confirm: (message: string) => Promise<boolean>;
-  prompt: (message: string, defaultValue?: string) => Promise<string | null>;
+  confirm: (message: string, titleOrOptions?: DialogTitleOption) => Promise<boolean>;
+  prompt: (message: string, defaultValue?: string, titleOrOptions?: DialogTitleOption) => Promise<string | null>;
 }
 
 const DialogContext = createContext<DialogContextType | undefined>(undefined);
@@ -22,17 +25,25 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   const [inputValue, setInputValue] = useState('');
   const [resolvePromise, setResolvePromise] = useState<((value: any) => void) | null>(null);
 
-  const confirm = (message: string): Promise<boolean> => {
+  const extractTitle = (titleOrOptions?: DialogTitleOption): string | undefined => {
+    if (typeof titleOrOptions === 'string') return titleOrOptions;
+    if (titleOrOptions && typeof titleOrOptions === 'object') return titleOrOptions.title;
+    return undefined;
+  };
+
+  const confirm = (message: string, titleOrOptions?: DialogTitleOption): Promise<boolean> => {
     return new Promise((resolve) => {
-      setOptions({ message, type: 'confirm' });
+      const title = extractTitle(titleOrOptions);
+      setOptions({ message, title, type: 'confirm' });
       setResolvePromise(() => resolve);
       setIsOpen(true);
     });
   };
 
-  const prompt = (message: string, defaultValue?: string): Promise<string | null> => {
+  const prompt = (message: string, defaultValue?: string, titleOrOptions?: DialogTitleOption): Promise<string | null> => {
     return new Promise((resolve) => {
-      setOptions({ message, type: 'prompt', defaultValue });
+      const title = extractTitle(titleOrOptions);
+      setOptions({ message, title, type: 'prompt', defaultValue });
       setInputValue(defaultValue || '');
       setResolvePromise(() => resolve);
       setIsOpen(true);
@@ -57,9 +68,11 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     <DialogContext.Provider value={{ confirm, prompt }}>
       {children}
       {isOpen && options && (
-        <div className={styles.overlay}>
-          <div className={styles.modal}>
-            <h3 className={styles.title}>Thông báo</h3>
+        <div className={styles.overlay} onClick={handleCancel}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.title}>
+              {options.title || (options.type === 'prompt' ? 'Nhập thông tin' : 'Xác nhận')}
+            </h3>
             <p className={styles.message}>{options.message}</p>
             
             {options.type === 'prompt' && (
@@ -68,6 +81,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
                 autoFocus
                 className={styles.input}
                 value={inputValue}
+                placeholder="Nhập nội dung..."
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleConfirm();
@@ -77,11 +91,15 @@ export function DialogProvider({ children }: { children: ReactNode }) {
             )}
             
             <div className={styles.actions}>
-              <button className={styles.btnCancel} onClick={handleCancel}>
+              <button type="button" className={styles.btnCancel} onClick={handleCancel}>
                 Hủy
               </button>
-              <button className={styles.btnConfirm} onClick={handleConfirm}>
-                OK
+              <button 
+                type="button" 
+                className={options.type === 'prompt' ? styles.btnPrimary : styles.btnConfirm} 
+                onClick={handleConfirm}
+              >
+                {options.type === 'prompt' ? 'Xác nhận' : 'Đồng ý'}
               </button>
             </div>
           </div>

@@ -5,6 +5,7 @@ import { CultivationBoard } from '../models/CultivationBoard';
 import { CultivationEntry } from '../models/CultivationEntry';
 import { FertilizerBoard } from '../models/FertilizerBoard';
 import { PesticideBoard } from '../models/PesticideBoard';
+import { getSql } from '../config/db';
 import { PLAN_LIMITS, checkBoardLocked, getRetentionDate, getEffectivePlan } from '../utils/boardUtils';
 import {
   syncDiaryBoards,
@@ -30,12 +31,26 @@ export const getCultivationBoards = async (req: AuthRequest, res: Response) => {
       farmProfile: profile._id,
       createdAt: { $gte: retentionDate }
     }).sort({ createdAt: -1 });
-    const boardsWithCount = await Promise.all(boards.map(async (board) => {
-      const count = await CultivationEntry.countDocuments({ cultivationBoard: board._id });
-      return {
-        ...board.toObject(),
-        entryCount: count,
-      };
+
+    if (boards.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Single-query batch count aggregation instead of N+1 individual queries
+    const boardIds = boards.map(b => b._id.toString());
+    const sql = getSql();
+    const countRows = await sql.unsafe(
+      `SELECT data->>'cultivationBoard' as board_id, COUNT(*)::int as count 
+       FROM public.cultivation_entries 
+       WHERE data->>'cultivationBoard' = ANY($1) 
+       GROUP BY data->>'cultivationBoard'`,
+      [boardIds]
+    );
+    const countMap = new Map<string, number>(countRows.map((r: any) => [r.board_id, r.count]));
+
+    const boardsWithCount = boards.map((board) => ({
+      ...board.toObject(),
+      entryCount: countMap.get(board._id.toString()) || 0,
     }));
 
     res.json({ success: true, data: boardsWithCount });

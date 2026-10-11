@@ -66,7 +66,7 @@ export default function OneSignalInit() {
   return (
     <Script
       src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"
-      strategy="afterInteractive"
+      strategy="lazyOnload"
       onError={() => {
         console.warn('[OneSignal] Script bị chặn bởi trình duyệt (ERR_BLOCKED_BY_CLIENT). Nguyên nhân thường do tiện ích AdBlock/Brave Shields.');
         if (typeof window !== 'undefined') {

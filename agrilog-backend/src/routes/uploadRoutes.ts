@@ -164,16 +164,13 @@ router.post('/', protect, checkImageLimit, upload.single('image'), async (req: U
           'images'
         );
 
-        const host = req.get('host');
-        const protocol = req.protocol;
-
         if (r2Result.url.startsWith('http://') || r2Result.url.startsWith('https://')) {
           // Direct public R2 URL
           imageUrl = r2Result.url;
         } else {
-          // Internal proxy URL - ensure leading slash
+          // Internal proxy URL - ensure leading slash (returns relative path /api/upload/file/...)
           const cleanPath = r2Result.url.startsWith('/') ? r2Result.url : `/${r2Result.url}`;
-          imageUrl = `${protocol}://${host}${cleanPath}`;
+          imageUrl = cleanPath;
         }
         storageType = 'cloudflare-r2';
       } catch (r2Error) {
@@ -191,9 +188,7 @@ router.post('/', protect, checkImageLimit, upload.single('image'), async (req: U
       const filePath = path.join(uploadDir, filename);
       await fs.promises.writeFile(filePath, req.file.buffer);
 
-      const host = req.get('host');
-      const protocol = req.protocol;
-      imageUrl = `${protocol}://${host}/uploads/${filename}`;
+      imageUrl = `/uploads/${filename}`;
       storageType = 'local';
     }
     

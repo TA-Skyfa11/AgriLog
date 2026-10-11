@@ -581,3 +581,16 @@
 .floatingAddBtn:hover {
   background-color: #166534;
 }
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.skeleton {
+  animation: skeletonPulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background-color: var(--color-border, #e2e8f0);
+  border-radius: 6px;
+  display: inline-block;
+}
+

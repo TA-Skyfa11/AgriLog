@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { fetchAPI } from '@/lib/api';
+import { fetchAPI, getApiUrl } from '@/lib/api';
 import styles from '@/css/diaryDetail.module.css';
 import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, FileText, Download, Printer, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
@@ -101,10 +101,25 @@ export default function CultivationDiaryDetailPage() {
   const loadBoardData = async () => {
     if (!boardId) return;
     try {
+      // Non-blocking weather fetch in background
+      fetchAPI('/weather')
+        .then((wRes) => {
+          if (wRes && wRes.success && wRes.data) {
+            const weatherData = `${wRes.data.temp}°C, ${wRes.data.desc}`;
+            setEntries((prev) =>
+              prev.map((entry) => ({
+                ...entry,
+                weather: entry.weather || weatherData,
+              }))
+            );
+          }
+        })
+        .catch(() => {});
+
       const [boardRes, entriesRes, profileRes] = await Promise.all([
         fetchAPI(`/cultivation-boards/${boardId}`),
         fetchAPI(`/cultivation-boards/${boardId}/entries`),
-        fetchAPI('/farm/profile')
+        fetchAPI('/farm/profile'),
       ]);
 
       if (boardRes.success) {
@@ -119,20 +134,8 @@ export default function CultivationDiaryDetailPage() {
         });
       }
       if (entriesRes.success) {
-        let weatherData = '';
-        try {
-          const wRes = await fetchAPI('/weather');
-          if (wRes.success && wRes.data) {
-            weatherData = `${wRes.data.temp}°C, ${wRes.data.desc}`;
-          }
-        } catch (e) {}
-
         const sorted = (entriesRes.data || []).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        const withWeather = sorted.map((entry: any) => ({
-          ...entry,
-          weather: entry.weather || weatherData,
-        }));
-        setEntries(withWeather);
+        setEntries(sorted);
       }
       if (profileRes.success) {
         setProfile(profileRes.data);
@@ -235,7 +238,7 @@ export default function CultivationDiaryDetailPage() {
     formData.append('image', file);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const apiUrl = getApiUrl();
       const token = localStorage.getItem('token');
       const res = await fetch(`${apiUrl}/upload`, {
         method: 'POST',
@@ -251,9 +254,10 @@ export default function CultivationDiaryDetailPage() {
         if (!newEntries[index].imageUrls) {
           newEntries[index].imageUrls = [];
         }
-        const finalUrl = (data.imageUrl.startsWith('http://') || data.imageUrl.startsWith('https://'))
-          ? data.imageUrl
-          : `${apiUrl.replace(/\/api$/, '')}${data.imageUrl.startsWith('/') ? '' : '/'}${data.imageUrl}`;
+        let finalUrl = data.imageUrl;
+        if (/^https?:\/\/(localhost|127\.0\.0\.1):5000/i.test(finalUrl)) {
+          finalUrl = finalUrl.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/i, '');
+        }
         newEntries[index].imageUrls.push(finalUrl);
         setEntries(newEntries);
         
@@ -351,7 +355,9 @@ export default function CultivationDiaryDetailPage() {
   };
 
   const handleAddColumn = async () => {
-    const colName = await dialog.prompt('Nhập tên cột mới cần thêm (Ví dụ: Độ ẩm đất, Nhiệt độ...):');
+    const colName = await dialog.prompt('Nhập tên cột mới cần thêm (Ví dụ: Độ ẩm đất, Nhiệt độ...):', '', {
+      title: 'Thêm cột mới'
+    });
     if (!colName || !colName.trim()) return;
 
     const trimmedColName = colName.trim();
@@ -397,7 +403,9 @@ export default function CultivationDiaryDetailPage() {
   };
 
   const handleEditColumn = async (oldName: string) => {
-    const newName = await dialog.prompt('Nhập tên mới cho cột:', oldName);
+    const newName = await dialog.prompt('Nhập tên mới cho cột:', oldName, {
+      title: 'Đổi tên cột'
+    });
     if (!newName || !newName.trim() || newName.trim() === oldName) return;
     const trimmedName = newName.trim();
     if (board.customColumns?.includes(trimmedName)) {
@@ -405,7 +413,9 @@ export default function CultivationDiaryDetailPage() {
       return;
     }
     
-    if (!(await dialog.confirm('Đổi tên cột sẽ mất một chút thời gian để cập nhật dữ liệu cũ. Bạn có tiếp tục?'))) return;
+    if (!(await dialog.confirm('Đổi tên cột sẽ mất một chút thời gian để cập nhật dữ liệu cũ. Bạn có tiếp tục?', {
+      title: 'Xác nhận đổi tên'
+    }))) return;
 
     try {
       // 1. Update board columns
@@ -435,7 +445,9 @@ export default function CultivationDiaryDetailPage() {
   };
 
   const handleDeleteColumn = async (colName: string) => {
-    if (!(await dialog.confirm(`Bạn có chắc chắn muốn xóa cột "${colName}" không? Dữ liệu của cột này sẽ không còn được hiển thị.`))) return;
+    if (!(await dialog.confirm(`Bạn có chắc chắn muốn xóa cột "${colName}" không? Dữ liệu của cột này sẽ không còn được hiển thị.`, {
+      title: 'Xác nhận xóa cột'
+    }))) return;
     
     try {
       const updatedColumns = board.customColumns?.filter((col: string) => col !== colName) || [];
@@ -551,7 +563,7 @@ export default function CultivationDiaryDetailPage() {
     
     const toastId = toast.loading('Đang khởi tạo file PDF chất lượng cao...');
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const apiUrl = getApiUrl();
       const token = localStorage.getItem('token');
       const res = await fetch(`${apiUrl}/export/pdf/cultivation/${boardId}`, {
         headers: {
@@ -581,7 +593,27 @@ export default function CultivationDiaryDetailPage() {
     }
   };
 
-  if (loading) return <div style={{ padding: '2rem' }}>Đang tải dữ liệu bảng canh tác...</div>;
+  if (loading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.actionHeader}>
+          <Link href="/diary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', color: 'var(--color-text-muted)' }}>
+            <ArrowLeft size={16} /> Danh sách bảng
+          </Link>
+        </div>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ width: '260px', height: '28px', backgroundColor: '#e2e8f0', borderRadius: '6px', marginBottom: '8px' }}></div>
+          <div style={{ width: '380px', height: '18px', backgroundColor: '#e2e8f0', borderRadius: '6px' }}></div>
+        </div>
+        <div className={styles.list}>
+          <div style={{ padding: '3.5rem 2rem', textAlign: 'center', color: '#64748b' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', border: '4px solid #16a34a', borderTopColor: 'transparent', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
+            <div>Đang tải dữ liệu bảng canh tác...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (!board) return <div style={{ padding: '2rem' }}>Không tìm thấy bảng canh tác</div>;
 
   const customCols = board.customColumns || [];
@@ -666,7 +698,7 @@ export default function CultivationDiaryDetailPage() {
           <tbody>
             {entries.length === 0 ? (
               <tr>
-                <td colSpan={10 + customCols.length} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
+                <td colSpan={9 + customCols.length} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
                   Bảng đang trống. Click nút bên dưới để thêm hàng.
                 </td>
               </tr>

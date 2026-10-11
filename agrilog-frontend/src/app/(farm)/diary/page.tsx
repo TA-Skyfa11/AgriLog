@@ -29,11 +29,17 @@ export default function DiaryBoardsPage() {
     description: ''
   });
 
-  const loadBoards = async () => {
+  const loadData = async () => {
     try {
-      const res = await fetchAPI('/cultivation-boards');
-      if (res.success) {
-        setBoards(res.data);
+      const [boardsRes, profileRes] = await Promise.all([
+        fetchAPI('/cultivation-boards'),
+        fetchAPI('/farm/profile').catch(() => ({ success: false, data: null }))
+      ]);
+      if (boardsRes.success) {
+        setBoards(boardsRes.data);
+      }
+      if (profileRes.success && profileRes.data) {
+        setProfile(profileRes.data);
       }
     } catch (error) {
       console.error(error);
@@ -42,20 +48,8 @@ export default function DiaryBoardsPage() {
     }
   };
 
-  const loadProfile = async () => {
-    try {
-      const res = await fetchAPI('/farm/profile');
-      if (res.success && res.data) {
-        setProfile(res.data);
-      }
-    } catch (e) {
-      console.warn('Lỗi tải hồ sơ:', e);
-    }
-  };
-
   useEffect(() => {
-    loadBoards();
-    loadProfile();
+    loadData();
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -109,8 +103,6 @@ export default function DiaryBoardsPage() {
     }
   };
 
-  if (loading) return <div>Đang tải dữ liệu...</div>;
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -129,7 +121,22 @@ export default function DiaryBoardsPage() {
         </div>
       </div>
 
-      {boards.length === 0 ? (
+      {loading ? (
+        <div className={styles.grid}>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className={styles.card} style={{ opacity: 0.6 }}>
+              <div className={styles.cardTop}>
+                <div className={styles.cardIcon}><Leaf size={24} /></div>
+                <div style={{ width: '80px', height: '22px', backgroundColor: '#e2e8f0', borderRadius: '12px' }}></div>
+              </div>
+              <div className={styles.cardBody}>
+                <div style={{ width: '160px', height: '20px', backgroundColor: '#e2e8f0', borderRadius: '6px', marginBottom: '8px' }}></div>
+                <div style={{ width: '100px', height: '14px', backgroundColor: '#e2e8f0', borderRadius: '4px' }}></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : boards.length === 0 ? (
         <div className={styles.emptyState}>
           <div className={styles.emptyIcon} style={{ backgroundColor: '#f0fdf4', color: '#16a34a' }}>
             <Leaf size={32} />

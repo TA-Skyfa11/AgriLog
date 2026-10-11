@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { fetchAPI } from '@/lib/api';
+import { fetchAPI, getApiUrl } from '@/lib/api';
 import styles from '@/css/diaryDetail.module.css';
 import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, ShieldAlert, Download, Printer, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
@@ -13,6 +13,7 @@ import CustomSelect from '@/components/ui/CustomSelect';
 import DropdownWithOther from '@/components/ui/DropdownWithOther';
 import { useCropStandards } from '@/hooks/useCropStandards';
 import { toast } from 'react-hot-toast';
+import { useDialog } from '@/context/DialogContext';
 import { getSafeImageUrl } from '@/lib/image';
 
 
@@ -51,6 +52,7 @@ export default function PesticideDiaryDetailPage() {
   const standards = useCropStandards();
   const params = useParams();
   const router = useRouter();
+  const dialog = useDialog();
   const [board, setBoard] = useState<any>(null);
   const [entries, setEntries] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
@@ -84,11 +86,26 @@ export default function PesticideDiaryDetailPage() {
 
   const loadData = async () => {
     try {
+      // Non-blocking weather fetch in background
+      fetchAPI('/weather')
+        .then((wRes) => {
+          if (wRes && wRes.success && wRes.data) {
+            const weatherData = `${wRes.data.temp}°C, ${wRes.data.desc}`;
+            setEntries((prev) =>
+              prev.map((entry) => ({
+                ...entry,
+                weather: entry.weather || weatherData,
+              }))
+            );
+          }
+        })
+        .catch(() => {});
+
       const [boardRes, entriesRes, materialsRes, profileRes] = await Promise.all([
         fetchAPI(`/pesticide-boards/${params.boardId}`),
         fetchAPI(`/pesticide-boards/${params.boardId}/entries`),
         fetchAPI('/materials'),
-        fetchAPI('/farm/profile')
+        fetchAPI('/farm/profile'),
       ]);
       if (boardRes.success) {
         setBoard(boardRes.data);
@@ -101,21 +118,13 @@ export default function PesticideDiaryDetailPage() {
           description: boardRes.data.description || ''
         });
       }
-      let weatherData = '';
-      try {
-        const wRes = await fetchAPI('/weather');
-        if (wRes.success && wRes.data) {
-          weatherData = `${wRes.data.temp}°C, ${wRes.data.desc}`;
-        }
-      } catch (e) {}
 
       if (entriesRes.success) {
-        const withWeather = (entriesRes.data || []).map((entry: any) => ({
+        const mapped = (entriesRes.data || []).map((entry: any) => ({
           ...entry,
-          weather: entry.weather || weatherData,
           phiDays: (entry.phiDays === '-1' || !entry.phiDays) ? '7' : entry.phiDays,
         }));
-        setEntries(withWeather);
+        setEntries(mapped);
       }
       if (materialsRes.success) setMaterials(materialsRes.data);
       if (profileRes.success) {
@@ -138,9 +147,13 @@ export default function PesticideDiaryDetailPage() {
     loadData();
   }, [params.boardId]);
 
-  const updateLocalEntry = (index: number, field: string, value: any) => {
+  const updateLocalEntry = (index: number, field: string, value: any, isCustom: boolean = false) => {
     const newEntries = [...entries];
-    newEntries[index][field] = value;
+    if (isCustom) {
+      newEntries[index].customValues = { ...newEntries[index].customValues, [field]: value };
+    } else {
+      newEntries[index][field] = value;
+    }
     setEntries(newEntries);
   };
 
@@ -217,7 +230,7 @@ export default function PesticideDiaryDetailPage() {
     formData.append('image', file);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const apiUrl = getApiUrl();
       const token = localStorage.getItem('token');
       const res = await fetch(`${apiUrl}/upload`, {
         method: 'POST',
@@ -233,30 +246,71 @@ export default function PesticideDiaryDetailPage() {
         if (!newEntries[index].imageUrls) {
           newEntries[index].imageUrls = [];
         }
-        const finalUrl = (data.imageUrl.startsWith('http://') || data.imageUrl.startsWith('https://'))
-          ? data.imageUrl
-          : `${apiUrl.replace(/\/api$/, '')}${data.imageUrl.startsWith('/') ? '' : '/'}${data.imageUrl}`;
+        let finalUrl = data.imageUrl;
+        if (/^https?:\/\/(localhost|127\.0\.0\.1):5000/i.test(finalUrl)) {
+          finalUrl = finalUrl.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/i, '');
+        }
         newEntries[index].imageUrls.push(finalUrl);
         setEntries(newEntries);
         handleBlurSave(index);
       } else {
-        alert(data.message || 'Lỗi tải ảnh lên');
+        toast.error(data.message || 'Lỗi tải ảnh lên');
       }
     } catch (error) {
-      alert('Có lỗi xảy ra khi tải ảnh');
+      toast.error('Có lỗi xảy ra khi tải ảnh');
+    }
+  };
+
+  const handleAddColumn = async () => {
+    const colName = await dialog.prompt('Nhập tên cột mới cần thêm (Ví dụ: Thiết bị phun, Tỷ lệ pha...):', '', 'Thêm cột mới');
+    if (!colName || !colName.trim()) return;
+    
+    const trimmedColName = colName.trim();
+    if (board.customColumns?.includes(trimmedColName)) {
+      toast.error('Cột này đã tồn tại!');
+      return;
+    }
+
+    const plan = userPlan || 'BASIC';
+    const limits: Record<string, number> = {
+      FREE: 0,
+      BASIC: 10,
+      STANDARD: 15,
+      PREMIUM: 25
+    };
+    const maxColumns = limits[plan] !== undefined ? limits[plan] : 10;
+    const currentCustomColumns = board.customColumns?.length || 0;
+
+    if (currentCustomColumns >= maxColumns) {
+      toast.error(`Gói dịch vụ ${plan} của bạn chỉ cho phép thêm tối đa ${maxColumns} cột tùy chỉnh. Vui lòng nâng cấp gói dịch vụ để thêm!`);
+      return;
+    }
+
+    try {
+      const updatedColumns = [...(board.customColumns || []), trimmedColName];
+      const res = await fetchAPI(`/pesticide-boards/${params.boardId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ customColumns: updatedColumns })
+      });
+      if (res.success) {
+        toast.success(`Đã thêm thành công cột "${trimmedColName}"!`);
+        loadData();
+      }
+    } catch (e) {
+      toast.error('Có lỗi xảy ra khi thêm cột');
     }
   };
 
   const handleEditColumn = async (oldName: string) => {
-    const newName = prompt('Nhập tên mới cho cột:', oldName);
+    const newName = await dialog.prompt('Nhập tên mới cho cột:', oldName, 'Đổi tên cột');
     if (!newName || !newName.trim() || newName.trim() === oldName) return;
     const trimmedName = newName.trim();
     if (board.customColumns?.includes(trimmedName)) {
-      alert('Tên cột đã tồn tại!');
+      toast.error('Tên cột đã tồn tại!');
       return;
     }
     
-    if (!confirm('Đổi tên cột sẽ mất một chút thời gian để cập nhật dữ liệu cũ. Bạn có tiếp tục?')) return;
+    if (!(await dialog.confirm('Đổi tên cột sẽ mất một chút thời gian để cập nhật dữ liệu cũ. Bạn có tiếp tục?', 'Xác nhận đổi tên'))) return;
 
     try {
       const updatedColumns = board.customColumns?.map((col: string) => col === oldName ? trimmedName : col) || [];
@@ -276,15 +330,15 @@ export default function PesticideDiaryDetailPage() {
         });
       }
 
-      alert('Đổi tên cột thành công!');
+      toast.success('Đổi tên cột thành công!');
       loadData();
     } catch (e) {
-      alert('Lỗi khi đổi tên cột');
+      toast.error('Lỗi khi đổi tên cột');
     }
   };
 
   const handleDeleteColumn = async (colName: string) => {
-    if (!confirm(`Bạn có chắc chắn muốn xóa cột "${colName}" không? Dữ liệu của cột này sẽ không còn được hiển thị.`)) return;
+    if (!(await dialog.confirm(`Bạn có chắc chắn muốn xóa cột "${colName}" không? Dữ liệu của cột này sẽ không còn được hiển thị.`, 'Xác nhận xóa cột'))) return;
     
     try {
       const updatedColumns = board.customColumns?.filter((col: string) => col !== colName) || [];
@@ -293,58 +347,26 @@ export default function PesticideDiaryDetailPage() {
         body: JSON.stringify({ customColumns: updatedColumns })
       });
       if (res.success) {
-        alert('Xóa cột thành công!');
+        toast.success(`Đã xóa cột "${colName}" thành công!`);
         loadData();
       }
     } catch (e) {
-      alert('Lỗi khi xóa cột');
-    }
-  };
-
-  const handleAddNewColumn = async () => {
-    const colName = prompt('Nhập tên cột mới:');
-    if (!colName || !colName.trim()) return;
-    
-    const plan = userPlan || 'BASIC';
-    const limits: Record<string, number> = {
-      FREE: 0,
-      BASIC: 10,
-      STANDARD: 15,
-      PREMIUM: 25
-    };
-    const maxColumns = limits[plan] !== undefined ? limits[plan] : 10;
-    const currentCustomColumns = board.customColumns?.length || 0;
-
-    if (currentCustomColumns >= maxColumns) {
-      alert(`Gói dịch vụ ${plan} của bạn chỉ cho phép thêm tối đa ${maxColumns} cột tùy chỉnh. Vui lòng nâng cấp gói dịch vụ để thêm!`);
-      return;
-    }
-
-    try {
-      const updatedColumns = [...(board.customColumns || []), colName.trim()];
-      const res = await fetchAPI(`/pesticide-boards/${params.boardId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ customColumns: updatedColumns })
-      });
-      if (res.success) {
-        loadData();
-      }
-    } catch (e) {
-      alert('Lỗi khi thêm cột');
+      toast.error('Có lỗi xảy ra khi xóa cột');
     }
   };
 
   const handleDeleteBoard = async () => {
-    if (confirm('Bạn có chắc chắn muốn xóa bảng này không? Toàn bộ dữ liệu sẽ bị mất vĩnh viễn.')) {
+    if (await dialog.confirm('Bạn có chắc chắn muốn xóa bảng này không? Toàn bộ dữ liệu sẽ bị mất vĩnh viễn.', 'Xác nhận xóa bảng')) {
       try {
         const res = await fetchAPI(`/pesticide-boards/${params.boardId}`, { method: 'DELETE' });
         if (res.success) {
+          toast.success('Xóa bảng thành công');
           router.push('/diary/pesticide');
         } else {
-          alert('Lỗi khi xóa bảng');
+          toast.error('Lỗi khi xóa bảng');
         }
       } catch (e) {
-        alert('Lỗi kết nối khi xóa bảng');
+        toast.error('Lỗi kết nối khi xóa bảng');
       }
     }
   };
@@ -362,12 +384,12 @@ export default function PesticideDiaryDetailPage() {
       if (res.success) {
         setBoard(res.data);
         setShowEditModal(false);
-        alert('Cập nhật thông tin bảng thành công');
+        toast.success('Cập nhật thông tin bảng thành công');
       } else {
-        alert('Lỗi khi cập nhật bảng');
+        toast.error('Lỗi khi cập nhật bảng');
       }
     } catch (e) {
-      alert('Lỗi kết nối khi cập nhật bảng');
+      toast.error('Lỗi kết nối khi cập nhật bảng');
     }
   };
 
@@ -415,7 +437,7 @@ export default function PesticideDiaryDetailPage() {
   };
   
   const handleDeleteEntry = async (id: string, index: number) => {
-    if (!confirm('Bạn có chắc muốn xóa hàng này? Hàng đồng bộ ở các bảng khác cũng sẽ được xóa.')) return;
+    if (!(await dialog.confirm('Bạn có chắc muốn xóa hàng này? Hàng đồng bộ ở các bảng khác cũng sẽ được xóa.', 'Xác nhận xóa hàng'))) return;
     if (!id || id.startsWith('temp-')) {
       const newEntries = [...entries];
       newEntries.splice(index, 1);
@@ -437,7 +459,7 @@ export default function PesticideDiaryDetailPage() {
 
   const exportToExcel = () => {
     if (!allowExport) {
-      alert('Gói cước hiện tại không hỗ trợ xuất file Excel (Không có tính năng lưu trữ/xuất hồ sơ). Vui lòng nâng cấp gói cước.');
+      toast.error('Gói cước hiện tại không hỗ trợ xuất file Excel. Vui lòng nâng cấp gói cước.');
       return;
     }
     
@@ -477,7 +499,7 @@ export default function PesticideDiaryDetailPage() {
     
     const toastId = toast.loading('Đang khởi tạo file PDF chất lượng cao...');
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const apiUrl = getApiUrl();
       const token = localStorage.getItem('token');
       const res = await fetch(`${apiUrl}/export/pdf/pesticide/${params.boardId}`, {
         headers: {
@@ -507,7 +529,27 @@ export default function PesticideDiaryDetailPage() {
     }
   };
 
-  if (loading) return <div style={{ padding: '2rem' }}>Đang tải dữ liệu bảng thuốc BVTV...</div>;
+  if (loading) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.actionHeader}>
+          <Link href="/diary/pesticide" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', color: 'var(--color-text-muted)' }}>
+            <ArrowLeft size={16} /> Danh sách bảng thuốc BVTV
+          </Link>
+        </div>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ width: '260px', height: '28px', backgroundColor: '#e2e8f0', borderRadius: '6px', marginBottom: '8px' }}></div>
+          <div style={{ width: '380px', height: '18px', backgroundColor: '#e2e8f0', borderRadius: '6px' }}></div>
+        </div>
+        <div className={styles.list}>
+          <div style={{ padding: '3.5rem 2rem', textAlign: 'center', color: '#64748b' }}>
+            <div style={{ width: '60px', height: '60px', borderRadius: '50%', border: '4px solid #16a34a', borderTopColor: 'transparent', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }}></div>
+            <div>Đang tải dữ liệu bảng thuốc BVTV...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (!board) return <div style={{ padding: '2rem' }}>Không tìm thấy bảng thuốc BVTV</div>;
 
   return (
@@ -523,7 +565,7 @@ export default function PesticideDiaryDetailPage() {
           <button className={styles.spreadsheetBtn} style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }} onClick={handleDeleteBoard}>
             🗑️ Xóa bảng
           </button>
-          <button className={styles.spreadsheetBtn} onClick={handleAddNewColumn} disabled={userPlan === 'FREE'} style={{ opacity: userPlan === 'FREE' ? 0.5 : 1, cursor: userPlan === 'FREE' ? 'not-allowed' : 'pointer' }} title={userPlan === 'FREE' ? 'Gói Miễn phí không hỗ trợ thêm cột mới' : ''}>
+          <button className={styles.spreadsheetBtn} onClick={handleAddColumn} disabled={userPlan === 'FREE'} style={{ opacity: userPlan === 'FREE' ? 0.5 : 1, cursor: userPlan === 'FREE' ? 'not-allowed' : 'pointer' }} title={userPlan === 'FREE' ? 'Gói Miễn phí không hỗ trợ thêm cột mới' : ''}>
             + Thêm cột
           </button>
           <button className={styles.spreadsheetBtn} onClick={exportToPDF} disabled={userPlan === 'BASIC'} style={{ opacity: userPlan === 'BASIC' ? 0.5 : 1, cursor: userPlan === 'BASIC' ? 'not-allowed' : 'pointer' }} title={userPlan === 'BASIC' ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
@@ -658,7 +700,7 @@ export default function PesticideDiaryDetailPage() {
           <tbody>
             {entries.length === 0 ? (
               <tr>
-                <td colSpan={13} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
+                <td colSpan={12 + (board?.customColumns?.length || 0)} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-muted)' }}>
                   Bảng đang trống. Click nút bên dưới để thêm hàng.
                 </td>
               </tr>
@@ -788,13 +830,11 @@ export default function PesticideDiaryDetailPage() {
                       <AutoResizeTextarea 
                         style={inlineInputStyle}
                         value={entry.customValues?.[col] || ''}
-                        onChange={(e: any) => {
-                          const newEntries = [...entries];
-                          if (!newEntries[index].customValues) newEntries[index].customValues = {};
-                          newEntries[index].customValues[col] = e.target.value;
-                          setEntries(newEntries);
-                        }}
+                        onChange={(e: any) => updateLocalEntry(index, col, e.target.value, true)}
                         onBlur={() => handleBlurSave(index)}
+                        placeholder="—"
+                        className={styles.inlineInputHover}
+                        maxLength={100}
                       />
                     </td>
                   ))}

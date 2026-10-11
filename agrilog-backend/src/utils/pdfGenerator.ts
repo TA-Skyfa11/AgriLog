@@ -509,38 +509,58 @@ export const buildReportsHtml = (stats: any, month: string, farmProfile: any): s
   const primaryColor = '#0f766e'; // Teal
   const todayStr = formatDate(new Date());
 
+  const summary = stats.summary || {};
   const cultivationReport = stats.cultivationReport || [];
   const fertilizerReport = stats.fertilizerReport || [];
   const pesticideReport = stats.pesticideReport || [];
+  const inventoryReport = stats.inventoryReport || [];
 
   const cultRows = cultivationReport.map((r: any, i: number) => `
     <tr>
       <td class="text-center text-bold">${i + 1}</td>
       <td class="text-bold">${r.activity || '—'}</td>
+      <td>${r.crops || '—'}</td>
       <td class="text-center">${r.taskCount || 0}</td>
-      <td class="text-center">${r.peopleCount || 0}</td>
       <td class="text-center">${r.daysCount || 0}</td>
       <td class="text-center text-bold">${r.laborCount || 0}</td>
+      <td class="text-right text-bold" style="color: #0f766e;">${(r.totalCost || 0).toLocaleString('vi-VN')} đ</td>
     </tr>
   `).join('');
 
   const fertRows = fertilizerReport.map((r: any, i: number) => `
     <tr>
       <td class="text-center text-bold">${i + 1}</td>
-      <td class="text-bold">${r.materialName || '—'}</td>
+      <td class="text-bold">${r.name || r.materialName || '—'}</td>
+      <td>${r.manufacturer || '—'}</td>
       <td class="text-center">${r.timesUsed || 0}</td>
       <td class="text-center text-bold">${r.totalQuantity || 0}</td>
       <td class="text-center">${r.totalArea || 0} m²</td>
+      <td class="text-right text-bold" style="color: #0f766e;">${(r.totalCost || 0).toLocaleString('vi-VN')} đ</td>
     </tr>
   `).join('');
 
   const pestRows = pesticideReport.map((r: any, i: number) => `
     <tr>
       <td class="text-center text-bold">${i + 1}</td>
-      <td class="text-bold">${r.materialName || '—'}</td>
+      <td class="text-bold">${r.name || r.materialName || '—'}</td>
+      <td>${r.activeIngredient || '—'}</td>
       <td>${r.targetPest || '—'}</td>
       <td class="text-center">${r.timesUsed || 0}</td>
       <td class="text-center text-bold">${r.totalQuantity || 0}</td>
+      <td class="text-center">${r.phiDays ? `${r.phiDays} ngày` : '7 ngày'}</td>
+      <td class="text-right text-bold" style="color: #0f766e;">${(r.totalCost || 0).toLocaleString('vi-VN')} đ</td>
+    </tr>
+  `).join('');
+
+  const invRows = inventoryReport.map((r: any, i: number) => `
+    <tr>
+      <td class="text-center text-bold">${i + 1}</td>
+      <td class="text-bold">${r.name || '—'}</td>
+      <td class="text-center">${r.typeLabel || (r.type === 'FERTILIZER' ? 'Phân bón' : 'Thuốc BVTV')}</td>
+      <td class="text-center text-bold">${r.quantity || 0} ${r.unit || ''}</td>
+      <td class="text-center">${r.usedInMonth || '0'}</td>
+      <td class="text-center">${r.expiryDate || '—'}</td>
+      <td class="text-center">${r.statusText || 'Bình thường'}</td>
     </tr>
   `).join('');
 
@@ -560,6 +580,29 @@ export const buildReportsHtml = (stats: any, month: string, farmProfile: any): s
           margin-bottom: 8px;
           text-transform: uppercase;
         }
+        .kpi-container {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 15px;
+        }
+        .kpi-card {
+          flex: 1;
+          padding: 8px 12px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+        }
+        .kpi-label {
+          font-size: 10px;
+          color: #64748b;
+          text-transform: uppercase;
+        }
+        .kpi-val {
+          font-size: 14px;
+          font-weight: 700;
+          color: ${primaryColor};
+          margin-top: 2px;
+        }
       </style>
     </head>
     <body>
@@ -578,20 +621,40 @@ export const buildReportsHtml = (stats: any, month: string, farmProfile: any): s
         </div>
       </div>
 
-      <div class="section-title">1. Tổng hợp Công việc & Nhân công Canh tác</div>
+      <div class="kpi-container">
+        <div class="kpi-card">
+          <div class="kpi-label">Tổng đầu việc</div>
+          <div class="kpi-val">${summary.totalTasks || (cultivationReport.length + fertilizerReport.length + pesticideReport.length)} việc</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Tổng công lao động</div>
+          <div class="kpi-val">${summary.totalLabor || cultivationReport.reduce((a: number, b: any) => a + (b.laborCount || 0), 0)} công</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Tổng chi phí sản xuất</div>
+          <div class="kpi-val">${(summary.totalCost || 0).toLocaleString('vi-VN')} đ</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Vật tư theo dõi</div>
+          <div class="kpi-val">${summary.materialsTotal || inventoryReport.length} loại</div>
+        </div>
+      </div>
+
+      <div class="section-title">1. Tổng hợp Công việc & Nhật ký Canh tác</div>
       <table>
         <thead>
           <tr>
-            <th style="width: 40px;">STT</th>
-            <th>Hoạt động</th>
-            <th style="width: 100px;">Số lần thực hiện</th>
-            <th style="width: 100px;">Số người tham gia</th>
-            <th style="width: 100px;">Số ngày làm</th>
-            <th style="width: 100px;">Tổng số công</th>
+            <th style="width: 35px;">STT</th>
+            <th>Hoạt động canh tác</th>
+            <th style="width: 100px;">Cây trồng</th>
+            <th style="width: 80px;">Số lần</th>
+            <th style="width: 80px;">Số ngày</th>
+            <th style="width: 80px;">Tổng công</th>
+            <th style="width: 100px;" class="text-right">Chi phí</th>
           </tr>
         </thead>
         <tbody>
-          ${cultRows || '<tr><td colspan="6" class="text-center" style="padding: 10px;">Không có dữ liệu trong tháng này</td></tr>'}
+          ${cultRows || '<tr><td colspan="7" class="text-center" style="padding: 10px;">Không có dữ liệu trong tháng này</td></tr>'}
         </tbody>
       </table>
 
@@ -599,15 +662,17 @@ export const buildReportsHtml = (stats: any, month: string, farmProfile: any): s
       <table>
         <thead>
           <tr>
-            <th style="width: 40px;">STT</th>
+            <th style="width: 35px;">STT</th>
             <th>Tên loại phân bón</th>
-            <th style="width: 120px;">Số lần bón</th>
-            <th style="width: 140px;">Tổng lượng bón</th>
-            <th style="width: 140px;">Tổng diện tích áp dụng</th>
+            <th style="width: 110px;">Nhà sản xuất</th>
+            <th style="width: 70px;">Số lần bón</th>
+            <th style="width: 110px;">Tổng lượng bón</th>
+            <th style="width: 100px;">Diện tích áp dụng</th>
+            <th style="width: 100px;" class="text-right">Chi phí</th>
           </tr>
         </thead>
         <tbody>
-          ${fertRows || '<tr><td colspan="5" class="text-center" style="padding: 10px;">Không có dữ liệu trong tháng này</td></tr>'}
+          ${fertRows || '<tr><td colspan="7" class="text-center" style="padding: 10px;">Không có dữ liệu trong tháng này</td></tr>'}
         </tbody>
       </table>
 
@@ -615,17 +680,40 @@ export const buildReportsHtml = (stats: any, month: string, farmProfile: any): s
       <table>
         <thead>
           <tr>
-            <th style="width: 40px;">STT</th>
+            <th style="width: 35px;">STT</th>
             <th>Tên thuốc BVTV</th>
-            <th>Sinh vật gây hại</th>
-            <th style="width: 120px;">Số lần phun</th>
-            <th style="width: 140px;">Tổng lượng thuốc</th>
+            <th style="width: 100px;">Hoạt chất</th>
+            <th style="width: 100px;">Đối tượng phòng trừ</th>
+            <th style="width: 65px;">Số lần</th>
+            <th style="width: 90px;">Tổng lượng</th>
+            <th style="width: 80px;">Cách ly PHI</th>
+            <th style="width: 95px;" class="text-right">Chi phí</th>
           </tr>
         </thead>
         <tbody>
-          ${pestRows || '<tr><td colspan="5" class="text-center" style="padding: 10px;">Không có dữ liệu trong tháng này</td></tr>'}
+          ${pestRows || '<tr><td colspan="8" class="text-center" style="padding: 10px;">Không có dữ liệu trong tháng này</td></tr>'}
         </tbody>
       </table>
+
+      ${inventoryReport.length > 0 ? `
+      <div class="section-title">4. Báo cáo Kho Vật tư & Tình trạng Tồn kho</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 35px;">STT</th>
+            <th>Tên vật tư</th>
+            <th style="width: 90px;">Phân loại</th>
+            <th style="width: 100px;">Tồn kho hiện tại</th>
+            <th style="width: 110px;">Đã dùng trong tháng</th>
+            <th style="width: 95px;">Hạn sử dụng</th>
+            <th style="width: 100px;">Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${invRows}
+        </tbody>
+      </table>
+      ` : ''}
 
       <div class="footer">
         <div class="signature-box">

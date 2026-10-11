@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Users, Store, ShoppingCart, Package, Settings, HelpCircle, LogOut } from 'lucide-react';
 import styles from '../../css/AdminLayout.module.css';
@@ -31,7 +32,7 @@ export function Sidebar() {
     <aside className={styles.sidebar}>
       <div className={styles.logoArea}>
         <div className={styles.logoIcon} style={{ background: 'transparent', width: 'auto', height: 'auto' }}>
-          <img src={logoImg.src} alt="AgriLog" width="48" height="48" style={{ objectFit: 'contain' }} />
+          <Image src={logoImg} alt="AgriLog" width={48} height={48} priority style={{ objectFit: 'contain' }} />
         </div>
         <div className={styles.logoText}>
           <span className={styles.logoTitle} style={{ fontSize: '1.4rem' }}>AgriLog</span>

@@ -3,6 +3,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import compression from 'compression';
 import { connectDB } from './config/db';
 import session from 'express-session';
 import { SupabaseSessionStore } from './config/supabaseSessionStore';
@@ -19,6 +20,18 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 const app = express();
 app.set('trust proxy', 1);
+
+// Enable gzip/deflate compression for fast payload delivery
+app.use(compression({
+  filter: (req: Request, res: Response) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+  threshold: 1024, // Only compress responses larger than 1KB
+}));
+
 const PORT = process.env.PORT || 5000;
 
 // Chuẩn hóa header X-Forwarded-For và X-Real-IP nếu reverse proxy chuyển tiếp port (ví dụ: "171.244.35.2:38052")
@@ -132,12 +145,14 @@ import exportRoutes from './routes/exportRoutes';
 import paymentRoutes from './routes/paymentRoutes';
 import featureRoutes from './routes/featureRoutes';
 import cropStandardRoutes from './routes/cropStandardRoutes';
+import dashboardRoutes from './routes/dashboardRoutes';
 import path from 'path';
 import { getFileFromR2 } from './utils/r2Storage';
 import { startTaskReminderScheduler } from './utils/taskScheduler';
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/farm', farmRoutes);
 app.use('/api/cultivation-boards', cultivationRoutes);
 app.use('/api/fertilizer-boards', fertilizerRoutes);

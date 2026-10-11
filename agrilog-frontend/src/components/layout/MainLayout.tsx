@@ -2,6 +2,7 @@
 'use client';
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { fetchAPI } from '@/lib/api';
 import styles from './MainLayout.module.css';
@@ -157,8 +158,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
       } catch (e) {}
     };
 
-    loadProfileData();
-    loadNotifications();
+    Promise.all([loadProfileData(), loadNotifications()]);
   }, [role, pathname]);
 
   const markAsRead = async (id: string, type?: string) => {
@@ -247,7 +247,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
         <div className={styles.brand} style={{ justifyContent: isSidebarCollapsed ? 'center' : 'space-between', padding: isSidebarCollapsed ? '0' : '0 1.5rem' }}>
           {!isSidebarCollapsed && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div className={styles.brandIcon} style={{ background: 'transparent', width: 'auto', height: 'auto' }}><img src={logoImg.src} alt="AgriLog Logo" width="48" height="48" style={{ objectFit: 'contain' }} /></div>
+              <div className={styles.brandIcon} style={{ background: 'transparent', width: 'auto', height: 'auto' }}><Image src={logoImg} alt="AgriLog Logo" width={48} height={48} priority style={{ objectFit: 'contain' }} /></div>
               <span style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-primary-800, #166534)' }}>AgriLog {role === 'ADMIN' ? 'Admin' : ''}</span>
             </div>
           )}

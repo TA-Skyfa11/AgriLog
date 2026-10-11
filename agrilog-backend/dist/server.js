@@ -8,6 +8,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const compression_1 = __importDefault(require("compression"));
 const db_1 = require("./config/db");
 const express_session_1 = __importDefault(require("express-session"));
 const supabaseSessionStore_1 = require("./config/supabaseSessionStore");
@@ -21,6 +22,16 @@ if (!process.env.JWT_SECRET || !process.env.JWT_SECRET.trim()) {
 const JWT_SECRET = process.env.JWT_SECRET;
 const app = (0, express_1.default)();
 app.set('trust proxy', 1);
+// Enable gzip/deflate compression for fast payload delivery
+app.use((0, compression_1.default)({
+    filter: (req, res) => {
+        if (req.headers['x-no-compression']) {
+            return false;
+        }
+        return compression_1.default.filter(req, res);
+    },
+    threshold: 1024, // Only compress responses larger than 1KB
+}));
 const PORT = process.env.PORT || 5000;
 // Chuẩn hóa header X-Forwarded-For và X-Real-IP nếu reverse proxy chuyển tiếp port (ví dụ: "171.244.35.2:38052")
 app.use((req, _res, next) => {
@@ -124,11 +135,13 @@ const exportRoutes_1 = __importDefault(require("./routes/exportRoutes"));
 const paymentRoutes_1 = __importDefault(require("./routes/paymentRoutes"));
 const featureRoutes_1 = __importDefault(require("./routes/featureRoutes"));
 const cropStandardRoutes_1 = __importDefault(require("./routes/cropStandardRoutes"));
+const dashboardRoutes_1 = __importDefault(require("./routes/dashboardRoutes"));
 const path_1 = __importDefault(require("path"));
 const r2Storage_1 = require("./utils/r2Storage");
 const taskScheduler_1 = require("./utils/taskScheduler");
 // Routes
 app.use('/api/auth', authRoutes_1.default);
+app.use('/api/dashboard', dashboardRoutes_1.default);
 app.use('/api/farm', farmRoutes_1.default);
 app.use('/api/cultivation-boards', cultivationRoutes_1.default);
 app.use('/api/fertilizer-boards', fertilizerRoutes_1.default);

@@ -115,7 +115,11 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         if (!uploadData.success) {
           throw new Error(uploadData.message || 'Lỗi tải ảnh lên');
         }
-        finalImages = [uploadData.imageUrl];
+        let finalImg = uploadData.imageUrl;
+        if (/^https?:\/\/(localhost|127\.0\.0\.1):5000/i.test(finalImg)) {
+          finalImg = finalImg.replace(/^https?:\/\/(localhost|127\.0\.0\.1):5000/i, '');
+        }
+        finalImages = [finalImg];
       } else if (imageMode === 'url' && imageUrl) {
         finalImages = [imageUrl];
       }

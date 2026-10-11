@@ -46,22 +46,14 @@ export default function DashboardPage() {
         }
       };
 
-      const [cBoardsRes, fBoardsRes, pBoardsRes, tasksRes, inventoryRes, profileRes] = await Promise.all([
-        fetchSafe('/cultivation-boards'),
-        fetchSafe('/fertilizer-boards'),
-        fetchSafe('/pesticide-boards'),
-        fetchSafe('/tasks'),
-        fetchSafe('/materials'),
-        fetchSafe('/farm/profile')
-      ]);
-
+      // 1. Non-blocking asynchronous weather fetch
       fetchSafe('/weather').then(weatherRes => {
         if (weatherRes.success && weatherRes.data) {
           const wData = weatherRes.data;
           setWeather({
             temp: wData.temp + '°',
             condition: wData.desc,
-            icon: wData.desc.toLowerCase(),
+            icon: (wData.desc || '').toLowerCase(),
             humidity: wData.humidity,
             wind: wData.wind,
             chanceOfRain: wData.chanceOfRain,
@@ -72,6 +64,29 @@ export default function DashboardPage() {
         }
       });
 
+      // 2. High-performance aggregated summary API
+      const summaryRes = await fetchSafe('/dashboard/summary');
+      if (summaryRes.success && summaryRes.data) {
+        const d = summaryRes.data;
+        if (d.userName) setUserName(d.userName);
+        if (d.stats) setStats(d.stats);
+        if (d.recentBoards) setRecentBoards(d.recentBoards);
+        if (d.recentEntries) setRecentEntries(d.recentEntries);
+        if (d.todayTasks) setTodayTasks(d.todayTasks);
+        setLoading(false);
+        return;
+      }
+
+      // Fallback: Individual endpoints
+      const [cBoardsRes, fBoardsRes, pBoardsRes, tasksRes, inventoryRes, profileRes] = await Promise.all([
+        fetchSafe('/cultivation-boards'),
+        fetchSafe('/fertilizer-boards'),
+        fetchSafe('/pesticide-boards'),
+        fetchSafe('/tasks'),
+        fetchSafe('/materials'),
+        fetchSafe('/farm/profile')
+      ]);
+
       if (profileRes.success && profileRes.data) {
         setUserName(profileRes.data.user?.name || profileRes.data.farmName || 'Admin');
       } else {
@@ -80,38 +95,22 @@ export default function DashboardPage() {
 
       let boardsCount = 0;
       let allBoards: any[] = [];
-      let allEntries: any[] = [];
 
       if (cBoardsRes.success) {
         boardsCount += cBoardsRes.data.length;
         allBoards = [...allBoards, ...cBoardsRes.data.map((b: any) => ({ ...b, type: 'cultivation' }))];
-        
-        // Fetch entries for recent timeline (just from cultivation for now to keep it simple, or all)
-        for (const b of cBoardsRes.data.slice(0, 2)) {
-          const eRes = await fetchAPI(`/cultivation-boards/${b._id}/entries`);
-          if (eRes.success) {
-            allEntries = [...allEntries, ...eRes.data.map((e: any) => ({ ...e, boardName: b.name, type: 'cultivation' }))];
-          }
-        }
       }
-      
       if (fBoardsRes.success) {
         boardsCount += fBoardsRes.data.length;
         allBoards = [...allBoards, ...fBoardsRes.data.map((b: any) => ({ ...b, type: 'fertilizer' }))];
       }
-
       if (pBoardsRes.success) {
         boardsCount += pBoardsRes.data.length;
         allBoards = [...allBoards, ...pBoardsRes.data.map((b: any) => ({ ...b, type: 'pesticide' }))];
       }
       
-      // Sort boards by date desc
       allBoards.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setRecentBoards(allBoards.slice(0, 2));
-
-      // Sort entries by date desc
-      allEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setRecentEntries(allEntries.slice(0, 3));
 
       let tasksToday = 0;
       let tasksCompleted = 0;
@@ -132,9 +131,6 @@ export default function DashboardPage() {
       }
 
       setStats({ boardsCount, tasksToday, tasksCompleted, inventoryCount, inventoryAlerts });
-
-
-
     } catch (error) {
       console.error(error);
     } finally {
@@ -147,13 +143,13 @@ export default function DashboardPage() {
     loadData();
   }, []);
 
-  if (loading) return <div style={{ padding: '2rem' }}>Đang tải tổng quan...</div>;
-
   return (
     <div className={styles.container}>
       {/* Header */}
       <div className={styles.welcomeSection}>
-        <div className={styles.welcomeTitle}>Xin chào, {userName}</div>
+        <div className={styles.welcomeTitle}>
+          Xin chào, {loading && !userName ? <span className={styles.skeleton} style={{ width: '120px', height: '24px', verticalAlign: 'middle' }}></span> : userName || 'Nông dân'}
+        </div>
         <div className={styles.welcomeSubtitle}>Chúc bạn có một ngày làm việc hiệu quả.</div>
       </div>
 
@@ -168,8 +164,10 @@ export default function DashboardPage() {
               <div className={styles.statTitle}>Số bảng canh tác</div>
             </div>
             <div>
-              <div className={styles.statValue}>{stats.boardsCount}</div>
-              <div className={styles.statSubtext} style={{ color: '#16a34a' }}>+2 từ tháng trước</div>
+              <div className={styles.statValue}>
+                {loading ? <span className={styles.skeleton} style={{ width: '45px', height: '32px' }}></span> : stats.boardsCount}
+              </div>
+              <div className={styles.statSubtext} style={{ color: '#16a34a' }}>Tổng các bảng nhật ký</div>
             </div>
           </div>
 
@@ -181,8 +179,12 @@ export default function DashboardPage() {
               <div className={styles.statTitle}>Công việc hôm nay</div>
             </div>
             <div>
-              <div className={styles.statValue}>{stats.tasksToday}</div>
-              <div className={styles.statSubtext} style={{ color: '#64748b' }}>{stats.tasksCompleted} việc đã hoàn thành</div>
+              <div className={styles.statValue}>
+                {loading ? <span className={styles.skeleton} style={{ width: '35px', height: '32px' }}></span> : stats.tasksToday}
+              </div>
+              <div className={styles.statSubtext} style={{ color: '#64748b' }}>
+                {loading ? 'Đang tải...' : `${stats.tasksCompleted} việc đã hoàn thành`}
+              </div>
             </div>
           </div>
 
@@ -194,9 +196,11 @@ export default function DashboardPage() {
               <div className={styles.statTitle}>Vật tư tồn kho</div>
             </div>
             <div>
-              <div className={styles.statValue}>{stats.inventoryCount}</div>
+              <div className={styles.statValue}>
+                {loading ? <span className={styles.skeleton} style={{ width: '45px', height: '32px' }}></span> : stats.inventoryCount}
+              </div>
               <div className={styles.statSubtext} style={{ color: stats.inventoryAlerts > 0 ? '#ef4444' : '#64748b' }}>
-                {stats.inventoryAlerts > 0 ? `${stats.inventoryAlerts} loại sắp hết hàng` : 'Đủ vật tư'}
+                {loading ? 'Đang tải...' : stats.inventoryAlerts > 0 ? `${stats.inventoryAlerts} loại sắp hết hàng` : 'Đủ vật tư'}
               </div>
             </div>
           </div>
@@ -256,7 +260,18 @@ export default function DashboardPage() {
           </div>
 
           <div className={styles.boardCards}>
-            {recentBoards.map(board => (
+            {loading ? (
+              [1, 2].map((idx) => (
+                <div key={idx} className={styles.boardCard} style={{ opacity: 0.7 }}>
+                  <div className={styles.boardHeader}>
+                    <div className={styles.boardIcon}><LayoutDashboard size={20} /></div>
+                    <div className={styles.skeleton} style={{ width: '80px', height: '22px' }}></div>
+                  </div>
+                  <div className={styles.skeleton} style={{ width: '140px', height: '20px', margin: '12px 0 6px' }}></div>
+                  <div className={styles.skeleton} style={{ width: '100px', height: '14px' }}></div>
+                </div>
+              ))
+            ) : recentBoards.map(board => (
               <div key={board._id} className={styles.boardCard}>
                 <div className={styles.boardHeader}>
                   <div className={styles.boardIcon}>
@@ -280,7 +295,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             ))}
-            {recentBoards.length === 0 && (
+            {!loading && recentBoards.length === 0 && (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b', width: '100%', background: 'white', borderRadius: '16px' }}>
                 Chưa có bảng canh tác nào
               </div>
@@ -292,7 +307,12 @@ export default function DashboardPage() {
           </div>
 
           <div className={styles.timelineCard}>
-            {recentEntries.length > 0 ? recentEntries.map((entry, idx) => (
+            {loading ? (
+              <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className={styles.skeleton} style={{ width: '80%', height: '18px' }}></div>
+                <div className={styles.skeleton} style={{ width: '60%', height: '14px' }}></div>
+              </div>
+            ) : recentEntries.length > 0 ? recentEntries.map((entry, idx) => (
               <div key={entry._id} className={styles.timelineItem}>
                 <div className={styles.timelineLine}></div>
                 <div className={styles.timelineDot} style={{ backgroundColor: idx === 0 ? '#16a34a' : idx === 1 ? '#3b82f6' : '#ea580c' }}></div>
@@ -318,7 +338,14 @@ export default function DashboardPage() {
           </div>
 
           <div className={styles.tasksList}>
-            {todayTasks.length > 0 ? todayTasks.map(task => (
+            {loading ? (
+              <div className={styles.taskCard}>
+                <div className={styles.taskInfo}>
+                  <div className={styles.skeleton} style={{ width: '120px', height: '18px', marginBottom: '6px' }}></div>
+                  <div className={styles.skeleton} style={{ width: '80px', height: '14px' }}></div>
+                </div>
+              </div>
+            ) : todayTasks.length > 0 ? todayTasks.map(task => (
               <div key={task._id} className={styles.taskCard}>
                 <div className={`${styles.taskCheckbox} ${task.status === 'COMPLETED' ? styles.completed : ''}`}>
                   {task.status === 'COMPLETED' && <Check size={14} />}

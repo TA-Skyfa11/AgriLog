@@ -19,16 +19,20 @@ export default function LandingPage() {
   const { isFeatureEnabled } = useAppContext();
 
   useEffect(() => {
+    let isMounted = true;
     const loadData = async () => {
       try {
-        const resServices = await fetchAPI('/services');
-        if (resServices.success) setPackages(resServices.data);
-        
-        const resProducts = await fetchAPI('/products/public');
-        if (resProducts.success) setProducts(resProducts.data);
+        const [resServices, resProducts] = await Promise.all([
+          fetchAPI('/services').catch(() => ({ success: false, data: [] })),
+          fetchAPI('/products/public').catch(() => ({ success: false, data: [] }))
+        ]);
+        if (!isMounted) return;
+        if (resServices && resServices.success && resServices.data) setPackages(resServices.data);
+        if (resProducts && resProducts.success && resProducts.data) setProducts(resProducts.data);
       } catch (err) {}
     };
     loadData();
+    return () => { isMounted = false; };
   }, []);
 
   return (
@@ -37,7 +41,7 @@ export default function LandingPage() {
       <header className={styles.header}>
         <div className={styles.headerContent}>
           <a href="/" className={styles.logo} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <img src={logoImg.src} alt="AgriLog Logo" width="56" height="56" style={{ objectFit: 'contain' }} />
+            <Image src={logoImg} alt="AgriLog Logo" width={56} height={56} priority style={{ objectFit: 'contain' }} />
             <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-primary-700, #15803d)' }}>AgriLog</span>
           </a>
           <nav className={styles.navLinks}>
@@ -81,10 +85,14 @@ export default function LandingPage() {
           </div>
           <div style={{ position: 'relative', height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: '100%', height: '100%', borderRadius: '24px', overflow: 'hidden', boxShadow: 'var(--shadow-xl)', position: 'relative' }}>
-              <img 
-                src={heroImg.src}
+              <Image 
+                src={heroImg}
                 alt="AgriLog Dashboard Preview" 
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                fill
+                priority
+                sizes="(max-width: 768px) 100vw, 50vw"
+                style={{ objectFit: 'cover' }}
+                quality={85}
               />
             </div>
           </div>
@@ -133,10 +141,14 @@ export default function LandingPage() {
           </div>
           <div className={styles.featureImageWrapper}>
             <div style={{ width: '100%', height: '400px', position: 'relative' }}>
-              <img 
-                src={greenhouseImg.src}
+              <Image 
+                src={greenhouseImg}
                 alt="Modern Greenhouse" 
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                fill
+                loading="lazy"
+                sizes="(max-width: 768px) 100vw, 50vw"
+                style={{ objectFit: 'cover' }}
+                quality={80}
               />
             </div>
           </div>

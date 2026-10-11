@@ -89,8 +89,14 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const res = await fetchAPI('/features/active');
       if (res && res.success && res.data) {
-        setFeatures(res.data.featureMap || {});
-        setDisabledPaths(res.data.disabledPaths || []);
+        const featureMap = res.data.featureMap || {};
+        const disabled = res.data.disabledPaths || [];
+        setFeatures(featureMap);
+        setDisabledPaths(disabled);
+        try {
+          localStorage.setItem('cached_features', JSON.stringify(featureMap));
+          localStorage.setItem('cached_disabled_paths', JSON.stringify(disabled));
+        } catch {}
       }
     } catch {
       // Bỏ qua lỗi kết nối ban đầu
@@ -101,7 +107,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
   const isFeatureEnabled = (key: string): boolean => {
     if (!key) return true;
-    if (!featuresLoaded) return false; // Tránh flicker (chớp nhoáng hiển thị rồi biến mất)
+    if (!featuresLoaded) return true; // Mặc định hiển thị tính năng để tránh chặn render / layout shift
     return features[key] !== false;
   };
 
@@ -110,6 +116,20 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     const savedLang = localStorage.getItem('language') as Language;
     const savedTz = localStorage.getItem('timezone');
     const savedCart = localStorage.getItem('cart');
+    const cachedFeatures = localStorage.getItem('cached_features');
+    const cachedDisabled = localStorage.getItem('cached_disabled_paths');
+
+    if (cachedFeatures) {
+      try {
+        setFeatures(JSON.parse(cachedFeatures));
+        setFeaturesLoaded(true);
+      } catch {}
+    }
+    if (cachedDisabled) {
+      try {
+        setDisabledPaths(JSON.parse(cachedDisabled));
+      } catch {}
+    }
     
     if (savedTheme) {
       setThemeState(savedTheme);
@@ -132,7 +152,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       }
     }
 
-    // Nạp trạng thái các tính năng hệ thống từ backend
+    // Nạp trạng thái các tính năng hệ thống từ backend ngầm
     reloadFeatures();
   }, []);
 

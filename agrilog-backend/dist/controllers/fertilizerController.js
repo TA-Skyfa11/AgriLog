@@ -5,6 +5,7 @@ const FarmProfile_1 = require("../models/FarmProfile");
 const FertilizerBoard_1 = require("../models/FertilizerBoard");
 const FertilizerEntry_1 = require("../models/FertilizerEntry");
 const Material_1 = require("../models/Material");
+const db_1 = require("../config/db");
 const boardUtils_1 = require("../utils/boardUtils");
 const syncUtils_1 = require("../utils/syncUtils");
 const getFertilizerBoards = async (req, res) => {
@@ -19,12 +20,20 @@ const getFertilizerBoards = async (req, res) => {
             farmProfile: profile._id,
             createdAt: { $gte: retentionDate }
         }).sort({ createdAt: -1 });
-        const boardsWithCount = await Promise.all(boards.map(async (board) => {
-            const count = await FertilizerEntry_1.FertilizerEntry.countDocuments({ fertilizerBoard: board._id });
-            return {
-                ...board.toObject(),
-                entryCount: count,
-            };
+        if (boards.length === 0) {
+            return res.json({ success: true, data: [] });
+        }
+        // Single-query batch count aggregation instead of N+1 individual queries
+        const boardIds = boards.map(b => b._id.toString());
+        const sql = (0, db_1.getSql)();
+        const countRows = await sql.unsafe(`SELECT data->>'fertilizerBoard' as board_id, COUNT(*)::int as count 
+       FROM public.fertilizer_entries 
+       WHERE data->>'fertilizerBoard' = ANY($1) 
+       GROUP BY data->>'fertilizerBoard'`, [boardIds]);
+        const countMap = new Map(countRows.map((r) => [r.board_id, r.count]));
+        const boardsWithCount = boards.map((board) => ({
+            ...board.toObject(),
+            entryCount: countMap.get(board._id.toString()) || 0,
         }));
         res.json({ success: true, data: boardsWithCount });
     }
