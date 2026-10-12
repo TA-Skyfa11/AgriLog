@@ -20,6 +20,22 @@ export const importMaterial = async (req: AuthRequest, res: Response) => {
   try {
     const { name, type, quantity, unit, expiryDate, date, supplier, notes, manufacturer, activeIngredient } = req.body;
     
+    if (!expiryDate) {
+      return res.status(400).json({ success: false, message: 'Hạn sử dụng là bắt buộc' });
+    }
+
+    const importDate = date ? new Date(date) : new Date();
+    importDate.setHours(0, 0, 0, 0);
+    const expDate = new Date(expiryDate);
+    expDate.setHours(0, 0, 0, 0);
+
+    if (expDate <= importDate) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Ngày hạn sử dụng phải lớn hơn ngày nhập kho hiện tại' 
+      });
+    }
+
     const profile = await FarmProfile.findOne({ user: req.user?._id });
     if (!profile) return res.status(404).json({ success: false, message: 'Profile not found' });
 
@@ -33,13 +49,13 @@ export const importMaterial = async (req: AuthRequest, res: Response) => {
         type,
         quantity: 0,
         unit,
-        expiryDate: expiryDate ? new Date(expiryDate) : undefined,
+        expiryDate: new Date(expiryDate),
         manufacturer,
         activeIngredient,
         supplier,
       });
     } else {
-      if (expiryDate) material.expiryDate = new Date(expiryDate);
+      material.expiryDate = new Date(expiryDate);
       if (manufacturer !== undefined) material.manufacturer = manufacturer;
       if (activeIngredient !== undefined) material.activeIngredient = activeIngredient;
       if (supplier !== undefined) material.supplier = supplier;
@@ -88,7 +104,18 @@ export const getMaterialLogs = async (req: AuthRequest, res: Response) => {
 export const updateMaterial = async (req: AuthRequest, res: Response) => {
   try {
     const profile = await FarmProfile.findOne({ user: req.user?._id });
-    if (!profile) return res.status(404).json({ success: false, message: 'Profile not found' });
+    if (req.body.expiryDate) {
+      const expDate = new Date(req.body.expiryDate);
+      expDate.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (expDate <= today) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Ngày hạn sử dụng phải lớn hơn ngày hiện tại' 
+        });
+      }
+    }
 
     const material = await Material.findOneAndUpdate(
       { _id: req.params.id, farmProfile: profile._id },

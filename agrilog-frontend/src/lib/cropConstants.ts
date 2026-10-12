@@ -5,127 +5,54 @@
 export const SHORT_TERM_STAGES = [
   'Làm đất',
   'Gieo hạt',
-  'Ươm cây con',
-  'Cấy cây con',
-  'Bén rễ hồi xanh',
-  'Phát triển thân lá',
-  'Phân hóa mầm hoa',
-  'Ra hoa',
-  'Đậu quả',
-  'Hình thành củ',
-  'Nuôi quả',
-  'Nuôi củ',
-  'Đóng bắp',
-  'Thu hoạch',
-  'Sau thu hoạch'
+  'Trồng cây con',
+  'Cây đang lớn',
+  'Cây phát triển lá',
+  'Cây ra hoa',
+  'Cây nuôi quả',
+  'Cây nuôi củ',
+  'Thu hoạch'
 ];
 
-// 2. TỪNG HOẠT ĐỘNG CANH TÁC RIÊNG BIỆT (ATOMIC)
+// 2. HOẠT ĐỘNG CANH TÁC RIÊNG BIỆT (ATOMIC)
 export const SHORT_TERM_ACTIVITIES = [
-  // Làm đất
-  'Cày xới đất',
-  'Bừa san phẳng đất',
-  'Phơi ải đất',
-  'Rải vôi bột khử trùng đất',
-  'Bón lót phân chuồng hoai mục',
-  'Bón lót phân hữu cơ vi sinh',
-  'Lên luống trồng',
-  'San phẳng mặt luống',
-  'Phủ màng nông nghiệp',
-  'Đục lỗ màng phủ',
-
-  // Gieo hạt & Ươm cây con
-  'Ngâm hạt giống nước ấm',
-  'Ủ hạt giống nứt nanh',
-  'Chuẩn bị khay ươm giá thể',
-  'Gieo hạt vào khay ươm',
-  'Gieo hạt trực tiếp vào luống',
-  'Tưới phun sương giữ ẩm hạt',
-  'Che phủ rơm rạ giữ ẩm',
-  'Che lưới đen cản nắng',
-
-  // Cấy cây con & Bén rễ hồi xanh
-  'Nhổ cây con từ khay ươm',
-  'Cấy cây con ra luống sản xuất',
-  'Trồng dặm cây con bị chết',
-  'Tưới đẫm nước định gốc',
-  'Tưới kích rễ sinh học',
-
-  // Chăm sóc & Phát triển thân lá
-  'Tưới nước giữ ẩm hằng ngày',
-  'Tưới nước nhỏ giọt',
-  'Tưới nước phun mưa',
-  'Làm cỏ gốc',
-  'Xới xáo phá váng đất',
-  'Tỉa bớt cây yếu còi cọc',
-  'Định khoảng cách mật độ luống',
-  'Vun cao gốc cây',
-  'Bón thúc đợt 1',
-  'Bón thúc đợt 2',
-  'Bón thúc đợt 3',
-  'Phun phân bón qua lá',
-  'Phun vi lượng bổ sung',
-  'Cắm cọc làm giàn leo',
-  'Buộc dây cố định thân leo',
-  'Bấm ngọn kích thích phân nhánh',
-  'Vặt tỉa chồi nách phụ',
-  'Tỉa bỏ lá già úa dưới gốc',
-
-  // Ra hoa, đậu quả, nuôi quả/củ/bắp
-  'Bón thúc đón hoa',
-  'Thụ phấn bổ sung nhân tạo',
-  'Tỉa bớt nụ hoa dị hình',
-  'Bón thúc nuôi quả',
-  'Bón thúc phì to củ',
-  'Bón thúc cuốn chắc bắp',
-  'Tỉa bỏ quả còi cọc đèo đẹt',
-  'Bọc túi bảo vệ quả',
-  'Khơi rãnh luống thoát nước',
-
-  // Phòng trừ sâu bệnh
-  'Bắt sâu non thủ công',
-  'Treo bẫy dính màu vàng',
-  'Phun chế phẩm nấm Trichoderma',
-  'Phun thuốc trừ sâu sinh học',
-  'Phun thuốc trừ nấm bệnh lá',
-  'Nhổ bỏ tiêu hủy cây bị bệnh',
-
-  // Thu hoạch
-  'Ngừng phân thuốc cách ly an toàn',
-  'Thu hoạch tỉa cây lớn trước',
-  'Thu hoạch rộ cả luống',
-  'Cắt tỉa cuống quả',
-  'Nhổ củ',
-  'Cắt bắp cải',
-  'Phân loại kích cỡ nông sản',
-  'Sơ chế rửa sạch nông sản',
-  'Đóng gói bao bì / Thùng sóng',
-
-  // Sau thu hoạch
-  'Dọn dẹp thu gom tàn dư cây sau vụ',
-  'Thu hồi màng phủ nông nghiệp',
-  'Thu dọn giàn cọc cắm',
-  'Rải vôi khử trùng luống sau thu hoạch',
-  'Cày lật đất chuẩn bị vụ mới'
+  'Cày đất',
+  'Xới đất',
+  'Bừa đất',
+  'Phơi đất phơi ải',
+  'Rải vôi bột',
+  'Cuốc luống lên luống',
+  'Phủ bạt màng phủ nông nghiệp',
+  'Ngâm hạt giống',
+  'Ủ hạt giống',
+  'Gieo hạt',
+  'Nhổ cây con đi trồng',
+  'Tưới nước',
+  'Nhổ cỏ dại',
+  'Xới cỏ',
+  'Vun gốc',
+  'Tỉa bớt cây còi',
+  'Trồng dặm trồng bù cây chết',
+  'Cắm giàn làm giàn',
+  'Buộc ngọn cột dây leo',
+  'Ngắt ngọn bấm ngọn',
+  'Tỉa lá già',
+  'Tỉa cành thừa',
+  'Thụ phấn cho hoa',
+  'Thu hoạch nông sản'
 ];
 
 // Tự động liên kết Hoạt động mặc định khi chọn Giai đoạn sinh trưởng
 export const STAGE_TO_DEFAULT_ACTIVITY: Record<string, string> = {
-  'Làm đất': 'Cày xới đất',
-  'Gieo hạt': 'Gieo hạt trực tiếp vào luống',
-  'Ươm cây con': 'Gieo hạt vào khay ươm',
-  'Cấy cây con': 'Cấy cây con ra luống sản xuất',
-  'Bén rễ hồi xanh': 'Tưới kích rễ sinh học',
-  'Phát triển thân lá': 'Bón thúc đợt 2',
-  'Phân hóa mầm hoa': 'Phun vi lượng bổ sung',
-  'Ra hoa': 'Bón thúc đón hoa',
-  'Đậu quả': 'Thụ phấn bổ sung nhân tạo',
-  'Hình thành củ': 'Vun cao gốc cây',
-  'Nuôi quả': 'Bón thúc nuôi quả',
-  'Nuôi củ': 'Bón thúc phì to củ',
-  'Đóng bắp': 'Bón thúc cuốn chắc bắp',
-  'Thu hoạch': 'Thu hoạch tỉa cây lớn trước',
-  'Sau thu hoạch': 'Dọn dẹp thu gom tàn dư cây sau vụ'
+  'Làm đất': 'Cày đất',
+  'Gieo hạt': 'Gieo hạt',
+  'Trồng cây con': 'Nhổ cây con đi trồng',
+  'Cây đang lớn': 'Tưới nước',
+  'Cây phát triển lá': 'Tỉa lá già',
+  'Cây ra hoa': 'Thụ phấn cho hoa',
+  'Cây nuôi quả': 'Tưới nước',
+  'Cây nuôi củ': 'Vun gốc',
+  'Thu hoạch': 'Thu hoạch nông sản'
 };
 
 // Sâu bệnh hại cây ngắn ngày (ngắn gọn, phổ biến nhất)
@@ -142,14 +69,14 @@ export const SHORT_TERM_TARGET_PESTS = [
   'Bệnh thán thư'
 ];
 
-// Liều lượng thuốc BVTV (ngắn gọn, thông dụng)
+// Liều lượng thuốc BVTV (ngắn gọn, thông dụng - không có dấu /)
 export const PESTICIDE_DOSAGE_OPTIONS = [
-  '10 ml / bình 16L',
-  '15 ml / bình 16L',
-  '20 ml / bình 16L',
-  '25 ml / bình 25L',
-  '1 gói / bình 16L',
-  '100 ml / phuy 200L',
+  '10 ml',
+  '15 ml',
+  '20 ml',
+  '25 ml',
+  '1 gói',
+  '100 ml',
   'Phun ướt lá',
   'Tưới đẫm gốc'
 ];
@@ -163,16 +90,15 @@ export const PHI_OPTIONS = [
   '14 ngày'
 ];
 
-// Liều lượng phân bón (ngắn gọn, súc tích)
+// Liều lượng phân bón (ngắn gọn, súc tích - không có dấu /)
 export const FERTILIZER_DOSAGE_OPTIONS = [
-  '2 kg / sào',
-  '3 kg / sào',
-  '5 kg / sào',
-  '10 kg / sào',
-  '10 kg / 1000m²',
-  '20 kg / 1000m²',
-  '50g / gốc',
-  '100g / gốc',
+  '2 kg',
+  '3 kg',
+  '5 kg',
+  '10 kg',
+  '20 kg',
+  '50g',
+  '100g',
   'Tưới loãng'
 ];
 
@@ -189,14 +115,12 @@ export const FERTILIZER_NOTES_OPTIONS = [
 
 // Người thực hiện (ngắn gọn)
 export const PERFORMER_OPTIONS = [
-  'Chủ hộ',
-  'Kỹ thuật viên',
-  'Công nhân',
-  'Tổ BVTV'
+  'Chủ hộ'
 ];
 
 // Điều kiện thời tiết (ngắn gọn)
 export const WEATHER_OPTIONS = [
+  '30°C',
   'Nắng đẹp',
   'Nắng gắt',
   'Râm mát',

@@ -121,160 +121,25 @@ export const ensureBoardGroup = async (
   }
 };
 
+// --- TẮT ĐỒNG BỘ SINH DÒNG CHÉO THEO YÊU CẦU NGƯỜI DÙNG ---
 export const syncCreateDiaryEntry = async (
   sourceType: 'CULTIVATION' | 'FERTILIZER' | 'PESTICIDE',
   sourceBoard: any,
   sourceEntry: any
 ) => {
-  try {
-    const groupId = sourceBoard.groupId;
-    if (!groupId) return;
-
-    const entryGroupId = sourceEntry.entryGroupId;
-    if (!entryGroupId) return;
-
-    const entryDate = sourceEntry.date ? new Date(sourceEntry.date) : new Date();
-
-    if (sourceType === 'CULTIVATION') {
-      // Sync to Fertilizer
-      const fertBoard = await FertilizerBoard.findOne({ farmProfile: sourceBoard.farmProfile, groupId });
-      if (fertBoard) {
-        const existing = await FertilizerEntry.findOne({ fertilizerBoard: fertBoard._id, entryGroupId });
-        if (!existing) {
-          await FertilizerEntry.create({
-            fertilizerBoard: fertBoard._id,
-            date: entryDate,
-            performer: sourceEntry.performer || '',
-            weather: sourceEntry.weather || '',
-            notes: sourceEntry.notes ? sourceEntry.notes : (sourceEntry.activityName && sourceEntry.activityName !== 'Chưa đặt tên' ? `Đồng bộ từ canh tác: ${sourceEntry.activityName}` : ''),
-            entryGroupId,
-          });
-        }
-      }
-
-      // Sync to Pesticide
-      const pestBoard = await PesticideBoard.findOne({ farmProfile: sourceBoard.farmProfile, groupId });
-      if (pestBoard) {
-        const existing = await PesticideEntry.findOne({ pesticideBoard: pestBoard._id, entryGroupId });
-        if (!existing) {
-          await PesticideEntry.create({
-            pesticideBoard: pestBoard._id,
-            date: entryDate,
-            performer: sourceEntry.performer || '',
-            weather: sourceEntry.weather || '',
-            notes: sourceEntry.notes ? sourceEntry.notes : (sourceEntry.activityName && sourceEntry.activityName !== 'Chưa đặt tên' ? `Đồng bộ từ canh tác: ${sourceEntry.activityName}` : ''),
-            entryGroupId,
-          });
-        }
-      }
-    } else if (sourceType === 'FERTILIZER') {
-      // Sync to Cultivation
-      const cultBoard = await CultivationBoard.findOne({ farmProfile: sourceBoard.farmProfile, groupId });
-      if (cultBoard) {
-        const existing = await CultivationEntry.findOne({ cultivationBoard: cultBoard._id, entryGroupId });
-        if (!existing) {
-          const activity = sourceEntry.materialName ? `Bón phân: ${sourceEntry.materialName}` : 'Bón phân';
-          await CultivationEntry.create({
-            cultivationBoard: cultBoard._id,
-            date: entryDate,
-            activityName: activity,
-            performer: sourceEntry.performer || '',
-            weather: sourceEntry.weather || '',
-            notes: sourceEntry.notes || '',
-            entryGroupId,
-          });
-        }
-      }
-
-      // Sync to Pesticide
-      const pestBoard = await PesticideBoard.findOne({ farmProfile: sourceBoard.farmProfile, groupId });
-      if (pestBoard) {
-        const existing = await PesticideEntry.findOne({ pesticideBoard: pestBoard._id, entryGroupId });
-        if (!existing) {
-          await PesticideEntry.create({
-            pesticideBoard: pestBoard._id,
-            date: entryDate,
-            performer: sourceEntry.performer || '',
-            weather: sourceEntry.weather || '',
-            notes: sourceEntry.notes ? sourceEntry.notes : (sourceEntry.materialName ? `Đồng bộ từ bón phân: ${sourceEntry.materialName}` : ''),
-            entryGroupId,
-          });
-        }
-      }
-    } else if (sourceType === 'PESTICIDE') {
-      // Sync to Cultivation
-      const cultBoard = await CultivationBoard.findOne({ farmProfile: sourceBoard.farmProfile, groupId });
-      if (cultBoard) {
-        const existing = await CultivationEntry.findOne({ cultivationBoard: cultBoard._id, entryGroupId });
-        if (!existing) {
-          const activity = sourceEntry.materialName
-            ? `Phun thuốc: ${sourceEntry.materialName}`
-            : (sourceEntry.targetPest ? `Phun thuốc trừ ${sourceEntry.targetPest}` : 'Phun thuốc');
-          await CultivationEntry.create({
-            cultivationBoard: cultBoard._id,
-            date: entryDate,
-            activityName: activity,
-            performer: sourceEntry.performer || '',
-            weather: sourceEntry.weather || '',
-            notes: sourceEntry.notes || '',
-            entryGroupId,
-          });
-        }
-      }
-
-      // Sync to Fertilizer
-      const fertBoard = await FertilizerBoard.findOne({ farmProfile: sourceBoard.farmProfile, groupId });
-      if (fertBoard) {
-        const existing = await FertilizerEntry.findOne({ fertilizerBoard: fertBoard._id, entryGroupId });
-        if (!existing) {
-          await FertilizerEntry.create({
-            fertilizerBoard: fertBoard._id,
-            date: entryDate,
-            performer: sourceEntry.performer || '',
-            weather: sourceEntry.weather || '',
-            notes: sourceEntry.notes ? sourceEntry.notes : (sourceEntry.materialName ? `Đồng bộ từ phun thuốc: ${sourceEntry.materialName}` : ''),
-            entryGroupId,
-          });
-        }
-      }
-    }
-  } catch (error) {
-    console.error(`Failed to sync diary entries from ${sourceType}:`, error);
-  }
+  // Không tự động chép dòng sang bảng khác để tránh làm rác và rối nhật ký
+  return;
 };
 
 export const syncUpdateDiaryEntry = async (
   entryGroupId: string,
   updateData: { date?: Date | string; performer?: string; weather?: string }
 ) => {
-  if (!entryGroupId) return;
-  try {
-    const cleanData: any = {};
-    if (updateData.date !== undefined) cleanData.date = new Date(updateData.date);
-    if (updateData.performer !== undefined) cleanData.performer = updateData.performer;
-    if (updateData.weather !== undefined) cleanData.weather = updateData.weather;
-
-    if (Object.keys(cleanData).length > 0) {
-      await Promise.all([
-        CultivationEntry.updateMany({ entryGroupId }, { $set: cleanData }),
-        FertilizerEntry.updateMany({ entryGroupId }, { $set: cleanData }),
-        PesticideEntry.updateMany({ entryGroupId }, { $set: cleanData }),
-      ]);
-    }
-  } catch (error) {
-    console.error('Failed to sync update diary entry:', error);
-  }
+  // Không can thiệp cập nhật chéo giữa các bảng
+  return;
 };
 
 export const syncDeleteDiaryEntry = async (entryGroupId: string) => {
-  if (!entryGroupId) return;
-  try {
-    await Promise.all([
-      CultivationEntry.deleteMany({ entryGroupId }),
-      FertilizerEntry.deleteMany({ entryGroupId }),
-      PesticideEntry.deleteMany({ entryGroupId }),
-    ]);
-  } catch (error) {
-    console.error('Failed to sync delete diary entry:', error);
-  }
+  // Xóa ở bảng nào chỉ xóa ở đúng bảng đó, không xóa chéo
+  return;
 };

@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.selectTrialPlan = exports.updateFarmProfile = exports.getFarmProfile = exports.createDefaultFarmProfile = void 0;
+exports.removeFarmPerformer = exports.addFarmPerformer = exports.getFarmPerformers = exports.selectTrialPlan = exports.updateFarmProfile = exports.getFarmProfile = exports.createDefaultFarmProfile = void 0;
 const FarmProfile_1 = require("../models/FarmProfile");
 const Notification_1 = require("../models/Notification");
 const boardUtils_1 = require("../utils/boardUtils");
@@ -245,3 +245,59 @@ const selectTrialPlan = async (req, res) => {
     }
 };
 exports.selectTrialPlan = selectTrialPlan;
+const getFarmPerformers = async (req, res) => {
+    try {
+        const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
+        }
+        const list = profile.customPerformers || [];
+        res.json({ success: true, performers: list });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.getFarmPerformers = getFarmPerformers;
+const addFarmPerformer = async (req, res) => {
+    try {
+        const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
+        }
+        const name = (req.body.name || '').trim();
+        if (!name || name === 'Chủ hộ' || name === '—') {
+            return res.json({ success: true, performers: profile.customPerformers || [] });
+        }
+        const current = profile.customPerformers || [];
+        if (!current.includes(name)) {
+            current.push(name);
+            profile.customPerformers = current;
+            await profile.save();
+        }
+        res.json({ success: true, performers: profile.customPerformers });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.addFarmPerformer = addFarmPerformer;
+const removeFarmPerformer = async (req, res) => {
+    try {
+        const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile) {
+            return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
+        }
+        const rawName = req.params.name || '';
+        const name = decodeURIComponent(rawName).trim();
+        if (name) {
+            profile.customPerformers = (profile.customPerformers || []).filter((p) => p !== name);
+            await profile.save();
+        }
+        res.json({ success: true, performers: profile.customPerformers || [] });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.removeFarmPerformer = removeFarmPerformer;

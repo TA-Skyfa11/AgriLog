@@ -76,7 +76,7 @@ export default function CheckoutPage() {
                   <input type="text" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố..." style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db' }} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Ghi chú đơn hàng (Tùy chọn)</label>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Ghi chú đơn hàng</label>
                   <textarea placeholder="Lưu ý cho người bán hoặc người giao hàng..." rows={3} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', resize: 'vertical' }}></textarea>
                 </div>
               </div>

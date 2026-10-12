@@ -1,5 +1,5 @@
 import express from 'express';
-import { getFarmProfile, updateFarmProfile, selectTrialPlan } from '../controllers/farmProfileController';
+import { getFarmProfile, updateFarmProfile, selectTrialPlan, getFarmPerformers, addFarmPerformer, removeFarmPerformer } from '../controllers/farmProfileController';
 import { getReportsStats } from '../controllers/reportsController';
 import { protect, authorize } from '../middleware/authMiddleware';
 import { Role } from '../models/User';
@@ -14,6 +14,12 @@ router.route('/profile')
   .put(updateFarmProfile);
 
 router.post('/profile/select-trial', selectTrialPlan);
+
+router.route('/performers')
+  .get(getFarmPerformers)
+  .post(addFarmPerformer);
+
+router.delete('/performers/:name', removeFarmPerformer);
 
 router.route('/reports-stats')
   .get(getReportsStats);

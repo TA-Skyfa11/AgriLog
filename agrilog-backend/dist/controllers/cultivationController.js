@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteCultivationEntry = exports.updateCultivationEntry = exports.createCultivationEntry = exports.getCultivationEntries = exports.deleteCultivationBoard = exports.updateCultivationBoard = exports.getCultivationBoardById = exports.createCultivationBoard = exports.getCultivationBoards = void 0;
+const weatherUtils_1 = require("../utils/weatherUtils");
 const FarmProfile_1 = require("../models/FarmProfile");
 const CultivationBoard_1 = require("../models/CultivationBoard");
 const CultivationEntry_1 = require("../models/CultivationEntry");
@@ -95,6 +96,7 @@ const createCultivationBoard = async (req, res) => {
             groupId: board.groupId
         });
         // Tạo sẵn 3 hàng thực tế trong Database và đồng bộ sang Bón phân & Phun thuốc
+        const currentWeather = await (0, weatherUtils_1.getCurrentWeatherText)(profile?.address || profile?.city || 'Hanoi');
         const today = board.startDate ? new Date(board.startDate) : new Date();
         for (let i = 0; i < 3; i++) {
             const entryGroupId = 'eid_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7);
@@ -104,11 +106,11 @@ const createCultivationBoard = async (req, res) => {
                 stage: '',
                 activityName: '',
                 performer: '',
-                weather: '',
+                weather: currentWeather,
                 notes: '',
                 entryGroupId,
             });
-            await (0, syncUtils_1.syncCreateDiaryEntry)('CULTIVATION', board, entry);
+            // disabled syncCreateDiaryEntry
         }
         res.status(201).json({ success: true, data: board });
     }
@@ -202,6 +204,7 @@ const getCultivationEntries = async (req, res) => {
         }).sort({ date: 1, createdAt: 1 });
         // Nếu bảng chưa từng được khởi tạo và chưa có hàng nào, tạo sẵn 3 hàng thực tế trong Database
         if (entries.length === 0 && !board.hasInitializedEntries) {
+            const currentWeather = await (0, weatherUtils_1.getCurrentWeatherText)(profile?.address || profile?.city || 'Hanoi');
             const today = board.startDate ? new Date(board.startDate) : new Date();
             const createdEntries = [];
             for (let i = 0; i < 3; i++) {
@@ -216,7 +219,7 @@ const getCultivationEntries = async (req, res) => {
                     notes: '',
                     entryGroupId,
                 });
-                await (0, syncUtils_1.syncCreateDiaryEntry)('CULTIVATION', board, entry);
+                // disabled syncCreateDiaryEntry
                 createdEntries.push(entry);
             }
             await CultivationBoard_1.CultivationBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
@@ -255,7 +258,7 @@ const createCultivationEntry = async (req, res) => {
         });
         await entry.save();
         // Automatically sync row to Fertilizer and Pesticide boards
-        await (0, syncUtils_1.syncCreateDiaryEntry)('CULTIVATION', board, entry);
+        // disabled syncCreateDiaryEntry
         res.status(201).json({ success: true, data: entry });
     }
     catch (error) {
@@ -281,11 +284,7 @@ const updateCultivationEntry = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Entry not found' });
         // Sync date, performer, weather to linked entries
         if (entry.entryGroupId && (req.body.date || req.body.performer || req.body.weather)) {
-            await (0, syncUtils_1.syncUpdateDiaryEntry)(entry.entryGroupId, {
-                date: req.body.date,
-                performer: req.body.performer,
-                weather: req.body.weather,
-            });
+            // disabled syncUpdateDiaryEntry
         }
         res.json({ success: true, data: entry });
     }
@@ -308,7 +307,7 @@ const deleteCultivationEntry = async (req, res) => {
                 return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
         }
         if (entryCheck.entryGroupId) {
-            await (0, syncUtils_1.syncDeleteDiaryEntry)(entryCheck.entryGroupId);
+            // disabled syncDeleteDiaryEntry
         }
         else {
             await CultivationEntry_1.CultivationEntry.findByIdAndDelete(req.params.id);

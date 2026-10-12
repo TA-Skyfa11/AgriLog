@@ -6,8 +6,8 @@ import { TrialSetting, ITrialSetting } from '../models/TrialSetting';
 export const PLAN_LIMITS = {
   FREE: { columns: 5, products: 1, retentionYears: 1 },
   BASIC: { columns: 10, products: 3, retentionYears: 1 },
-  STANDARD: { columns: 15, products: 5, retentionYears: 2 },
-  PREMIUM: { columns: 25, products: 15, retentionYears: 3 },
+  STANDARD: { columns: 20, products: 10, retentionYears: 2 },
+  PREMIUM: { columns: 50, products: 50, retentionYears: 5 },
   ALL: { columns: 0, products: 0, retentionYears: 1 }, // Người dùng dùng thử chưa chọn gói cụ thể
   EXPIRED: { columns: 0, products: 0, retentionYears: 1 },
 };
@@ -94,4 +94,51 @@ export const checkBoardLocked = async (profileId: string, boardId: string, plan:
 
   if (boardIndex === -1) return false;
   return boardIndex >= planLimits.products;
+};
+
+
+/**
+ * Chuyển đổi liều lượng nhập từ nhật ký về đơn vị chuẩn của vật tư trong kho
+ * Ví dụ: Kho lưu kg, nhật ký nhập '100g' -> trả về 0.1
+ * Kho lưu lít, nhật ký nhập '20 ml' -> trả về 0.02
+ */
+export const parseQuantityInMaterialUnit = (quantityStr: any, materialUnit?: string): number => {
+  if (!quantityStr) return 0;
+  const str = String(quantityStr).trim().toLowerCase();
+  const match = str.match(/[\d]+(?:[.,]\d+)?/);
+  if (!match) return 0;
+  const rawNum = parseFloat(match[0].replace(',', '.')) || 0;
+  if (isNaN(rawNum) || rawNum <= 0) return 0;
+  
+  const mUnit = (materialUnit || '').trim().toLowerCase();
+  
+  // 1. Gram sang Kg: '100g', '50g', '100 gram' khi kho là 'kg'
+  if ((str.includes('g') && !str.includes('kg')) && (mUnit === 'kg' || mUnit === 'kilogram' || mUnit === 'kí' || mUnit === 'ký')) {
+    return rawNum / 1000;
+  }
+  
+  // 2. Kg sang Gram: '2 kg' khi kho là 'g'
+  if (str.includes('kg') && (mUnit === 'g' || mUnit === 'gram')) {
+    return rawNum * 1000;
+  }
+  
+  // 3. Ml sang Lít: '10 ml', '20 ml', '100 ml' khi kho là 'l' hoặc 'lít' hoặc 'lit'
+  if (str.includes('ml') && (mUnit === 'l' || mUnit === 'lít' || mUnit === 'lit')) {
+    return rawNum / 1000;
+  }
+  
+  // 4. Lít sang Ml: '1 lít', '0.5 lít' khi kho là 'ml'
+  if ((str.includes('lít') || str.includes('lit') || str.includes(' l') || str.endsWith('l')) && mUnit === 'ml') {
+    return rawNum * 1000;
+  }
+  
+  // 5. Tạ, Tấn sang Kg
+  if (str.includes('tạ') && (mUnit === 'kg' || mUnit === 'kí' || mUnit === 'ký')) {
+    return rawNum * 100;
+  }
+  if (str.includes('tấn') && (mUnit === 'kg' || mUnit === 'kí' || mUnit === 'ký')) {
+    return rawNum * 1000;
+  }
+  
+  return rawNum;
 };

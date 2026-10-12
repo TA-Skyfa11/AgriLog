@@ -11,6 +11,7 @@ export interface IFarmProfile extends Document {
   planExpiresAt?: Date;
   previousPlan?: 'FREE' | 'BASIC' | 'STANDARD' | 'PREMIUM' | 'ALL';
   isTrial?: boolean;
+  customPerformers?: string[];
   notificationPreferences: {
     push: boolean;
     email: boolean;
@@ -33,6 +34,7 @@ const farmProfileSchema = new Schema<IFarmProfile>(
     planExpiresAt: { type: Date, required: false },
     previousPlan: { type: String, enum: ['FREE', 'BASIC', 'STANDARD', 'PREMIUM', 'ALL'], required: false },
     isTrial: { type: Boolean, default: false },
+    customPerformers: [{ type: String }],
     notificationPreferences: {
       push: { type: Boolean, default: true },
       email: { type: Boolean, default: false },

@@ -5,15 +5,19 @@ import {
   exportCultivationPdf,
   exportFertilizerPdf,
   exportPesticidePdf,
+  exportUnifiedDiaryPdf,
+  getUnifiedDiaryData,
   exportReportsPdf,
 } from '../controllers/exportController';
 
 const router = express.Router();
 
-// All PDF export endpoints require authentication and FARM role
+// All export endpoints require authentication and FARM role
 router.use(protect);
 router.use(authorize(Role.FARM));
 
+router.get('/data/unified/:boardId', getUnifiedDiaryData);
+router.get('/pdf/unified/:boardId', exportUnifiedDiaryPdf);
 router.get('/pdf/cultivation/:boardId', exportCultivationPdf);
 router.get('/pdf/fertilizer/:boardId', exportFertilizerPdf);
 router.get('/pdf/pesticide/:boardId', exportPesticidePdf);

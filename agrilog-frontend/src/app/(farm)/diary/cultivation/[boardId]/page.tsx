@@ -1,12 +1,38 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 'use client';
+/* eslint-disable react-hooks/set-state-in-effect */
 
-import React, { useState, useEffect } from 'react';
+const formatCompactWeather = (temp: any, desc?: any) => {
+  if (!temp && !desc) return '30°C';
+  const cleanTemp = typeof temp === 'string' ? temp.replace('°', '').replace('C', '').replace('Â', '').trim() : temp;
+  return cleanTemp ? `${cleanTemp}°C` : (desc || '30°C');
+};
+
+const getShortWeatherDisplay = (weather: string | undefined | null) => {
+  if (!weather) return '30°C';
+  const tempMatch = weather.match(/\d+°C|\d+°/);
+  if (tempMatch) {
+    return tempMatch[0].includes('C') ? tempMatch[0] : `${tempMatch[0]}C`;
+  }
+  if (weather.includes(',')) {
+    return weather.split(',')[0].trim();
+  }
+  return weather.trim();
+};
+
+const isEntryToday = (dateVal: any) => {
+  if (!dateVal) return true;
+  const d = new Date(dateVal);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+};
+
+import { exportUnifiedDiaryExcel, exportUnifiedDiaryPDF } from '@/lib/diaryExport';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { fetchAPI, getApiUrl } from '@/lib/api';
 import styles from '@/css/diaryDetail.module.css';
 import modalStyles from '@/css/diary.module.css';
-import { Trash2, Plus, FileText, Download, Printer, ArrowLeft, Image as ImageIcon, X } from 'lucide-react';
+import { Trash2, Plus, FileText, Download, Printer, ArrowLeft, Image as ImageIcon, X, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import CustomSelect from '@/components/ui/CustomSelect';
@@ -63,6 +89,10 @@ export default function CultivationDiaryDetailPage() {
   const [showHarvestModal, setShowHarvestModal] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const entriesRef = useRef<any[]>(entries);
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
   const [userPlan, setUserPlan] = useState('BASIC');
   const [allowExport, setAllowExport] = useState<boolean>(true);
 
@@ -101,26 +131,16 @@ export default function CultivationDiaryDetailPage() {
   const loadBoardData = async () => {
     if (!boardId) return;
     try {
-      // Non-blocking weather fetch in background
-      fetchAPI('/weather')
-        .then((wRes) => {
-          if (wRes && wRes.success && wRes.data) {
-            const weatherData = `${wRes.data.temp}°C, ${wRes.data.desc}`;
-            setEntries((prev) =>
-              prev.map((entry) => ({
-                ...entry,
-                weather: entry.weather || weatherData,
-              }))
-            );
-          }
-        })
-        .catch(() => {});
-
-      const [boardRes, entriesRes, profileRes] = await Promise.all([
+      const [weatherRes, boardRes, entriesRes, profileRes] = await Promise.all([
+        fetchAPI('/weather').catch(() => null),
         fetchAPI(`/cultivation-boards/${boardId}`),
         fetchAPI(`/cultivation-boards/${boardId}/entries`),
         fetchAPI('/farm/profile'),
       ]);
+
+      const currentWeatherData = weatherRes?.success && weatherRes?.data
+        ? formatCompactWeather(weatherRes.data.temp, weatherRes.data.desc)
+        : '30°C, Quang đãng';
 
       if (boardRes.success) {
         setBoard(boardRes.data);
@@ -135,7 +155,17 @@ export default function CultivationDiaryDetailPage() {
       }
       if (entriesRes.success) {
         const sorted = (entriesRes.data || []).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        setEntries(sorted);
+        const autoWeatherEntries = sorted.map((entry: any) => ({
+          ...entry,
+          weather: (isEntryToday(entry.date) || !entry.activityName || !entry.weather) ? currentWeatherData : (entry.weather.includes('Bầu trời quang đãng') ? entry.weather.replace('Bầu trời quang đãng', 'Quang đãng') : entry.weather),
+        }));
+        setEntries(autoWeatherEntries);
+        // Auto-register any custom performers in existing entries
+        autoWeatherEntries.forEach((e: any) => {
+          if (e.performer && e.performer !== 'Chủ hộ' && e.performer !== '—') {
+            standards.addCustomPerformer?.(e.performer);
+          }
+        });
       }
       if (profileRes.success) {
         setProfile(profileRes.data);
@@ -160,13 +190,14 @@ export default function CultivationDiaryDetailPage() {
     }
   }, [boardId]);
 
-  const updateLocalEntry = async (index: number, field: string, value: any, isCustom: boolean = false) => {
-    const newEntries = [...entries];
+  const updateLocalEntry = (index: number, field: string, value: any, isCustom: boolean = false) => {
+    const newEntries = [...(entriesRef.current || entries)];
     if (isCustom) {
       newEntries[index].customValues = { ...newEntries[index].customValues, [field]: value };
     } else {
       newEntries[index][field] = value;
     }
+    if (entriesRef.current) entriesRef.current = newEntries;
     setEntries(newEntries);
   };
 
@@ -178,7 +209,7 @@ export default function CultivationDiaryDetailPage() {
   };
 
   const handleBlurSave = async (index: number, updatedEntry?: any) => {
-    const entry = updatedEntry || entries[index];
+    const entry = updatedEntry || (entriesRef.current || entries)[index];
     if (!entry) return;
     
     // For unsaved temp rows, only save if activityName has been filled
@@ -208,7 +239,7 @@ export default function CultivationDiaryDetailPage() {
           const newEntries = [...entries];
           newEntries[index] = res.data;
           setEntries(newEntries);
-          toast.success('Đã lưu và đồng bộ sang Bón phân & Phun thuốc');
+          toast.success('Đã lưu thành công');
         }
       }
     } catch (error: any) {
@@ -219,6 +250,46 @@ export default function CultivationDiaryDetailPage() {
   };
 
   
+  
+  const handleReplaceImage = async (index: number, imageIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      toast.loading('Đang thay thế ảnh...', { id: 'replace-img' });
+      const apiUrl = getApiUrl();
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${apiUrl}/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include',
+        body: formData,
+      });
+      const data = await res.json();
+      toast.dismiss('replace-img');
+      if (data.success) {
+        const newEntries = [...entries];
+        if (!newEntries[index].imageUrls) {
+          newEntries[index].imageUrls = [];
+        }
+        newEntries[index].imageUrls[imageIndex] = data.url;
+        setEntries(newEntries);
+        handleBlurSave(index);
+        toast.success('Thay thế ảnh thành công!');
+      } else {
+        toast.error('Lỗi tải ảnh lên: ' + (data.message || 'Không thể tải ảnh'));
+      }
+    } catch (err: any) {
+      toast.dismiss('replace-img');
+      toast.error('Lỗi kết nối khi tải ảnh');
+    }
+  };
+
   const handleRemoveImage = async (index: number, imageIndex: number) => {
     if (await dialog.confirm('Bạn có chắc chắn muốn xóa ảnh này?')) {
       const newEntries = [...entries];
@@ -488,7 +559,7 @@ export default function CultivationDiaryDetailPage() {
   };
 
   const handleDeleteEntry = async (id: string, index: number) => {
-    if (!(await dialog.confirm('Bạn có chắc chắn muốn xóa hàng này? Hàng đồng bộ ở các bảng khác cũng sẽ được xóa.'))) return;
+    if (!(await dialog.confirm('Bạn có chắc chắn muốn xóa hàng này? '))) return;
     
     if (!id || id.startsWith('temp-')) {
       // It's a new row that hasn't been saved to DB yet
@@ -509,88 +580,12 @@ export default function CultivationDiaryDetailPage() {
     }
   };
 
-  const exportToExcel = async () => {
-    if (!allowExport) {
-      toast.error('Gói cước hiện tại không hỗ trợ xuất file Excel (Không có tính năng lưu trữ/xuất hồ sơ). Vui lòng nâng cấp gói cước.');
-      return;
-    }
-    
-    import('xlsx').then((XLSX) => {
-      const customCols = board?.customColumns || [];
-      const data = entries.map((e, idx) => {
-        const rowData: any = {
-          'STT': idx + 1,
-          'Ngày': e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
-          'Giai đoạn': e.stage || '—',
-          'Hoạt động': e.activityName || '—',
-          'Người thực hiện': e.performer || '—',
-          'Ghi chú': e.notes || '—'
-        };
-        customCols.forEach((col: string) => {
-          rowData[col] = e.customValues?.[col] || '—';
-        });
-        return rowData;
-      });
-
-      const ws = XLSX.utils.json_to_sheet(data);
-
-      const colWidths = Object.keys(data[0] || {}).map((key) => {
-        let maxLength = key.length;
-        data.forEach((row) => {
-          const val = row[key];
-          if (val) {
-            const length = val.toString().length;
-            if (length > maxLength) maxLength = length;
-          }
-        });
-        return { wch: Math.min(Math.max(maxLength, 10), 100) + 2 };
-      });
-      ws['!cols'] = colWidths;
-
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Canh tác');
-      XLSX.writeFile(wb, `${board?.name || 'nhat_ky'}_canh_tac.xlsx`);
-    });
+  const exportToExcel = () => {
+    exportUnifiedDiaryExcel(boardId, board?.name, allowExport);
   };
 
-  
-  
-  const exportToPDF = async () => {
-    if (userPlan === 'BASIC') {
-      toast.error('Gói cước Basic không hỗ trợ xuất file PDF. Vui lòng nâng cấp gói cước.');
-      return;
-    }
-    
-    const toastId = toast.loading('Đang khởi tạo file PDF chất lượng cao...');
-    try {
-      const apiUrl = getApiUrl();
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${apiUrl}/export/pdf/cultivation/${boardId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: 'include',
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Lỗi khi xuất file PDF');
-      }
-
-      const blob = await res.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = `${board?.name || 'nhat_ky'}_canh_tac.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(downloadUrl);
-
-      toast.success('Xuất file PDF thành công!', { id: toastId });
-    } catch (error: any) {
-      toast.error(error.message || 'Không thể xuất file PDF', { id: toastId });
-    }
+  const exportToPDF = () => {
+    exportUnifiedDiaryPDF(boardId, board?.name, userPlan);
   };
 
   if (loading) {
@@ -635,10 +630,10 @@ export default function CultivationDiaryDetailPage() {
           <button className={styles.spreadsheetBtn} onClick={handleAddColumn} disabled={userPlan === 'FREE'} style={{ opacity: userPlan === 'FREE' ? 0.5 : 1, cursor: userPlan === 'FREE' ? 'not-allowed' : 'pointer' }} title={userPlan === 'FREE' ? 'Gói Miễn phí không hỗ trợ thêm cột mới' : ''}>
             + Thêm cột
           </button>
-          <button className={styles.spreadsheetBtn} onClick={exportToPDF} disabled={!allowExport} style={{ opacity: !allowExport ? 0.5 : 1, cursor: !allowExport ? 'not-allowed' : 'pointer' }} title={!allowExport ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
+          <button className={styles.spreadsheetBtn} onClick={exportToPDF} disabled={!allowExport} style={{ opacity: !allowExport ? 0.5 : 1, cursor: !allowExport ? 'not-allowed' : 'pointer' }} title={!allowExport ? 'Nâng cấp gói cước để sử dụng tính năng này' : 'In / Xuất dữ liệu tổng hợp 3 bảng'}>
             <Printer size={16} /> PDF
           </button>
-          <button className={styles.spreadsheetBtn} onClick={exportToExcel} disabled={!allowExport} style={{ opacity: !allowExport ? 0.5 : 1, cursor: !allowExport ? 'not-allowed' : 'pointer' }} title={!allowExport ? 'Nâng cấp gói cước để sử dụng tính năng này' : ''}>
+          <button className={styles.spreadsheetBtn} onClick={exportToExcel} disabled={!allowExport} style={{ opacity: !allowExport ? 0.5 : 1, cursor: !allowExport ? 'not-allowed' : 'pointer' }} title={!allowExport ? 'Nâng cấp gói cước để sử dụng tính năng này' : 'In / Xuất dữ liệu tổng hợp 3 bảng'}>
             <Download size={16} /> Excel
           </button>
 
@@ -676,7 +671,7 @@ export default function CultivationDiaryDetailPage() {
               <th style={{ width: '160px' }}>Giai đoạn sinh trưởng</th>
               <th style={{ width: '160px' }}>Hoạt động canh tác</th>
               <th style={{ width: '120px' }}>Người thực hiện</th>
-              <th style={{ width: '120px' }}>Thời tiết</th>
+              <th style={{ width: '80px', whiteSpace: 'nowrap', textAlign: 'center' }}>Thời tiết</th>
               <th style={{ minWidth: '140px' }}>Ghi chú/Quan sát</th>
               {/* Dynamic columns inserted here */}
               {customCols.map((col: string) => (
@@ -691,7 +686,7 @@ export default function CultivationDiaryDetailPage() {
                 </th>
               ))}
               {/* Attachment column always at the end */}
-              <th>Hình ảnh</th>
+              <th style={{ width: '90px', whiteSpace: 'nowrap', textAlign: 'center' }}>Hình ảnh</th>
               <th className={styles.actionColumnHeader} style={{ width: '80px', textAlign: 'center' }}>Thao tác</th>
             </tr>
           </thead>
@@ -747,22 +742,36 @@ export default function CultivationDiaryDetailPage() {
                       value={entry.performer || ''}
                       onChange={(val: string) => updateLocalEntry(index, 'performer', val)}
                       onBlur={() => handleBlurSave(index)}
+                      onAddCustomOption={(val: string) => standards.addCustomPerformer?.(val)}
+                      onDeleteCustomOption={(val: string) => standards.removeCustomPerformer?.(val)}
                       placeholder="-- Người thực hiện --"
                       className={styles.inlineInputHover}
                       maxLength={50}
                     />
                   </td>
-                  <td>
-                    <DropdownWithOther 
-                      style={inlineInputStyle}
-                      options={standards.weatherOptions}
-                      value={entry.weather || ''}
-                      onChange={(val: string) => updateLocalEntry(index, 'weather', val)}
-                      onBlur={() => handleBlurSave(index)}
-                      placeholder="-- Thời tiết --"
-                      className={styles.inlineInputHover}
-                      maxLength={50}
-                    />
+                                    <td style={{ verticalAlign: 'middle', textAlign: 'center', width: '80px' }}>
+                    <div 
+                      style={{
+                        background: '#f0fdf4',
+                        color: '#15803d',
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        cursor: 'default',
+                        userSelect: 'none',
+                        whiteSpace: 'nowrap',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        border: '1px solid #bbf7d0',
+                        lineHeight: '1.4',
+                      }}
+                      title={entry.weather ? `${entry.weather} (Tự động cập nhật theo Dashboard)` : '30°C (Tự động cập nhật theo Dashboard)'}
+                    >
+                      <span style={{ fontSize: '11px' }}>🌤️</span>
+                      <span>{getShortWeatherDisplay(entry.weather)}</span>
+                    </div>
                   </td>
                   <td style={{ color: 'var(--color-text-muted)' }}>
                     <AutoResizeTextarea 
@@ -790,27 +799,89 @@ export default function CultivationDiaryDetailPage() {
                     </td>
                   ))}
                   
-                  {/* Image attachment column is always at the end */}
-                  <td>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      {entry.imageUrls?.map((url: string, i: number) => (
-                        <div key={i} style={{ position: 'relative', display: 'inline-block', width: 'max-content' }}>
-                          <div onClick={() => setPreviewImage(getSafeImageUrl(url))} style={{ cursor: 'pointer' }}>
-                          <img src={getSafeImageUrl(url)} alt="Uploaded" style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />
+                                    <td style={{ verticalAlign: 'middle', textAlign: 'center', width: '90px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
+                      {entry.imageUrls && entry.imageUrls.length > 0 ? (
+                        entry.imageUrls.map((url: string, i: number) => (
+                          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                              <div onClick={() => setPreviewImage(getSafeImageUrl(url))} style={{ cursor: 'pointer' }} title="Click để xem ảnh lớn">
+                                <img 
+                                  src={getSafeImageUrl(url)} 
+                                  alt="Ảnh đính kèm" 
+                                  style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #d1d5db', display: 'block' }} 
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); handleRemoveImage(index, i); }}
+                                style={{
+                                  position: 'absolute',
+                                  top: '-5px',
+                                  right: '-5px',
+                                  background: '#ef4444',
+                                  color: 'white',
+                                  borderRadius: '50%',
+                                  width: '18px',
+                                  height: '18px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  border: '1.5px solid white',
+                                  cursor: 'pointer',
+                                  fontSize: '11px',
+                                  fontWeight: 'bold',
+                                  padding: 0,
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                                }}
+                                title="Xóa ảnh này"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            <label
+                              style={{
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                fontSize: '11px',
+                                color: '#2563eb',
+                                padding: '1px 5px',
+                                background: '#eff6ff',
+                                borderRadius: '3px',
+                                border: '1px solid #bfdbfe',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title="Chọn ảnh khác thay thế"
+                            >
+                              <RefreshCw size={10} /> Đổi ảnh
+                              <input type="file" style={{ display: 'none' }} accept="image/*" onChange={(e) => handleReplaceImage(index, i, e)} />
+                            </label>
                           </div>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleRemoveImage(index, i); }}
-                            style={{ position: 'absolute', top: '-4px', right: '-4px', background: 'red', color: 'white', borderRadius: '50%', width: '16px', height: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer', fontSize: '12px', padding: 0 }}
-                            title="Xóa ảnh"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                      <label className={styles.uploadBtn} style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '12px' }}>
-                        <ImageIcon size={14} /> Tải lên
-                        <input type="file" style={{ display: 'none' }} accept="image/*" onChange={(e) => handleImageUpload(index, e)} />
-                      </label>
+                        ))
+                      ) : (
+                        <label 
+                          className={styles.uploadBtn} 
+                          style={{ 
+                            cursor: 'pointer', 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '4px', 
+                            padding: '4px 8px', 
+                            fontSize: '12px',
+                            background: '#f3f4f6',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '4px',
+                            color: '#374151',
+                            whiteSpace: 'nowrap'
+                          }}
+                          title="Tải ảnh minh chứng"
+                        >
+                          <ImageIcon size={13} /> Tải ảnh
+                          <input type="file" style={{ display: 'none' }} accept="image/*" onChange={(e) => handleImageUpload(index, e)} />
+                        </label>
+                      )}
                     </div>
                   </td>
                   <td className={styles.actionColumnCell} style={{ textAlign: 'center' }}>
