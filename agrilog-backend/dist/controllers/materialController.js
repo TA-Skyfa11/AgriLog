@@ -20,6 +20,19 @@ exports.getInventory = getInventory;
 const importMaterial = async (req, res) => {
     try {
         const { name, type, quantity, unit, expiryDate, date, supplier, notes, manufacturer, activeIngredient } = req.body;
+        if (!expiryDate) {
+            return res.status(400).json({ success: false, message: 'Hạn sử dụng là bắt buộc' });
+        }
+        const importDate = date ? new Date(date) : new Date();
+        importDate.setHours(0, 0, 0, 0);
+        const expDate = new Date(expiryDate);
+        expDate.setHours(0, 0, 0, 0);
+        if (expDate <= importDate) {
+            return res.status(400).json({
+                success: false,
+                message: 'Ngày hạn sử dụng phải lớn hơn ngày nhập kho hiện tại'
+            });
+        }
         const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
         if (!profile)
             return res.status(404).json({ success: false, message: 'Profile not found' });
@@ -32,15 +45,14 @@ const importMaterial = async (req, res) => {
                 type,
                 quantity: 0,
                 unit,
-                expiryDate: expiryDate ? new Date(expiryDate) : undefined,
+                expiryDate: new Date(expiryDate),
                 manufacturer,
                 activeIngredient,
                 supplier,
             });
         }
         else {
-            if (expiryDate)
-                material.expiryDate = new Date(expiryDate);
+            material.expiryDate = new Date(expiryDate);
             if (manufacturer !== undefined)
                 material.manufacturer = manufacturer;
             if (activeIngredient !== undefined)
@@ -89,8 +101,18 @@ exports.getMaterialLogs = getMaterialLogs;
 const updateMaterial = async (req, res) => {
     try {
         const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
-        if (!profile)
-            return res.status(404).json({ success: false, message: 'Profile not found' });
+        if (req.body.expiryDate) {
+            const expDate = new Date(req.body.expiryDate);
+            expDate.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (expDate <= today) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Ngày hạn sử dụng phải lớn hơn ngày hiện tại'
+                });
+            }
+        }
         const material = await Material_1.Material.findOneAndUpdate({ _id: req.params.id, farmProfile: profile._id }, req.body, { new: true });
         if (!material)
             return res.status(404).json({ success: false, message: 'Material not found' });

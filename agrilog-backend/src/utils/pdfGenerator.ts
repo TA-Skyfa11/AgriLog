@@ -735,3 +735,389 @@ export const buildReportsHtml = (stats: any, month: string, farmProfile: any): s
     </html>
   `;
 };
+
+
+/**
+ * HTML Template for Unified Diary (Gộp 3 bảng: Canh tác, Bón phân, Thuốc BVTV)
+ */
+export const buildUnifiedDiaryHtml = (
+  mainBoard: any,
+  cultivationData: { board: any; entries: any[] },
+  fertilizerData: { board: any; entries: any[] },
+  pesticideData: { board: any; entries: any[] },
+  farmProfile: any
+): string => {
+  const primaryColor = '#16a34a'; // Agricultural Green
+  const todayStr = formatDate(new Date());
+
+  const cultEntries = cultivationData?.entries || [];
+  const fertEntries = fertilizerData?.entries || [];
+  const pestEntries = pesticideData?.entries || [];
+
+  const cultCustomCols = cultivationData?.board?.customColumns || [];
+  const fertCustomCols = fertilizerData?.board?.customColumns || [];
+  const pestCustomCols = pesticideData?.board?.customColumns || [];
+
+  // Cultivation Rows
+  const cultRowsHtml = cultEntries.map((entry, idx) => `
+    <tr>
+      <td class="text-center text-bold">${idx + 1}</td>
+      <td class="text-center">${formatDate(entry.date)}</td>
+      <td>${entry.stage || '—'}</td>
+      <td class="text-bold">${entry.activityName || '—'}</td>
+      <td>${entry.performer || '—'}</td>
+      <td>${entry.weather || '—'}</td>
+      <td>${entry.notes || '—'}</td>
+      ${cultCustomCols.map((c: string) => `<td>${entry.customValues?.[c] || '—'}</td>`).join('')}
+    </tr>
+  `).join('');
+
+  // Fertilizer Rows
+  const fertRowsHtml = fertEntries.map((entry, idx) => `
+    <tr>
+      <td class="text-center text-bold">${idx + 1}</td>
+      <td class="text-center">${formatDate(entry.date)}</td>
+      <td class="text-bold">${entry.materialName || '—'}</td>
+      <td>${entry.manufacturer || '—'}</td>
+      <td class="text-center text-bold">${entry.quantity || '—'}</td>
+      <td class="text-center">${entry.appliedArea ? entry.appliedArea + ' m²' : '—'}</td>
+      <td>${entry.performer || '—'}</td>
+      <td>${entry.weather || '—'}</td>
+      <td>${entry.notes || '—'}</td>
+      ${fertCustomCols.map((c: string) => `<td>${entry.customValues?.[c] || '—'}</td>`).join('')}
+    </tr>
+  `).join('');
+
+  // Pesticide Rows
+  const pestRowsHtml = pestEntries.map((entry, idx) => `
+    <tr>
+      <td class="text-center text-bold">${idx + 1}</td>
+      <td class="text-center">${formatDate(entry.date)}</td>
+      <td class="text-bold">${entry.materialName || '—'}</td>
+      <td>${entry.activeIngredient || '—'}</td>
+      <td>${entry.targetPest || '—'}</td>
+      <td class="text-center text-bold">${entry.quantity || '—'}</td>
+      <td class="text-center text-bold" style="color: #c2410c;">${entry.phiDays ? entry.phiDays + ' ngày' : '0'}</td>
+      <td>${entry.performer || '—'}</td>
+      <td>${entry.weather || '—'}</td>
+      <td>${entry.notes || '—'}</td>
+      ${pestCustomCols.map((c: string) => `<td>${entry.customValues?.[c] || '—'}</td>`).join('')}
+    </tr>
+  `).join('');
+
+  const ownerName = farmProfile?.ownerName || (farmProfile?.farmName ? `Chủ trang trại: ${farmProfile.farmName}` : 'Họ và tên: ...................................');
+
+  return `
+    <!DOCTYPE html>
+    <html lang="vi">
+    <head>
+      <meta charset="UTF-8">
+      <title>Sổ Nhật Ký Sản Xuất Tổng Hợp - ${mainBoard.name || 'AgriLog'}</title>
+      <style>
+        ${getBaseStyles(primaryColor)}
+        
+        /* Compact layout to optimize vertical spacing */
+        .header {
+          padding-bottom: 8px;
+          margin-bottom: 8px;
+        }
+        .brand-title {
+          font-size: 16px;
+        }
+        .info-grid {
+          padding: 6px 12px;
+          margin-bottom: 10px;
+          gap: 8px;
+        }
+        .info-label {
+          font-size: 8.5px;
+        }
+        .info-value {
+          font-size: 10.5px;
+        }
+        table {
+          margin-bottom: 6px;
+        }
+        th {
+          padding: 5px 4px;
+          font-size: 9px;
+        }
+        td {
+          padding: 4px 5px;
+          font-size: 9.5px;
+        }
+
+        .section-block {
+          margin-bottom: 10px;
+          page-break-inside: auto;
+        }
+        .section-header-wrap {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 4px 10px;
+          border-radius: 4px;
+          margin-bottom: 4px;
+          page-break-after: avoid;
+        }
+        .sec-bg-cultivation { background-color: #16a34a; color: #ffffff; }
+        .sec-bg-fertilizer { background-color: #2563eb; color: #ffffff; }
+        .sec-bg-pesticide { background-color: #ea580c; color: #ffffff; }
+        .sec-title {
+          font-size: 10.5px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .sec-count {
+          font-size: 9.5px;
+          font-weight: 600;
+          opacity: 0.9;
+        }
+        .table-cultivation th { background-color: #15803d !important; border-color: #15803d !important; }
+        .table-fertilizer th { background-color: #1d4ed8 !important; border-color: #1d4ed8 !important; }
+        .table-pesticide th { background-color: #c2410c !important; border-color: #c2410c !important; }
+        .empty-row td {
+          padding: 12px !important;
+          color: #94a3b8;
+          font-style: italic;
+          text-align: center;
+        }
+
+        /* CONFIRMATION & SIGNATURE SECTION */
+        .confirmation-section {
+          margin-top: 12px;
+          page-break-inside: avoid;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          background-color: #fbfcfe;
+          padding: 8px 12px 10px 12px;
+        }
+        .confirm-header-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          border-bottom: 1px solid #e2e8f0;
+          padding-bottom: 5px;
+          margin-bottom: 8px;
+        }
+        .confirm-statement {
+          font-size: 9px;
+          font-style: italic;
+          color: #475569;
+        }
+        .confirm-date {
+          font-size: 9.5px;
+          font-style: italic;
+          color: #1e293b;
+          font-weight: 500;
+        }
+        .signatures-grid {
+          display: flex;
+          justify-content: space-between;
+          gap: 14px;
+        }
+        .sig-card {
+          flex: 1;
+          text-align: center;
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 5px;
+          padding: 7px 8px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+        .sig-role {
+          font-size: 10px;
+          font-weight: 700;
+          color: #0f172a;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+        }
+        .sig-hint {
+          font-size: 8px;
+          color: #64748b;
+          font-style: italic;
+          margin-top: 2px;
+          margin-bottom: 5px;
+        }
+        .sig-space-box {
+          height: 60px;
+          border: 1.5px dashed #cbd5e1;
+          border-radius: 4px;
+          background-color: #fafbfc;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #94a3b8;
+          font-size: 8px;
+          font-style: italic;
+          margin-bottom: 6px;
+        }
+        .sig-name {
+          font-size: 9px;
+          font-weight: 600;
+          color: #1e293b;
+          min-height: 14px;
+        }
+        .watermark {
+          text-align: center;
+          font-size: 8.5px;
+          color: #94a3b8;
+          margin-top: 8px;
+          border-top: 1px dashed #e2e8f0;
+          padding-top: 5px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div class="brand-title">AGRILOG • SỔ NHẬT KÝ SẢN XUẤT TỔNG HỢP</div>
+          <div class="farm-meta">
+            <strong>Trang trại:</strong> ${farmProfile?.farmName || 'Nông trại AgriLog'} &nbsp;|&nbsp;
+            <strong>Địa chỉ:</strong> ${farmProfile?.address || '—'} &nbsp;|&nbsp;
+            <strong>SĐT:</strong> ${farmProfile?.phone || '—'}
+          </div>
+        </div>
+        <div class="doc-title-block">
+          <div class="doc-title">${mainBoard.name || 'Sổ Nhật Ký Canh Tác'}</div>
+          <div class="doc-date">Ngày in biểu: ${todayStr}</div>
+        </div>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-label">Cây trồng</span>
+          <span class="info-value">${mainBoard.cropType || '—'}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Diện tích</span>
+          <span class="info-value">${mainBoard.areaSqm ? mainBoard.areaSqm.toLocaleString('vi-VN') + ' m²' : '—'}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Khu vực / Lô</span>
+          <span class="info-value">${mainBoard.areaText || '—'}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Ngày bắt đầu vụ</span>
+          <span class="info-value">${formatDate(mainBoard.startDate)}</span>
+        </div>
+      </div>
+
+      <!-- PHẦN 1: NHẬT KÝ CANH TÁC & CHĂM SÓC -->
+      <div class="section-block">
+        <div class="section-header-wrap sec-bg-cultivation">
+          <span class="sec-title">PHẦN 1: NHẬT KÝ CANH TÁC & CHĂM SÓC CÂY TRỒNG</span>
+          <span class="sec-count">Tổng số: ${cultEntries.length} mục</span>
+        </div>
+        <table class="table-cultivation">
+          <thead>
+            <tr>
+              <th style="width: 35px;">STT</th>
+              <th style="width: 75px;">Ngày</th>
+              <th style="width: 110px;">Giai đoạn</th>
+              <th style="width: 140px;">Hoạt động</th>
+              <th style="width: 90px;">Người làm</th>
+              <th style="width: 80px;">Thời tiết</th>
+              <th>Ghi chú</th>
+              ${cultCustomCols.map((c: string) => `<th>${c}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${cultRowsHtml || '<tr class="empty-row"><td colspan="' + (7 + cultCustomCols.length) + '">Chưa có dữ liệu nhật ký canh tác</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PHẦN 2: NHẬT KÝ SỬ DỤNG PHÂN BÓN -->
+      <div class="section-block">
+        <div class="section-header-wrap sec-bg-fertilizer">
+          <span class="sec-title">PHẦN 2: NHẬT KÝ SỬ DỤNG PHÂN BÓN</span>
+          <span class="sec-count">Tổng số: ${fertEntries.length} mục</span>
+        </div>
+        <table class="table-fertilizer">
+          <thead>
+            <tr>
+              <th style="width: 35px;">STT</th>
+              <th style="width: 75px;">Ngày bón</th>
+              <th style="width: 140px;">Tên phân bón</th>
+              <th style="width: 120px;">Nhà sản xuất</th>
+              <th style="width: 80px;">Liều lượng</th>
+              <th style="width: 80px;">Diện tích</th>
+              <th style="width: 90px;">Người làm</th>
+              <th style="width: 80px;">Thời tiết</th>
+              <th>Ghi chú</th>
+              ${fertCustomCols.map((c: string) => `<th>${c}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${fertRowsHtml || '<tr class="empty-row"><td colspan="' + (9 + fertCustomCols.length) + '">Chưa có dữ liệu nhật ký bón phân</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PHẦN 3: NHẬT KÝ SỬ DỤNG THUỐC BVTV -->
+      <div class="section-block">
+        <div class="section-header-wrap sec-bg-pesticide">
+          <span class="sec-title">PHẦN 3: NHẬT KÝ SỬ DỤNG THUỐC BẢO VỆ THỰC VẬT</span>
+          <span class="sec-count">Tổng số: ${pestEntries.length} mục</span>
+        </div>
+        <table class="table-pesticide">
+          <thead>
+            <tr>
+              <th style="width: 35px;">STT</th>
+              <th style="width: 75px;">Ngày phun</th>
+              <th style="width: 120px;">Tên thuốc BVTV</th>
+              <th style="width: 100px;">Hoạt chất</th>
+              <th style="width: 100px;">Đối tượng hại</th>
+              <th style="width: 75px;">Liều lượng</th>
+              <th style="width: 65px;">Cách ly</th>
+              <th style="width: 85px;">Người phun</th>
+              <th style="width: 80px;">Thời tiết</th>
+              <th>Ghi chú</th>
+              ${pestCustomCols.map((c: string) => `<th>${c}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${pestRowsHtml || '<tr class="empty-row"><td colspan="' + (10 + pestCustomCols.length) + '">Chưa có dữ liệu nhật ký thuốc BVTV</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- KHUNG XÁC NHẬN & CHỮ KÝ CHUẨN VIETGAP -->
+      <div class="confirmation-section">
+        <div class="confirm-header-row">
+          <div class="confirm-statement">✓ Cam kết các số liệu ghi chép trên là trung thực, chính xác và tuân thủ đúng quy trình kỹ thuật.</div>
+          <div class="confirm-date">......, ngày ...... tháng ...... năm 20...</div>
+        </div>
+        <div class="signatures-grid">
+          <div class="sig-card">
+            <div class="sig-role">NGƯỜI LẬP NHẬT KÝ</div>
+            <div class="sig-hint">(Ký và ghi rõ họ tên)</div>
+            <div class="sig-space-box">Ký tại đây</div>
+            <div class="sig-name">Họ và tên: ...................................</div>
+          </div>
+          <div class="sig-card">
+            <div class="sig-role">KỸ THUẬT VIÊN / GIÁM SÁT</div>
+            <div class="sig-hint">(Ký và ghi rõ họ tên)</div>
+            <div class="sig-space-box">Ký tại đây</div>
+            <div class="sig-name">Họ và tên: ...................................</div>
+          </div>
+          <div class="sig-card">
+            <div class="sig-role">ĐẠI DIỆN TRANG TRẠI</div>
+            <div class="sig-hint">(Ký, đóng dấu nếu có)</div>
+            <div class="sig-space-box">Ký & đóng dấu tại đây</div>
+            <div class="sig-name">${ownerName}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="watermark">
+        Sổ nhật ký sản xuất điện tử trích xuất tự động từ Hệ thống AgriLog • Tiêu chuẩn VietGAP • Xuất lúc ${todayStr}
+      </div>
+    </body>
+    </html>
+  `;
+};

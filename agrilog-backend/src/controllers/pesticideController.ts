@@ -9,7 +9,7 @@ import { CultivationBoard } from '../models/CultivationBoard';
 import { FertilizerBoard } from '../models/FertilizerBoard';
 import { getSql } from '../config/db';
 
-import { PLAN_LIMITS, checkBoardLocked, getRetentionDate, getEffectivePlan } from '../utils/boardUtils';
+import { PLAN_LIMITS, checkBoardLocked, getRetentionDate, getEffectivePlan, parseQuantityInMaterialUnit } from '../utils/boardUtils';
 import {
   syncDiaryBoards,
   syncUpdateDiaryBoards,
@@ -236,7 +236,7 @@ export const getPesticideEntries = async (req: AuthRequest, res: Response) => {
           notes: '',
           entryGroupId,
         });
-        await syncCreateDiaryEntry('PESTICIDE', board, entry);
+        // disabled syncCreateDiaryEntry
         createdEntries.push(entry);
       }
       await PesticideBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
@@ -262,17 +262,14 @@ export const createPesticideEntry = async (req: AuthRequest, res: Response) => {
 
     let numValue = 0;
     if (req.body.material && req.body.quantity) {
-      const quantityStr = String(req.body.quantity);
-      const quantityMatch = quantityStr.match(/[\d.]+/);
-      if (quantityMatch) {
-        numValue = parseFloat(quantityMatch[0]);
-        if (!isNaN(numValue) && numValue > 0) {
-          const material = await Material.findById(req.body.material);
-          if (material && material.quantity < numValue) {
-            return res.status(400).json({ success: false, message: `Số lượng vật tư trong kho không đủ. Kho hiện tại chỉ còn ${material.quantity} ${material.unit || ''}.` });
-          }
-        } else {
-          numValue = 0;
+      const material = await Material.findById(req.body.material);
+      if (material) {
+        numValue = parseQuantityInMaterialUnit(req.body.quantity, material.unit);
+        if (numValue > 0 && material.quantity < numValue) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `Số lượng vật tư trong kho không đủ. Bạn nhập ${req.body.quantity} (quy đổi ${numValue} ${material.unit || ''}), nhưng kho hiện tại chỉ còn ${material.quantity} ${material.unit || ''}.` 
+          });
         }
       }
     }
@@ -294,7 +291,7 @@ export const createPesticideEntry = async (req: AuthRequest, res: Response) => {
     }
 
     // Automatically sync row to Cultivation and Fertilizer boards
-    await syncCreateDiaryEntry('PESTICIDE', board, entry);
+    // disabled syncCreateDiaryEntry
 
     res.status(201).json({ success: true, data: entry });
   } catch (error) {
@@ -316,33 +313,31 @@ export const updatePesticideEntry = async (req: AuthRequest, res: Response) => {
 
     const oldMaterialId = entryCheck.material?.toString();
     const newMaterialId = req.body.material;
-    
-    let oldQuantityNum = 0;
-    if (entryCheck.quantity) {
-      const match = String(entryCheck.quantity).match(/[\d.]+/);
-      if (match) oldQuantityNum = parseFloat(match[0]) || 0;
-    }
 
-    let newQuantityNum = 0;
-    if (req.body.quantity) {
-      const match = String(req.body.quantity).match(/[\d.]+/);
-      if (match) newQuantityNum = parseFloat(match[0]) || 0;
-    }
+    const oldMaterial = oldMaterialId ? await Material.findById(oldMaterialId) : null;
+    const newMaterial = newMaterialId ? await Material.findById(newMaterialId) : null;
+
+    const oldQuantityNum = parseQuantityInMaterialUnit(entryCheck.quantity, oldMaterial?.unit);
+    const newQuantityNum = parseQuantityInMaterialUnit(req.body.quantity, newMaterial?.unit);
 
     // Validation for new material usage
     if (oldMaterialId && newMaterialId && oldMaterialId === newMaterialId) {
       const diff = newQuantityNum - oldQuantityNum;
       if (diff > 0) {
-        const material = await Material.findById(newMaterialId);
-        if (material && material.quantity < diff) {
-          return res.status(400).json({ success: false, message: `Số lượng vật tư trong kho không đủ. Kho hiện tại chỉ còn ${material.quantity} ${material.unit || ''}.` });
+        if (newMaterial && newMaterial.quantity < diff) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `Số lượng vật tư trong kho không đủ. Cần xuất thêm ${diff} ${newMaterial.unit || ''}, nhưng kho hiện tại chỉ còn ${newMaterial.quantity} ${newMaterial.unit || ''}.` 
+          });
         }
       }
     } else {
       if (newMaterialId && newQuantityNum > 0) {
-        const material = await Material.findById(newMaterialId);
-        if (material && material.quantity < newQuantityNum) {
-          return res.status(400).json({ success: false, message: `Số lượng vật tư trong kho không đủ. Kho hiện tại chỉ còn ${material.quantity} ${material.unit || ''}.` });
+        if (newMaterial && newMaterial.quantity < newQuantityNum) {
+          return res.status(400).json({ 
+            success: false, 
+            message: `Số lượng vật tư trong kho không đủ. Bạn nhập ${req.body.quantity} (quy đổi ${newQuantityNum} ${newMaterial.unit || ''}), nhưng kho hiện tại chỉ còn ${newMaterial.quantity} ${newMaterial.unit || ''}.` 
+          });
         }
       }
     }
@@ -362,15 +357,11 @@ export const updatePesticideEntry = async (req: AuthRequest, res: Response) => {
       if (newMaterialId && newQuantityNum > 0) {
         await Material.findByIdAndUpdate(newMaterialId, { $inc: { quantity: -newQuantityNum } });
       }
-    }
+        }
 
     // Sync date, performer, weather to linked entries
     if (entry.entryGroupId && (req.body.date || req.body.performer || req.body.weather)) {
-      await syncUpdateDiaryEntry(entry.entryGroupId, {
-        date: req.body.date,
-        performer: req.body.performer,
-        weather: req.body.weather,
-      });
+      // disabled syncUpdateDiaryEntry
     }
 
     res.json({ success: true, data: entry });
@@ -395,18 +386,16 @@ export const deletePesticideEntry = async (req: AuthRequest, res: Response) => {
     if (!entry) return res.status(404).json({ success: false, message: 'Không tìm thấy ghi chép.' });
 
     if (entry.material && entry.quantity) {
-      const match = String(entry.quantity).match(/[\d.]+/);
-      if (match) {
-        const numValue = parseFloat(match[0]);
-        if (!isNaN(numValue) && numValue > 0) {
-          await Material.findByIdAndUpdate(entry.material, { $inc: { quantity: numValue } });
-        }
+      const material = await Material.findById(entry.material);
+      const numValue = parseQuantityInMaterialUnit(entry.quantity, material?.unit);
+      if (numValue > 0) {
+        await Material.findByIdAndUpdate(entry.material, { $inc: { quantity: numValue } });
       }
     }
 
     // Delete linked entries across boards
     if (entryCheck.entryGroupId) {
-      await syncDeleteDiaryEntry(entryCheck.entryGroupId);
+      // disabled syncDeleteDiaryEntry
     }
 
     res.json({ success: true, message: 'Xóa ghi chép thành công.' });

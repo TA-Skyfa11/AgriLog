@@ -1,6 +1,7 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchAPI } from '@/lib/api';
 import {
   SHORT_TERM_STAGES as FALLBACK_STAGES,
@@ -28,34 +29,111 @@ export interface CropStandardsData {
   stageToActivities: Record<string, string[]>;
   stageToDefaultActivity: Record<string, string>;
   loading: boolean;
+  addCustomPerformer?: (name: string) => void;
+  removeCustomPerformer?: (name: string) => void;
 }
+
+const getPerformerStorageKey = () => {
+  if (typeof window === 'undefined') return 'farm_performers_default';
+  try {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const u = JSON.parse(userStr);
+      const uid = u._id || u.id || u.email;
+      if (uid) return `farm_performers_${uid}`;
+    }
+  } catch {}
+  return 'farm_performers_default';
+};
+
+const getLocalCustomPerformers = (): string[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(getPerformerStorageKey());
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveLocalCustomPerformers = (list: string[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(getPerformerStorageKey(), JSON.stringify(list));
+  } catch {}
+};
 
 // In-memory cache across component mounts
 let cachedStandards: any = null;
 let pendingPromise: Promise<any> | null = null;
 
 export function useCropStandards(cropGroup: string = 'SHORT_TERM'): CropStandardsData {
-  const [data, setData] = useState<CropStandardsData>({
-    stages: cachedStandards?.stages || FALLBACK_STAGES,
-    activities: cachedStandards?.activities || FALLBACK_ACTIVITIES,
-    pests: cachedStandards?.pests || FALLBACK_PESTS,
-    fertilizerDosages: cachedStandards?.fertilizerDosages || FALLBACK_FERT_DOSAGES,
-    fertilizerPurposes: cachedStandards?.fertilizerPurposes || FALLBACK_FERT_PURPOSES,
-    pesticideDosages: cachedStandards?.pesticideDosages || FALLBACK_PEST_DOSAGES,
-    phiOptions: cachedStandards?.phiOptions || FALLBACK_PHI,
-    performers: cachedStandards?.performers || FALLBACK_PERFORMERS,
-    weatherOptions: cachedStandards?.weatherOptions || FALLBACK_WEATHER,
-    stageToActivities: cachedStandards?.stageToActivities || {},
-    stageToDefaultActivity: cachedStandards?.stageToDefaultActivity || FALLBACK_MAP,
-    loading: !cachedStandards,
+  const [customPerformers, setCustomPerformers] = useState<string[]>([]);
+
+  // Filter out any legacy hardcoded performers
+  const sanitizePerformers = useCallback((rawList: string[], customList: string[]) => {
+    const excluded = new Set(['Kỹ thuật viên', 'Công nhân', 'Tổ BVTV']);
+    const cleanedBase = (rawList || []).filter((p) => !excluded.has(p));
+    const merged = ['Chủ hộ', ...cleanedBase, ...customList];
+    return Array.from(new Set(merged)).filter(Boolean);
+  }, []);
+
+  const [data, setData] = useState<CropStandardsData>(() => {
+    const initialCustom = getLocalCustomPerformers();
+    return {
+      stages: cachedStandards?.stages || FALLBACK_STAGES,
+      activities: cachedStandards?.activities || FALLBACK_ACTIVITIES,
+      pests: cachedStandards?.pests || FALLBACK_PESTS,
+      fertilizerDosages: cachedStandards?.fertilizerDosages || FALLBACK_FERT_DOSAGES,
+      fertilizerPurposes: cachedStandards?.fertilizerPurposes || FALLBACK_FERT_PURPOSES,
+      pesticideDosages: cachedStandards?.pesticideDosages || FALLBACK_PEST_DOSAGES,
+      phiOptions: cachedStandards?.phiOptions || FALLBACK_PHI,
+      performers: sanitizePerformers(cachedStandards?.performers || FALLBACK_PERFORMERS, initialCustom),
+      weatherOptions: cachedStandards?.weatherOptions || FALLBACK_WEATHER,
+      stageToActivities: cachedStandards?.stageToActivities || {},
+      stageToDefaultActivity: cachedStandards?.stageToDefaultActivity || FALLBACK_MAP,
+      loading: !cachedStandards,
+    };
   });
+
+  // Sync custom performers from backend for this farm account
+  useEffect(() => {
+    let isMounted = true;
+    const local = getLocalCustomPerformers();
+    setCustomPerformers(local);
+
+    const fetchFarmPerformers = async () => {
+      try {
+        const res = await fetchAPI('/farm/performers');
+        if (res && res.success && Array.isArray(res.performers) && isMounted) {
+          const combined = Array.from(new Set([...local, ...res.performers]));
+          setCustomPerformers(combined);
+          saveLocalCustomPerformers(combined);
+          setData((prev) => ({
+            ...prev,
+            performers: sanitizePerformers(prev.performers, combined),
+          }));
+        }
+      } catch {
+        // Fallback to local storage if API call fails
+      }
+    };
+
+    fetchFarmPerformers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [sanitizePerformers]);
 
   useEffect(() => {
     if (cachedStandards) {
-      setData({
+      setData((prev) => ({
+        ...prev,
         ...cachedStandards,
+        performers: sanitizePerformers(cachedStandards.performers, customPerformers),
         loading: false,
-      });
+      }));
       return;
     }
 
@@ -85,10 +163,12 @@ export function useCropStandards(cropGroup: string = 'SHORT_TERM'): CropStandard
           };
 
           if (isMounted) {
-            setData({
+            setData((prev) => ({
+              ...prev,
               ...cachedStandards,
+              performers: sanitizePerformers(cachedStandards.performers, customPerformers),
               loading: false,
-            });
+            }));
           }
         }
       } catch (err) {
@@ -105,7 +185,66 @@ export function useCropStandards(cropGroup: string = 'SHORT_TERM'): CropStandard
     return () => {
       isMounted = false;
     };
-  }, [cropGroup]);
+  }, [cropGroup, customPerformers, sanitizePerformers]);
 
-  return data;
+  const addCustomPerformer = useCallback(
+    (name: string) => {
+      if (!name) return;
+      const trimmed = name.trim();
+      if (!trimmed || trimmed === 'Chủ hộ' || trimmed === '—') return;
+
+      setCustomPerformers((prev) => {
+        if (prev.includes(trimmed)) return prev;
+        const next = [...prev, trimmed];
+        saveLocalCustomPerformers(next);
+        return next;
+      });
+
+      setData((prev) => {
+        if (prev.performers.includes(trimmed)) return prev;
+        return {
+          ...prev,
+          performers: [...prev.performers, trimmed],
+        };
+      });
+
+      // Background persist to backend
+      fetchAPI('/farm/performers', {
+        method: 'POST',
+        body: JSON.stringify({ name: trimmed }),
+      }).catch((e) => console.warn('Lỗi lưu người thực hiện:', e));
+    },
+    []
+  );
+
+  const removeCustomPerformer = useCallback(
+    (name: string) => {
+      if (!name) return;
+      const trimmed = name.trim();
+      if (trimmed === 'Chủ hộ') return;
+
+      setCustomPerformers((prev) => {
+        const next = prev.filter((p) => p !== trimmed);
+        saveLocalCustomPerformers(next);
+        return next;
+      });
+
+      setData((prev) => ({
+        ...prev,
+        performers: prev.performers.filter((p) => p !== trimmed),
+      }));
+
+      // Background delete from backend
+      fetchAPI(`/farm/performers/${encodeURIComponent(trimmed)}`, {
+        method: 'DELETE',
+      }).catch((e) => console.warn('Lỗi xóa người thực hiện:', e));
+    },
+    []
+  );
+
+  return {
+    ...data,
+    addCustomPerformer,
+    removeCustomPerformer,
+  };
 }

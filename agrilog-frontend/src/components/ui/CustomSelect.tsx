@@ -7,7 +7,8 @@ import { ChevronDown } from 'lucide-react';
 interface CustomSelectProps {
   value: string;
   onChange: (value: string) => void;
-  options: { label: string; value: string; disabled?: boolean; suffix?: string }[];
+  options: { label: string; value: string; disabled?: boolean; suffix?: string; isRemovable?: boolean }[];
+  onDeleteOption?: (value: string) => void;
   placeholder?: string;
   style?: React.CSSProperties;
   className?: string;
@@ -17,6 +18,7 @@ export default function CustomSelect({
   value,
   onChange,
   options,
+  onDeleteOption,
   placeholder = '-- Chọn --',
   style,
   className
@@ -113,6 +115,38 @@ export default function CustomSelect({
               {opt.suffix}
             </span>
           )}
+          {opt.isRemovable && onDeleteOption && (
+            <span
+              role="button"
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onDeleteOption(opt.value);
+              }}
+              title="Xóa khỏi danh sách"
+              style={{
+                color: '#9ca3af',
+                cursor: 'pointer',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                lineHeight: 1,
+                marginLeft: 'auto',
+                transition: 'all 0.15s'
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.color = '#ef4444';
+                (e.currentTarget as HTMLElement).style.background = '#fee2e2';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.color = '#9ca3af';
+                (e.currentTarget as HTMLElement).style.background = 'transparent';
+              }}
+            >
+              ✕
+            </span>
+          )}
         </div>
       ))}
       {options.length === 0 && (
@@ -152,8 +186,8 @@ export default function CustomSelect({
           transition: 'border-color 0.15s, box-shadow 0.15s',
         }}
       >
-        <span style={{ color: selectedOption ? '#111827' : '#9ca3af', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {selectedOption ? selectedOption.label : placeholder}
+        <span style={{ color: (selectedOption || (value && value !== '—' && value !== 'Chưa đặt tên')) ? '#111827' : '#9ca3af', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {selectedOption ? selectedOption.label : (value && value !== '—' && value !== 'Chưa đặt tên' ? value : placeholder)}
         </span>
         <ChevronDown
           size={14}

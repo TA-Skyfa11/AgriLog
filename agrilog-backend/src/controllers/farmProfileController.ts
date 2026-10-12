@@ -232,3 +232,56 @@ export const selectTrialPlan = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ success: false, message: (error as Error).message });
   }
 };
+
+export const getFarmPerformers = async (req: AuthRequest, res: Response) => {
+  try {
+    const profile = await FarmProfile.findOne({ user: req.user?._id });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
+    }
+    const list = profile.customPerformers || [];
+    res.json({ success: true, performers: list });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const addFarmPerformer = async (req: AuthRequest, res: Response) => {
+  try {
+    const profile = await FarmProfile.findOne({ user: req.user?._id });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
+    }
+    const name = (req.body.name || '').trim();
+    if (!name || name === 'Chủ hộ' || name === '—') {
+      return res.json({ success: true, performers: profile.customPerformers || [] });
+    }
+    const current = profile.customPerformers || [];
+    if (!current.includes(name)) {
+      current.push(name);
+      profile.customPerformers = current;
+      await profile.save();
+    }
+    res.json({ success: true, performers: profile.customPerformers });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const removeFarmPerformer = async (req: AuthRequest, res: Response) => {
+  try {
+    const profile = await FarmProfile.findOne({ user: req.user?._id });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
+    }
+    const rawName = (req.params.name as string) || '';
+    const name = decodeURIComponent(rawName).trim();
+    if (name) {
+      profile.customPerformers = (profile.customPerformers || []).filter((p: string) => p !== name);
+      await profile.save();
+    }
+    res.json({ success: true, performers: profile.customPerformers || [] });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

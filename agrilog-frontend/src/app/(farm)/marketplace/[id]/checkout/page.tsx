@@ -129,7 +129,7 @@ export default function CheckoutPage() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>Ghi chú giao hàng (Tùy chọn)</label>
+            <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>Ghi chú giao hàng</label>
             <textarea 
               rows={3}
               placeholder="Nhập ghi chú cho doanh nghiệp..."

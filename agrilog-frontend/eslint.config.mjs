@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
       "react-hooks/exhaustive-deps": "warn",
       "react-hooks/rules-of-hooks": "warn",
       "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/purity": "warn",
       "@next/next/no-img-element": "off",
       "@next/next/no-html-link-for-pages": "warn"
     }

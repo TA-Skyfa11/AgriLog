@@ -41,6 +41,8 @@ interface DropdownWithOtherProps {
   options: string[];
   onChange: (value: string) => void;
   onBlur?: () => void;
+  onAddCustomOption?: (value: string) => void;
+  onDeleteCustomOption?: (value: string) => void;
   placeholder?: string;
   className?: string;
   style?: React.CSSProperties;
@@ -53,6 +55,8 @@ export default function DropdownWithOther({
   options,
   onChange,
   onBlur,
+  onAddCustomOption,
+  onDeleteCustomOption,
   placeholder = '—',
   className,
   style,
@@ -61,13 +65,43 @@ export default function DropdownWithOther({
 }: DropdownWithOtherProps) {
   const isInvalidPlaceholder = value === 'Chưa đặt tên' || value === '—' || !value;
   const cleanValue = isInvalidPlaceholder ? '' : value;
-  const isOther = Boolean(cleanValue && !options.includes(cleanValue) && cleanValue.trim() !== '');
-  const [showInput, setShowInput] = useState(isOther);
+  const [showInput, setShowInput] = useState(false);
+  const [localText, setLocalText] = useState(cleanValue);
+  const [committedValue, setCommittedValue] = useState<string | null>(null);
+  const isCommittingRef = useRef(false);
 
   useEffect(() => {
     const curClean = value === 'Chưa đặt tên' || value === '—' || !value ? '' : value;
-    setShowInput(Boolean(curClean && !options.includes(curClean) && curClean.trim() !== ''));
-  }, [value, options]);
+    setLocalText(curClean);
+    if (committedValue && curClean === committedValue) {
+      setCommittedValue(null);
+    }
+  }, [value, committedValue]);
+
+  const commitCustomValue = (inputToCommit?: string) => {
+    if (isCommittingRef.current) return;
+    isCommittingRef.current = true;
+    setTimeout(() => {
+      isCommittingRef.current = false;
+    }, 300);
+
+    const rawVal = inputToCommit !== undefined ? inputToCommit : localText;
+    const trimmed = (rawVal || '').trim();
+    if (!trimmed || trimmed === '—') {
+      setShowInput(false);
+      setCommittedValue('');
+      onChange('');
+      if (onBlur) setTimeout(onBlur, 100);
+    } else {
+      setShowInput(false);
+      setCommittedValue(trimmed);
+      onChange(trimmed);
+      if (onAddCustomOption) {
+        onAddCustomOption(trimmed);
+      }
+      if (onBlur) setTimeout(onBlur, 100);
+    }
+  };
 
   if (disabled) {
     return (
@@ -94,26 +128,29 @@ export default function DropdownWithOther({
         <AutoResizeTextarea
           style={{ ...style, paddingRight: '24px' }}
           className={className}
-          value={cleanValue}
+          value={localText}
           maxLength={maxLength}
           onChange={(e: any) => {
-            onChange(e.target.value);
+            setLocalText(e.target.value);
           }}
-          onBlur={() => {
-            if (!cleanValue || cleanValue.trim() === '') {
-              setShowInput(false);
-              onChange('');
+          onKeyDown={(e: any) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              commitCustomValue(e.target.value);
             }
-            if (onBlur) onBlur();
           }}
-          placeholder="Nhập tùy chỉnh..."
+          onBlur={(e: any) => {
+            commitCustomValue(e.target.value);
+          }}
+          placeholder="Nhập tên mới..."
           autoFocus
         />
         <button
           type="button"
           onClick={() => {
             setShowInput(false);
-            onChange('');
+            setLocalText(cleanValue);
+            setCommittedValue(null);
           }}
           title="Hủy nhập tay, quay lại danh sách chọn"
           style={{
@@ -137,26 +174,43 @@ export default function DropdownWithOther({
     );
   }
 
+  // Active value prioritizes cleanValue from prop or newly committed local value
+  const activeValue = cleanValue || committedValue || '';
+
+  // Ensure current activeValue is always in the options list so CustomSelect displays it immediately
+  const hasValueInOptions = options.some((opt) => opt === activeValue);
+  const effectiveOptions =
+    activeValue && !hasValueInOptions && activeValue !== '__OTHER__'
+      ? [activeValue, ...options]
+      : options;
+
   const selectOptions = [
-    ...options.map((opt) => ({ label: opt, value: opt })),
-    { label: '✏️ Khác (Nhập tay)...', value: '__OTHER__' },
+    ...effectiveOptions.map((opt) => ({
+      label: opt,
+      value: opt,
+      isRemovable: opt !== 'Chủ hộ' && Boolean(onDeleteCustomOption),
+    })),
+    { label: '✏️ Khác (Nhập tay)...', value: '__OTHER__', isRemovable: false },
   ];
 
   return (
     <CustomSelect
       style={{ ...style, padding: 0, border: 'none', background: 'transparent' }}
       className={className}
-      value={cleanValue}
+      value={activeValue}
       onChange={(val) => {
         if (val === '__OTHER__') {
           setShowInput(true);
-          onChange('');
+          setLocalText('');
+          // Do NOT trigger onBlur when toggling input mode
         } else {
           setShowInput(false);
+          setCommittedValue(null);
           onChange(val);
+          if (onBlur) setTimeout(onBlur, 100);
         }
-        if (onBlur) setTimeout(onBlur, 100);
       }}
+      onDeleteOption={onDeleteCustomOption}
       options={selectOptions}
       placeholder={placeholder}
     />

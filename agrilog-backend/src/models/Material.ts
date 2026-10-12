@@ -22,7 +22,7 @@ const materialSchema = new Schema<IMaterial>(
     type: { type: String, enum: ['FERTILIZER', 'PESTICIDE'], required: true },
     quantity: { type: Number, default: 0 },
     unit: { type: String, required: true },
-    expiryDate: { type: Date },
+    expiryDate: { type: Date, required: true },
     minQuantityAlert: { type: Number, default: 10 },
     manufacturer: { type: String },
     activeIngredient: { type: String },

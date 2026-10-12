@@ -13,6 +13,7 @@ import {
   buildCultivationHtml,
   buildFertilizerHtml,
   buildPesticideHtml,
+  buildUnifiedDiaryHtml,
   buildReportsHtml,
 } from '../utils/pdfGenerator';
 
@@ -38,45 +39,127 @@ const checkPlanPermission = (profile: any, res: Response): boolean => {
 };
 
 /**
- * GET /api/export/pdf/cultivation/:boardId
+ * Helper to fetch all 3 sibling diary boards and their entries
  */
-export const exportCultivationPdf = async (req: AuthRequest, res: Response) => {
+export const getUnifiedDiaryDataForBoard = async (boardId: string, farmProfileId: any) => {
+  let cBoard = await CultivationBoard.findOne({ _id: boardId, farmProfile: farmProfileId });
+  let fBoard: any = null;
+  let pBoard: any = null;
+
+  if (cBoard) {
+    if (cBoard.groupId) {
+      [fBoard, pBoard] = await Promise.all([
+        FertilizerBoard.findOne({ groupId: cBoard.groupId, farmProfile: farmProfileId }),
+        PesticideBoard.findOne({ groupId: cBoard.groupId, farmProfile: farmProfileId }),
+      ]);
+    }
+  } else {
+    fBoard = await FertilizerBoard.findOne({ _id: boardId, farmProfile: farmProfileId });
+    if (fBoard) {
+      if (fBoard.groupId) {
+        [cBoard, pBoard] = await Promise.all([
+          CultivationBoard.findOne({ groupId: fBoard.groupId, farmProfile: farmProfileId }),
+          PesticideBoard.findOne({ groupId: fBoard.groupId, farmProfile: farmProfileId }),
+        ]);
+      }
+    } else {
+      pBoard = await PesticideBoard.findOne({ _id: boardId, farmProfile: farmProfileId });
+      if (pBoard) {
+        if (pBoard.groupId) {
+          [cBoard, fBoard] = await Promise.all([
+            CultivationBoard.findOne({ groupId: pBoard.groupId, farmProfile: farmProfileId }),
+            FertilizerBoard.findOne({ groupId: pBoard.groupId, farmProfile: farmProfileId }),
+          ]);
+        }
+      }
+    }
+  }
+
+  const mainBoard: any = cBoard || fBoard || pBoard;
+  if (!mainBoard) return null;
+
+  // Fallback for older boards without groupId
+  if (!cBoard) {
+    cBoard = await CultivationBoard.findOne({
+      farmProfile: farmProfileId,
+      cropType: mainBoard.cropType,
+      startDate: mainBoard.startDate,
+    });
+  }
+  if (!fBoard) {
+    fBoard = await FertilizerBoard.findOne({
+      farmProfile: farmProfileId,
+      cropType: mainBoard.cropType,
+      startDate: mainBoard.startDate,
+    });
+  }
+  if (!pBoard) {
+    pBoard = await PesticideBoard.findOne({
+      farmProfile: farmProfileId,
+      cropType: mainBoard.cropType,
+      startDate: mainBoard.startDate,
+    });
+  }
+
+  // Fetch entries for all boards in parallel
+  const [cEntries, fEntries, pEntries] = await Promise.all([
+    cBoard ? CultivationEntry.find({ cultivationBoard: cBoard._id }).sort({ date: 1, createdAt: 1 }) : [],
+    fBoard ? FertilizerEntry.find({ fertilizerBoard: fBoard._id }).sort({ date: 1, createdAt: 1 }) : [],
+    pBoard ? PesticideEntry.find({ pesticideBoard: pBoard._id }).sort({ date: 1, createdAt: 1 }) : [],
+  ]);
+
+  return {
+    mainBoard,
+    cultivation: { board: cBoard || mainBoard, entries: cEntries },
+    fertilizer: { board: fBoard || mainBoard, entries: fEntries },
+    pesticide: { board: pBoard || mainBoard, entries: pEntries },
+  };
+};
+
+/**
+ * GET /api/export/data/unified/:boardId
+ * Returns all 3 diary tables data for Excel export
+ */
+export const getUnifiedDiaryData = async (req: AuthRequest, res: Response) => {
   try {
     const profile = await FarmProfile.findOne({ user: req.user?._id });
     if (!profile) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
     }
 
-    if (!checkPlanPermission(profile, res)) return;
-
-    const board = await CultivationBoard.findOne({
-      _id: req.params.boardId,
-      farmProfile: profile._id,
-    });
-    if (!board) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng canh tác' });
+    const { getEffectivePlan } = require('../utils/boardUtils');
+    const plan = getEffectivePlan(profile);
+    if (plan === 'FREE' || plan === 'EXPIRED') {
+      return res.status(403).json({
+        success: false,
+        message: 'Gói cước hiện tại không hỗ trợ xuất dữ liệu Excel. Vui lòng nâng cấp gói cước.',
+      });
     }
 
-    const entries = await CultivationEntry.find({ cultivationBoard: board._id })
-      .sort({ date: 1, createdAt: 1 });
+    const boardId = req.params.boardId as string;
+    const unifiedData = await getUnifiedDiaryDataForBoard(boardId, profile._id);
+    if (!unifiedData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng nhật ký sản xuất' });
+    }
 
-    const html = buildCultivationHtml(board, entries, profile);
-    const pdfBuffer = await generatePdfFromHtml(html, true);
-
-    const filename = `${board.name || 'nhat_ky'}_canh_tac.pdf`;
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-    res.send(pdfBuffer);
+    res.json({
+      success: true,
+      farmProfile: profile,
+      mainBoard: unifiedData.mainBoard,
+      cultivation: unifiedData.cultivation,
+      fertilizer: unifiedData.fertilizer,
+      pesticide: unifiedData.pesticide,
+    });
   } catch (error: any) {
-    console.error('Lỗi khi xuất PDF canh tác:', error);
-    res.status(500).json({ success: false, message: error.message || 'Lỗi khi xuất PDF' });
+    console.error('Lỗi khi lấy dữ liệu tổng hợp nhật ký:', error);
+    res.status(500).json({ success: false, message: error.message || 'Lỗi khi lấy dữ liệu' });
   }
 };
 
 /**
- * GET /api/export/pdf/fertilizer/:boardId
+ * GET /api/export/pdf/unified/:boardId (Xuất 1 file PDF gộp cả 3 bảng thành 3 phần riêng biệt)
  */
-export const exportFertilizerPdf = async (req: AuthRequest, res: Response) => {
+export const exportUnifiedDiaryPdf = async (req: AuthRequest, res: Response) => {
   try {
     const profile = await FarmProfile.findOne({ user: req.user?._id });
     if (!profile) {
@@ -85,65 +168,36 @@ export const exportFertilizerPdf = async (req: AuthRequest, res: Response) => {
 
     if (!checkPlanPermission(profile, res)) return;
 
-    const board = await FertilizerBoard.findOne({
-      _id: req.params.boardId,
-      farmProfile: profile._id,
-    });
-    if (!board) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng bón phân' });
+    const boardId = req.params.boardId as string;
+    const unifiedData = await getUnifiedDiaryDataForBoard(boardId, profile._id);
+    if (!unifiedData) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng nhật ký sản xuất' });
     }
 
-    const entries = await FertilizerEntry.find({ fertilizerBoard: board._id })
-      .sort({ date: 1, createdAt: 1 });
+    const html = buildUnifiedDiaryHtml(
+      unifiedData.mainBoard,
+      unifiedData.cultivation,
+      unifiedData.fertilizer,
+      unifiedData.pesticide,
+      profile
+    );
 
-    const html = buildFertilizerHtml(board, entries, profile);
     const pdfBuffer = await generatePdfFromHtml(html, true);
+    const filename = `${unifiedData.mainBoard.name || 'nhat_ky'}_tong_hop.pdf`;
 
-    const filename = `${board.name || 'nhat_ky'}_phan_bon.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
     res.send(pdfBuffer);
   } catch (error: any) {
-    console.error('Lỗi khi xuất PDF bón phân:', error);
+    console.error('Lỗi khi xuất PDF tổng hợp:', error);
     res.status(500).json({ success: false, message: error.message || 'Lỗi khi xuất PDF' });
   }
 };
 
-/**
- * GET /api/export/pdf/pesticide/:boardId
- */
-export const exportPesticidePdf = async (req: AuthRequest, res: Response) => {
-  try {
-    const profile = await FarmProfile.findOne({ user: req.user?._id });
-    if (!profile) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
-    }
-
-    if (!checkPlanPermission(profile, res)) return;
-
-    const board = await PesticideBoard.findOne({
-      _id: req.params.boardId,
-      farmProfile: profile._id,
-    });
-    if (!board) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng thuốc BVTV' });
-    }
-
-    const entries = await PesticideEntry.find({ pesticideBoard: board._id })
-      .sort({ date: 1, createdAt: 1 });
-
-    const html = buildPesticideHtml(board, entries, profile);
-    const pdfBuffer = await generatePdfFromHtml(html, true);
-
-    const filename = `${board.name || 'nhat_ky'}_thuoc_bvtv.pdf`;
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-    res.send(pdfBuffer);
-  } catch (error: any) {
-    console.error('Lỗi khi xuất PDF thuốc BVTV:', error);
-    res.status(500).json({ success: false, message: error.message || 'Lỗi khi xuất PDF' });
-  }
-};
+// Map single-board endpoints to exportUnifiedDiaryPdf so any click exports all 3 tables unified!
+export const exportCultivationPdf = exportUnifiedDiaryPdf;
+export const exportFertilizerPdf = exportUnifiedDiaryPdf;
+export const exportPesticidePdf = exportUnifiedDiaryPdf;
 
 /**
  * GET /api/export/pdf/reports?month=YYYY-MM

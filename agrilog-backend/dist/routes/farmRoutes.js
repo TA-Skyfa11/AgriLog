@@ -15,6 +15,10 @@ router.route('/profile')
     .get(farmProfileController_1.getFarmProfile)
     .put(farmProfileController_1.updateFarmProfile);
 router.post('/profile/select-trial', farmProfileController_1.selectTrialPlan);
+router.route('/performers')
+    .get(farmProfileController_1.getFarmPerformers)
+    .post(farmProfileController_1.addFarmPerformer);
+router.delete('/performers/:name', farmProfileController_1.removeFarmPerformer);
 router.route('/reports-stats')
     .get(reportsController_1.getReportsStats);
 exports.default = router;
