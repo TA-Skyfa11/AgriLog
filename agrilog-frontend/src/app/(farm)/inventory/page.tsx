@@ -71,6 +71,11 @@ export default function InventoryPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [minImportDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  });
   const [filterTab, setFilterTab] = useState<'ALL' | 'EXPIRED' | 'NEAR_EXPIRY' | 'LOW_STOCK'>('ALL');
 
   const [formData, setFormData] = useState({
@@ -636,11 +641,11 @@ export default function InventoryPage() {
                   name="expiryDate" 
                   className={styles.input} 
                   required 
-                  min={editingId ? undefined : new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+                  min={editingId ? undefined : minImportDate}
                   value={formData.expiryDate} 
                   onChange={handleInputChange} 
                 />
-                {editingId && formData.expiryDate && new Date(formData.expiryDate) <= new Date() && (
+                {editingId && formData.expiryDate && getExpiryInfo(formData.expiryDate).isExpired && (
                   <div style={{ fontSize: '0.8rem', color: '#dc2626', marginTop: '4px', fontWeight: 500 }}>
                     ⚠️ Ngày này đã qua hạn hiện tại. Vật tư sẽ hiển thị trạng thái &quot;Hết hạn&quot;.
                   </div>
