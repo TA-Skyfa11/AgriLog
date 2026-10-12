@@ -76,7 +76,8 @@
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
@@ -232,4 +233,54 @@
 
 .btnCancel:hover {
   background-color: #f1f5f9;
+}
+
+/* Mobile Responsive Queries */
+@media (max-width: 768px) {
+  .container {
+    gap: 1.25rem;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .headerRight {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .searchBar {
+    width: 100%;
+  }
+
+  .button {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+    min-height: 44px;
+  }
+
+  .modal {
+    width: 95% !important;
+    max-width: 95vw !important;
+    padding: 1.25rem;
+    border-radius: var(--radius-xl);
+  }
+
+  .modalActions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .btnCancel, .btnSubmit {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    text-align: center;
+  }
 }

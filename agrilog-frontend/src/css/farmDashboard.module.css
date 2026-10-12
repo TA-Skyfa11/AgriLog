@@ -594,3 +594,101 @@
   display: inline-block;
 }
 
+/* Mobile & Tablet Responsive Queries */
+@media (max-width: 1024px) {
+  .topGrid, .middleGrid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .marketplaceGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 8px 0;
+  }
+
+  .welcomeSection {
+    margin-bottom: 16px;
+  }
+
+  .welcomeTitle {
+    font-size: 20px;
+  }
+
+  .topGrid, .middleGrid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .statGrid {
+    gap: 10px;
+  }
+
+  .statCard {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  .statValue {
+    font-size: 24px;
+  }
+
+  .statTitle {
+    font-size: 12px;
+  }
+
+  .weatherCard {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .weatherTemp {
+    font-size: 34px;
+  }
+
+  .boardCards {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .timelineCard {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .marketplaceGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .productCard {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .fabContainer {
+    bottom: calc(var(--mobile-bottom-nav-height, 62px) + 16px + var(--safe-area-bottom, 0px));
+    right: 16px;
+  }
+
+  .floatingAddBtn {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+@media (max-width: 480px) {
+  .marketplaceGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .statGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+}
+

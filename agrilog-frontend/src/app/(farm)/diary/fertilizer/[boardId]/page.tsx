@@ -40,6 +40,9 @@ const AutoResizeTextarea = (props: any) => {
         if (props.onInput) props.onInput(e);
       }}
       style={{
+        minWidth: '120px',
+        whiteSpace: 'normal',
+        wordBreak: 'normal',
         ...props.style,
         resize: 'none',
         overflow: 'hidden'
@@ -63,7 +66,9 @@ export default function FertilizerDiaryDetailPage() {
 
   const inlineInputStyle: React.CSSProperties = {
     width: '100%',
-    minWidth: '0',
+    minWidth: '120px',
+    whiteSpace: 'normal',
+    wordBreak: 'normal',
     border: '1px solid #e5e7eb',
     background: '#f9fafb',
     padding: '6px 8px',
@@ -679,17 +684,17 @@ export default function FertilizerDiaryDetailPage() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th style={{ width: '50px' }}>#</th>
-              <th>Ngày sử dụng</th>
-              <th>Tên phân bón</th>
-              <th>Nhà sản xuất</th>
-              <th>Liều lượng</th>
-              <th>Diện tích áp dụng (m²)</th>
-              <th>Người thực hiện</th>
-              <th>Thời tiết</th>
-              <th>Ghi chú</th>
+              <th style={{ width: '45px', minWidth: '45px', textAlign: 'center' }}>#</th>
+              <th style={{ width: '140px', minWidth: '140px' }}>Ngày sử dụng</th>
+              <th style={{ width: '180px', minWidth: '180px' }}>Tên phân bón</th>
+              <th style={{ width: '160px', minWidth: '160px' }}>Nhà sản xuất</th>
+              <th style={{ width: '140px', minWidth: '140px' }}>Liều lượng</th>
+              <th style={{ width: '160px', minWidth: '160px' }}>Diện tích áp dụng (m²)</th>
+              <th style={{ width: '150px', minWidth: '150px' }}>Người thực hiện</th>
+              <th style={{ width: '150px', minWidth: '150px' }}>Thời tiết</th>
+              <th style={{ width: '180px', minWidth: '180px' }}>Ghi chú</th>
               {board.customColumns?.map((col: string, idx: number) => (
-                    <th key={idx}>
+                    <th key={idx} style={{ width: '160px', minWidth: '160px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                         <span>{col}</span>
                         <div style={{ display: 'flex', gap: '4px' }}>
@@ -699,8 +704,8 @@ export default function FertilizerDiaryDetailPage() {
                       </div>
                     </th>
                   ))}
-              <th>Hình ảnh</th>
-              <th className={styles.actionColumnHeader} style={{ width: '80px', textAlign: 'center' }}>Thao tác</th>
+              <th style={{ width: '110px', minWidth: '110px' }}>Hình ảnh</th>
+              <th className={styles.actionColumnHeader} style={{ width: '80px', minWidth: '80px', textAlign: 'center' }}>Thao tác</th>
             </tr>
           </thead>
           <tbody>

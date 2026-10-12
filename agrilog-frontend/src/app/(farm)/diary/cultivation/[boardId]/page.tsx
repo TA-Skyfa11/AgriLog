@@ -38,6 +38,9 @@ const AutoResizeTextarea = (props: any) => {
         if (props.onInput) props.onInput(e);
       }}
       style={{
+        minWidth: '120px',
+        whiteSpace: 'normal',
+        wordBreak: 'normal',
         ...props.style,
         resize: 'none',
         overflow: 'hidden'
@@ -69,8 +72,9 @@ export default function CultivationDiaryDetailPage() {
   // Define new inline input style
   const inlineInputStyle: React.CSSProperties = {
     width: '100%',
-        whiteSpace: 'pre-wrap',
-    wordWrap: 'break-word',
+    minWidth: '120px',
+    whiteSpace: 'normal',
+    wordBreak: 'normal',
     border: '1px solid #e5e7eb',
     background: '#f9fafb',
     padding: '6px 8px',
@@ -671,16 +675,16 @@ export default function CultivationDiaryDetailPage() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th style={{ width: '40px', textAlign: 'center' }}>#</th>
-              <th style={{ width: '130px' }}>Ngày</th>
-              <th style={{ width: '160px' }}>Giai đoạn sinh trưởng</th>
-              <th style={{ width: '160px' }}>Hoạt động canh tác</th>
-              <th style={{ width: '120px' }}>Người thực hiện</th>
-              <th style={{ width: '120px' }}>Thời tiết</th>
-              <th style={{ minWidth: '140px' }}>Ghi chú/Quan sát</th>
+              <th style={{ width: '45px', minWidth: '45px', textAlign: 'center' }}>#</th>
+              <th style={{ width: '140px', minWidth: '140px' }}>Ngày</th>
+              <th style={{ width: '180px', minWidth: '180px' }}>Giai đoạn sinh trưởng</th>
+              <th style={{ width: '220px', minWidth: '220px' }}>Hoạt động canh tác</th>
+              <th style={{ width: '160px', minWidth: '160px' }}>Người thực hiện</th>
+              <th style={{ width: '160px', minWidth: '160px' }}>Thời tiết</th>
+              <th style={{ width: '180px', minWidth: '180px' }}>Ghi chú/Quan sát</th>
               {/* Dynamic columns inserted here */}
               {customCols.map((col: string) => (
-                <th key={col}>
+                <th key={col} style={{ width: '160px', minWidth: '160px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                     <span>{col}</span>
                     <div style={{ display: 'flex', gap: '4px' }}>
@@ -691,8 +695,8 @@ export default function CultivationDiaryDetailPage() {
                 </th>
               ))}
               {/* Attachment column always at the end */}
-              <th>Hình ảnh</th>
-              <th className={styles.actionColumnHeader} style={{ width: '80px', textAlign: 'center' }}>Thao tác</th>
+              <th style={{ width: '110px', minWidth: '110px' }}>Hình ảnh</th>
+              <th className={styles.actionColumnHeader} style={{ width: '80px', minWidth: '80px', textAlign: 'center' }}>Thao tác</th>
             </tr>
           </thead>
           <tbody>

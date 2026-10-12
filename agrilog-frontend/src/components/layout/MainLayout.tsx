@@ -42,8 +42,15 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const [showCart, setShowCart] = React.useState(false);
   const [time, setTime] = React.useState(new Date());
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [farmProfile, setFarmProfile] = React.useState<any>(null);
   const [showTrialModal, setShowTrialModal] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setShowNotifications(false);
+    setShowCart(false);
+  }, [pathname]);
 
   React.useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000);
@@ -235,6 +242,35 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   // Lọc chỉ hiển thị các liên kết thuộc tính năng đang BẬT
   const links = rawLinks.filter(link => !link.featureKey || isFeatureEnabled(link.featureKey));
 
+  // Danh sách tab cho thanh điều hướng dưới đáy (Mobile Bottom Navigation)
+  const bottomNavTabs = React.useMemo(() => {
+    if (role === 'FARM') {
+      return [
+        { label: 'Trang chủ', href: '/dashboard', icon: <Home size={20} /> },
+        { label: 'Nhật ký', href: '/diary', icon: <Leaf size={20} /> },
+        { label: 'Công việc', href: '/tasks', icon: <Calendar size={20} /> },
+        { label: 'Kho vật tư', href: '/inventory', icon: <Package size={20} /> },
+        { label: 'Menu', isAction: true, onClick: () => setIsMobileMenuOpen(prev => !prev), icon: <Menu size={20} /> },
+      ];
+    }
+    if (role === 'ADMIN') {
+      return [
+        { label: 'Tổng quan', href: '/admin/dashboard', icon: <Home size={20} /> },
+        { label: 'Người dùng', href: '/admin/users', icon: <User size={20} /> },
+        { label: 'Chợ vật tư', href: '/admin/marketplace', icon: <ShoppingBag size={20} /> },
+        { label: 'Đơn hàng', href: '/admin/orders', icon: <ShoppingCart size={20} /> },
+        { label: 'Menu', isAction: true, onClick: () => setIsMobileMenuOpen(prev => !prev), icon: <Menu size={20} /> },
+      ];
+    }
+    return [
+      { label: 'Dashboard', href: '/company/dashboard', icon: <Home size={20} /> },
+      { label: 'Sản phẩm', href: '/company/products', icon: <PackagePlus size={20} /> },
+      { label: 'Đơn hàng', href: '/company/orders', icon: <ClipboardList size={20} /> },
+      { label: 'Cài đặt', href: '/company/settings', icon: <Settings size={20} /> },
+      { label: 'Menu', isAction: true, onClick: () => setIsMobileMenuOpen(prev => !prev), icon: <Menu size={20} /> },
+    ];
+  }, [role]);
+
   // Kiểm tra nếu route hiện tại đang truy cập thuộc tính năng bị tắt bởi Admin
   const isCurrentRouteDisabled = role !== 'ADMIN' && (disabledPaths || []).some(dp => {
     if (!dp) return false;
@@ -243,20 +279,55 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
 
   return (
     <div className={styles.layout}>
-      <aside className={`${styles.sidebar} ${isSidebarCollapsed ? styles.collapsed : ''}`}>
-        <div className={styles.brand} style={{ justifyContent: isSidebarCollapsed ? 'center' : 'space-between', padding: isSidebarCollapsed ? '0' : '0 1.5rem' }}>
+      {/* Mobile Drawer Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className={styles.backdrop} 
+          onClick={() => setIsMobileMenuOpen(false)} 
+          aria-label="Đóng menu trượt"
+        />
+      )}
+
+      {/* Backdrop for open notifications or cart on mobile */}
+      {(showNotifications || showCart) && (
+        <div 
+          className={styles.backdrop} 
+          onClick={() => {
+            setShowNotifications(false);
+            setShowCart(false);
+          }} 
+          aria-label="Đóng bảng chi tiết"
+        />
+      )}
+
+      <aside className={`${styles.sidebar} ${isSidebarCollapsed ? styles.collapsed : ''} ${isMobileMenuOpen ? styles.mobileOpen : ''}`}>
+        <div className={styles.brand} style={{ justifyContent: isSidebarCollapsed ? 'center' : 'space-between', padding: isSidebarCollapsed ? '0' : '0 1.25rem' }}>
           {!isSidebarCollapsed && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div className={styles.brandIcon} style={{ background: 'transparent', width: 'auto', height: 'auto' }}><Image src={logoImg} alt="AgriLog Logo" width={48} height={48} priority style={{ objectFit: 'contain' }} /></div>
-              <span style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-primary-800, #166534)' }}>AgriLog {role === 'ADMIN' ? 'Admin' : ''}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <div className={styles.brandIcon} style={{ background: 'transparent', width: 'auto', height: 'auto' }}>
+                <Image src={logoImg} alt="AgriLog Logo" width={42} height={42} priority style={{ objectFit: 'contain' }} />
+              </div>
+              <span style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-primary-800, #166534)' }}>
+                AgriLog {role === 'ADMIN' ? 'Admin' : ''}
+              </span>
             </div>
           )}
-          <button 
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', padding: isSidebarCollapsed ? '1rem' : '0' }}
-          >
-             {isSidebarCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <button 
+              className={styles.drawerCloseBtn} 
+              onClick={() => setIsMobileMenuOpen(false)} 
+              aria-label="Đóng menu trượt"
+            >
+              <X size={22} />
+            </button>
+            <button 
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', padding: isSidebarCollapsed ? '1rem' : '0.25rem' }}
+              aria-label="Thu gọn thanh điều hướng"
+            >
+               {isSidebarCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
+            </button>
+          </div>
         </div>
         <nav className={styles.nav}>
           {links.map((link) => {
@@ -268,6 +339,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={() => setIsMobileMenuOpen(false)}
                 className={`${styles.navItem} ${isActive ? styles.active : ''}`}
                 style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', padding: isSidebarCollapsed ? '0.75rem 0' : '0.75rem 1.25rem' }}
                 title={isSidebarCollapsed ? link.label : ''}
@@ -287,7 +359,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             </div>
           )}
           {!isSidebarCollapsed && (
-            <button className={styles.logoutBtn} title={t('logout')} onClick={handleLogout}>
+            <button className={styles.logoutBtn} title={t('logout')} onClick={handleLogout} aria-label={t('logout')}>
               <LogOut size={20} />
             </button>
           )}
@@ -296,6 +368,21 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
       
       <main className={`${styles.main} ${isSidebarCollapsed ? styles.collapsed : ''}`}>
         <header className={styles.header}>
+          {/* Mobile Header Left with Hamburger and Logo */}
+          <div className={styles.mobileHeaderLeft}>
+            <button 
+              className={styles.mobileMenuBtn} 
+              onClick={() => setIsMobileMenuOpen(true)}
+              aria-label="Mở thanh điều hướng"
+            >
+              <Menu size={24} />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Image src={logoImg} alt="AgriLog Logo" width={32} height={32} priority style={{ objectFit: 'contain' }} />
+              <span className={styles.mobileHeaderBrand}>AgriLog</span>
+            </div>
+          </div>
+
           <div className={styles.searchBar} style={{ visibility: 'hidden' }}>
             <Search size={20} color="#9ca3af" />
             <input type="text" placeholder="Tìm kiếm..." className={styles.searchInput} />
@@ -312,7 +399,11 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             <div style={{ position: 'relative' }}>
               <button 
                 className={styles.iconBtn} 
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={() => {
+                  setShowCart(false);
+                  setShowNotifications(!showNotifications);
+                }}
+                aria-label="Thông báo"
               >
                 <Bell size={20} />
                 {unreadCount > 0 && <span className={styles.badge}>{unreadCount}</span>}
@@ -328,11 +419,12 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
                           onClick={markAllAsRead} 
                           title="Đánh dấu tất cả đã đọc"
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#10b981', display: 'flex' }}
+                          aria-label="Đánh dấu tất cả đã đọc"
                         >
                           <CheckCheck size={18} />
                         </button>
                       )}
-                      <button onClick={() => setShowNotifications(false)} className={styles.closeBtn}><X size={16} /></button>
+                      <button onClick={() => setShowNotifications(false)} className={styles.closeBtn} aria-label="Đóng"><X size={16} /></button>
                     </div>
                   </div>
                   <div className={styles.notificationList}>
@@ -358,7 +450,14 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             
             {role === 'FARM' && (
               <div style={{ position: 'relative' }}>
-                <button className={styles.iconBtn} onClick={() => setShowCart(!showCart)}>
+                <button 
+                  className={styles.iconBtn} 
+                  onClick={() => {
+                    setShowNotifications(false);
+                    setShowCart(!showCart);
+                  }}
+                  aria-label="Giỏ hàng"
+                >
                 <ShoppingCart size={20} />
                 {cart && cart.length > 0 && <span className={styles.badge}>{cart.length}</span>}
               </button>
@@ -367,7 +466,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
                 <div className={styles.notificationDropdown}>
                   <div className={styles.notificationHeader}>
                     <h4>Giỏ hàng</h4>
-                    <button onClick={() => setShowCart(false)} className={styles.closeBtn}><X size={16} /></button>
+                    <button onClick={() => setShowCart(false)} className={styles.closeBtn} aria-label="Đóng"><X size={16} /></button>
                   </div>
                   <div className={styles.notificationList}>
                     {!cart || cart.length === 0 ? (
@@ -384,6 +483,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
                             <button 
                               onClick={(e) => { e.stopPropagation(); removeFromCart(item.product._id); }}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', position: 'absolute', right: '1rem', top: '1rem' }}
+                              aria-label="Xóa sản phẩm"
                             >
                               <X size={16} />
                             </button>
@@ -396,7 +496,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
                               {cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0).toLocaleString('vi-VN')}đ
                             </span>
                           </div>
-                          <Link href="/marketplace/checkout" style={{ display: 'block', textAlign: 'center', padding: '0.75rem', backgroundColor: 'var(--color-primary-600)', color: 'white', borderRadius: '6px', fontWeight: 600, textDecoration: 'none', marginTop: '0.5rem' }}>
+                          <Link href="/marketplace/checkout" onClick={() => setShowCart(false)} style={{ display: 'block', textAlign: 'center', padding: '0.75rem', backgroundColor: 'var(--color-primary-600)', color: 'white', borderRadius: '6px', fontWeight: 600, textDecoration: 'none', marginTop: '0.5rem' }}>
                             Thanh toán ngay
                           </Link>
                         </div>
@@ -586,6 +686,46 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
           )}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className={styles.bottomNav} aria-label="Thanh điều hướng dưới">
+        {bottomNavTabs.map((tab) => {
+          const isActive = tab.isAction ? isMobileMenuOpen : (
+            tab.href === '/diary'
+              ? pathname === '/diary' || pathname.startsWith('/diary/board')
+              : pathname === tab.href || pathname.startsWith(tab.href + '/')
+          );
+
+          if (tab.isAction) {
+            return (
+              <button
+                key={tab.label}
+                type="button"
+                className={`${styles.bottomNavItem} ${isActive ? styles.active : ''}`}
+                onClick={tab.onClick}
+                aria-label={tab.label}
+              >
+                {isActive && <div className={styles.bottomNavActivePill} />}
+                <div className={styles.bottomNavIconWrapper}>{tab.icon}</div>
+                <span>{tab.label}</span>
+              </button>
+            );
+          }
+
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href!}
+              className={`${styles.bottomNavItem} ${isActive ? styles.active : ''}`}
+            >
+              {isActive && <div className={styles.bottomNavActivePill} />}
+              <div className={styles.bottomNavIconWrapper}>{tab.icon}</div>
+              <span>{tab.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
       <SelectTrialModal
         isOpen={showTrialModal}
         onClose={() => setShowTrialModal(false)}
