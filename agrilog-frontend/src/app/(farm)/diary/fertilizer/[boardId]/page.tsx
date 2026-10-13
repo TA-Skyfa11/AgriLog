@@ -21,9 +21,9 @@ const getShortWeatherDisplay = (weather: string | undefined | null) => {
 
 const isEntryToday = (dateVal: any) => {
   if (!dateVal) return true;
-  const d = new Date(dateVal);
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const dateStr = typeof dateVal === 'string' ? dateVal.split('T')[0] : new Date(dateVal).toLocaleDateString('en-CA');
+  return dateStr === todayStr;
 };
 
 import { exportUnifiedDiaryExcel, exportUnifiedDiaryPDF } from '@/lib/diaryExport';
@@ -255,7 +255,7 @@ export default function FertilizerDiaryDetailPage() {
           method: 'POST',
           body: JSON.stringify({
             ...payload,
-            date: payload.date ? new Date(payload.date).toISOString() : new Date().toISOString(),
+            date: payload.date || format(new Date(), 'yyyy-MM-dd'),
             quantity: payload.quantity || '',
             appliedArea: Number(payload.appliedArea) || 0,
             cost: Number(payload.cost) || 0,
@@ -527,7 +527,7 @@ export default function FertilizerDiaryDetailPage() {
 
   const handleAddNewRow = async () => {
     const weather = await fetchWeather();
-    const today = new Date().toISOString();
+    const today = format(new Date(), 'yyyy-MM-dd');
     try {
       const res = await fetchAPI(`/fertilizer-boards/${params.boardId}/entries`, {
         method: 'POST',

@@ -46,11 +46,35 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const [farmProfile, setFarmProfile] = React.useState<any>(null);
   const [showTrialModal, setShowTrialModal] = React.useState(false);
 
+  const notificationRef = React.useRef<HTMLDivElement>(null);
+  const cartRef = React.useRef<HTMLDivElement>(null);
+
   React.useEffect(() => {
     setIsMobileMenuOpen(false);
     setShowNotifications(false);
     setShowCart(false);
   }, [pathname]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (showNotifications && notificationRef.current && !notificationRef.current.contains(target)) {
+        setShowNotifications(false);
+      }
+      if (showCart && cartRef.current && !cartRef.current.contains(target)) {
+        setShowCart(false);
+      }
+    };
+
+    if (showNotifications || showCart) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showNotifications, showCart]);
 
   React.useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000);
@@ -193,14 +217,38 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  const handleLogout = () => {
-    logoutOneSignal();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    clearCart();
-    router.push('/');
+  const handleLogout = async () => {
+    try {
+      await logoutOneSignal().catch(() => {});
+    } catch (e) {
+      console.warn('OneSignal logout failed:', e);
+    }
+
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('userPlan');
+      localStorage.removeItem('toastedIds');
+      localStorage.removeItem('has_fetched_notifications');
+      sessionStorage.clear();
+      clearCart();
+    } catch (e) {
+      console.warn('Storage cleanup failed:', e);
+    }
+
+    try {
+      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0;';
+      document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0;';
+      if (typeof window !== 'undefined' && window.location.hostname) {
+        document.cookie = `token=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0;`;
+        document.cookie = `role=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0;`;
+      }
+    } catch (e) {
+      console.warn('Cookie cleanup failed:', e);
+    }
+
+    // Force hard redirect to purge all in-memory React and router state
+    window.location.href = '/';
   };
 
   interface NavLinkItem {
@@ -288,10 +336,10 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
         />
       )}
 
-      {/* Backdrop for open notifications or cart on mobile */}
+      {/* Mobile-only backdrop for open notifications or cart sheet */}
       {(showNotifications || showCart) && (
         <div 
-          className={styles.backdrop} 
+          className={styles.mobileSheetBackdrop} 
           onClick={() => {
             setShowNotifications(false);
             setShowCart(false);
@@ -350,7 +398,16 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             );
           })}
         </nav>
-        <div className={styles.userProfileBottom} style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', padding: isSidebarCollapsed ? '1.25rem 0' : '1.25rem 1rem' }}>
+        <div 
+          className={styles.userProfileBottom} 
+          style={{ 
+            justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', 
+            padding: isSidebarCollapsed ? '1rem 0' : '1.25rem 1rem',
+            flexDirection: isSidebarCollapsed ? 'column' : 'row',
+            gap: isSidebarCollapsed ? '0.625rem' : '0.75rem',
+            alignItems: 'center'
+          }}
+        >
           <div className={styles.avatar}>{userInitials}</div>
           {!isSidebarCollapsed && (
             <div className={styles.userInfoText}>
@@ -358,11 +415,15 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
               <div className={styles.userRole}>{role === 'FARM' ? 'Quản lý nông trại' : role === 'ADMIN' ? 'Admin' : 'Doanh nghiệp'}</div>
             </div>
           )}
-          {!isSidebarCollapsed && (
-            <button className={styles.logoutBtn} title={t('logout')} onClick={handleLogout} aria-label={t('logout')}>
-              <LogOut size={20} />
-            </button>
-          )}
+          <button 
+            className={styles.logoutBtn} 
+            title={t('logout')} 
+            onClick={handleLogout} 
+            aria-label={t('logout')}
+            style={isSidebarCollapsed ? { width: '38px', height: '38px', marginTop: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center' } : undefined}
+          >
+            <LogOut size={20} />
+          </button>
         </div>
       </aside>
       
@@ -396,7 +457,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
               </div>
             </div>
             
-            <div style={{ position: 'relative' }}>
+            <div ref={notificationRef} style={{ position: 'relative' }}>
               <button 
                 className={styles.iconBtn} 
                 onClick={() => {
@@ -449,7 +510,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             </div>
             
             {role === 'FARM' && (
-              <div style={{ position: 'relative' }}>
+              <div ref={cartRef} style={{ position: 'relative' }}>
                 <button 
                   className={styles.iconBtn} 
                   onClick={() => {
@@ -507,7 +568,14 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
               )}
             </div>
             )}
-            <div className={styles.headerAvatar}>{userInitials}</div>
+            <div 
+              className={styles.headerAvatar} 
+              title={`${userName} (${role}) - Nhấn để đăng xuất`}
+              onClick={handleLogout}
+              style={{ cursor: 'pointer' }}
+            >
+              {userInitials}
+            </div>
           </div>
         </header>
         {/* Banner hết hạn gói cước */}

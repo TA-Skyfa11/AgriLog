@@ -21,9 +21,9 @@ const getShortWeatherDisplay = (weather: string | undefined | null) => {
 
 const isEntryToday = (dateVal: any) => {
   if (!dateVal) return true;
-  const d = new Date(dateVal);
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const dateStr = typeof dateVal === 'string' ? dateVal.split('T')[0] : new Date(dateVal).toLocaleDateString('en-CA');
+  return dateStr === todayStr;
 };
 
 import { exportUnifiedDiaryExcel, exportUnifiedDiaryPDF } from '@/lib/diaryExport';
@@ -119,7 +119,7 @@ export default function CultivationDiaryDetailPage() {
 
   const [harvestData, setHarvestData] = useState({
     harvestYield: '',
-    harvestDate: new Date().toISOString().split('T')[0],
+    harvestDate: format(new Date(), 'yyyy-MM-dd'),
   });
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -236,7 +236,7 @@ export default function CultivationDiaryDetailPage() {
           method: 'POST',
           body: JSON.stringify({
             ...payload,
-            date: payload.date ? new Date(payload.date).toISOString() : new Date().toISOString(),
+            date: payload.date || format(new Date(), 'yyyy-MM-dd'),
           }),
         });
         if (res.success) {
@@ -360,7 +360,7 @@ export default function CultivationDiaryDetailPage() {
 
   const handleAddNewRow = async () => {
     const weather = await fetchWeather();
-    const today = new Date().toISOString();
+    const today = format(new Date(), 'yyyy-MM-dd');
 
     try {
       const res = await fetchAPI(`/cultivation-boards/${boardId}/entries`, {
@@ -549,7 +549,7 @@ export default function CultivationDiaryDetailPage() {
         body: JSON.stringify({
           status: 'HARVESTED',
           harvestYield: Number(harvestData.harvestYield),
-          harvestDate: new Date(harvestData.harvestDate).toISOString(),
+          harvestDate: harvestData.harvestDate || format(new Date(), 'yyyy-MM-dd'),
         }),
       });
 

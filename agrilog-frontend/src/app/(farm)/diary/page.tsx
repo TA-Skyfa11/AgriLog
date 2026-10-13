@@ -25,7 +25,7 @@ export default function DiaryBoardsPage() {
     cropType: '',
     areaText: '',
     areaSqm: '',
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: format(new Date(), 'yyyy-MM-dd'),
     description: ''
   });
 
@@ -214,8 +214,8 @@ export default function DiaryBoardsPage() {
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem' }}>
-                <div className={styles.formGroup} style={{ flex: 1, marginBottom: 0 }}>
+              <div className={styles.formRow}>
+                <div className={styles.formGroup} style={{ marginBottom: 0 }}>
                   <label className={styles.label}>Khu vực</label>
                   <input 
                     type="text" 
@@ -226,7 +226,7 @@ export default function DiaryBoardsPage() {
                     placeholder="VD: Lô A3, Khu vực B" 
                   />
                 </div>
-                <div className={styles.formGroup} style={{ flex: 1, marginBottom: 0 }}>
+                <div className={styles.formGroup} style={{ marginBottom: 0 }}>
                   <label className={styles.label}>Diện tích (m²)</label>
                   <input 
                     type="number" 
