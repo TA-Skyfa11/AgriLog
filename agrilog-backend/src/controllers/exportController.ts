@@ -194,10 +194,98 @@ export const exportUnifiedDiaryPdf = async (req: AuthRequest, res: Response) => 
   }
 };
 
-// Map single-board endpoints to exportUnifiedDiaryPdf so any click exports all 3 tables unified!
-export const exportCultivationPdf = exportUnifiedDiaryPdf;
-export const exportFertilizerPdf = exportUnifiedDiaryPdf;
-export const exportPesticidePdf = exportUnifiedDiaryPdf;
+/**
+ * GET /api/export/pdf/cultivation/:boardId (Xuất 1 file PDF riêng cho bảng nhật ký canh tác)
+ */
+export const exportCultivationPdf = async (req: AuthRequest, res: Response) => {
+  try {
+    const profile = await FarmProfile.findOne({ user: req.user?._id });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
+    }
+    if (!checkPlanPermission(profile, res)) return;
+
+    const boardId = req.params.boardId as string;
+    const board = await CultivationBoard.findOne({ _id: boardId, farmProfile: profile._id });
+    if (!board) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng nhật ký canh tác' });
+    }
+
+    const entries = await CultivationEntry.find({ cultivationBoard: board._id }).sort({ date: 1, createdAt: 1 });
+    const html = buildCultivationHtml(board, entries, profile);
+    const pdfBuffer = await generatePdfFromHtml(html, true);
+    const filename = `${board.name || 'nhat_ky_canh_tac'}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(pdfBuffer);
+  } catch (error: any) {
+    console.error('Lỗi khi xuất PDF canh tác:', error);
+    res.status(500).json({ success: false, message: error.message || 'Lỗi khi xuất PDF' });
+  }
+};
+
+/**
+ * GET /api/export/pdf/fertilizer/:boardId (Xuất 1 file PDF riêng cho bảng nhật ký bón phân)
+ */
+export const exportFertilizerPdf = async (req: AuthRequest, res: Response) => {
+  try {
+    const profile = await FarmProfile.findOne({ user: req.user?._id });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
+    }
+    if (!checkPlanPermission(profile, res)) return;
+
+    const boardId = req.params.boardId as string;
+    const board = await FertilizerBoard.findOne({ _id: boardId, farmProfile: profile._id });
+    if (!board) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng nhật ký bón phân' });
+    }
+
+    const entries = await FertilizerEntry.find({ fertilizerBoard: board._id }).sort({ date: 1, createdAt: 1 });
+    const html = buildFertilizerHtml(board, entries, profile);
+    const pdfBuffer = await generatePdfFromHtml(html, true);
+    const filename = `${board.name || 'nhat_ky_bon_phan'}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(pdfBuffer);
+  } catch (error: any) {
+    console.error('Lỗi khi xuất PDF bón phân:', error);
+    res.status(500).json({ success: false, message: error.message || 'Lỗi khi xuất PDF' });
+  }
+};
+
+/**
+ * GET /api/export/pdf/pesticide/:boardId (Xuất 1 file PDF riêng cho bảng nhật ký thuốc BVTV)
+ */
+export const exportPesticidePdf = async (req: AuthRequest, res: Response) => {
+  try {
+    const profile = await FarmProfile.findOne({ user: req.user?._id });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ trang trại' });
+    }
+    if (!checkPlanPermission(profile, res)) return;
+
+    const boardId = req.params.boardId as string;
+    const board = await PesticideBoard.findOne({ _id: boardId, farmProfile: profile._id });
+    if (!board) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bảng nhật ký thuốc BVTV' });
+    }
+
+    const entries = await PesticideEntry.find({ pesticideBoard: board._id }).sort({ date: 1, createdAt: 1 });
+    const html = buildPesticideHtml(board, entries, profile);
+    const pdfBuffer = await generatePdfFromHtml(html, true);
+    const filename = `${board.name || 'nhat_ky_thuoc_bvtv'}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(pdfBuffer);
+  } catch (error: any) {
+    console.error('Lỗi khi xuất PDF thuốc BVTV:', error);
+    res.status(500).json({ success: false, message: error.message || 'Lỗi khi xuất PDF' });
+  }
+};
 
 /**
  * GET /api/export/pdf/reports?month=YYYY-MM
@@ -341,7 +429,7 @@ export const exportReportsPdf = async (req: AuthRequest, res: Response) => {
       if (!pestStats[groupKey]) {
         pestStats[groupKey] = {
           name,
-          activeIngredient: entry.activeIngredient || '—',
+          manufacturer: entry.manufacturer || '—',
           targetPest: entry.targetPest || '—',
           phiDays: Number(entry.phiDays) || 7,
           timesUsed: 0,
@@ -350,13 +438,16 @@ export const exportReportsPdf = async (req: AuthRequest, res: Response) => {
           totalCost: 0
         };
       }
+      if (!pestStats[groupKey].manufacturer || pestStats[groupKey].manufacturer === '—') {
+        pestStats[groupKey].manufacturer = entry.manufacturer || '—';
+      }
       pestStats[groupKey].timesUsed += 1;
       pestStats[groupKey].totalQuantity += qtyNum;
       pestStats[groupKey].totalCost += cost;
     }
     const pesticideReport = Object.values(pestStats).map((s: any) => ({
       name: s.name,
-      activeIngredient: s.activeIngredient,
+      manufacturer: s.manufacturer,
       targetPest: s.targetPest,
       phiDays: s.phiDays,
       timesUsed: s.timesUsed,

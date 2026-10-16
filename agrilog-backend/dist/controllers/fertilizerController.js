@@ -183,13 +183,15 @@ const getFertilizerEntries = async (req, res) => {
             date: { $gte: retentionDate }
         }).sort({ date: 1, createdAt: 1 });
         if (entries.length === 0 && !board.hasInitializedEntries) {
-            const today = board.startDate ? new Date(board.startDate) : new Date();
+            const startDate = board.startDate ? new Date(board.startDate) : new Date();
             const createdEntries = [];
             for (let i = 0; i < 3; i++) {
+                const rowDate = new Date(startDate);
+                rowDate.setDate(startDate.getDate() + i);
                 const entryGroupId = 'eid_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7);
                 const entry = await FertilizerEntry_1.FertilizerEntry.create({
                     fertilizerBoard: board._id,
-                    date: today,
+                    date: rowDate,
                     materialName: '',
                     quantity: '',
                     unit: '',
@@ -204,6 +206,9 @@ const getFertilizerEntries = async (req, res) => {
             }
             await FertilizerBoard_1.FertilizerBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
             entries = createdEntries;
+        }
+        else if (!board.hasInitializedEntries && entries.length > 0) {
+            await FertilizerBoard_1.FertilizerBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
         }
         res.json({ success: true, data: entries });
     }
@@ -329,16 +334,19 @@ const updateFertilizerEntry = async (req, res) => {
 exports.updateFertilizerEntry = updateFertilizerEntry;
 const deleteFertilizerEntry = async (req, res) => {
     try {
-        const entryCheck = await FertilizerEntry_1.FertilizerEntry.findById(req.params.id).populate('fertilizerBoard');
+        const entryCheck = await FertilizerEntry_1.FertilizerEntry.findById(req.params.id);
         if (!entryCheck)
             return res.status(404).json({ success: false, message: 'Entry not found' });
-        const board = entryCheck.fertilizerBoard;
-        const profile = await FarmProfile_1.FarmProfile.findById(board.farmProfile);
-        if (profile) {
-            const effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
-            const isLocked = await (0, boardUtils_1.checkBoardLocked)(profile._id.toString(), board._id.toString(), effectivePlan);
-            if (isLocked)
-                return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
+        const boardId = (entryCheck.fertilizerBoard?._id || entryCheck.fertilizerBoard || '').toString();
+        const board = await FertilizerBoard_1.FertilizerBoard.findById(boardId);
+        if (board) {
+            const profile = await FarmProfile_1.FarmProfile.findById(board.farmProfile);
+            if (profile) {
+                const effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
+                const isLocked = await (0, boardUtils_1.checkBoardLocked)(profile._id.toString(), board._id.toString(), effectivePlan);
+                if (isLocked)
+                    return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
+            }
         }
         const entry = await FertilizerEntry_1.FertilizerEntry.findByIdAndDelete(req.params.id);
         if (!entry)
@@ -349,10 +357,6 @@ const deleteFertilizerEntry = async (req, res) => {
             if (numValue > 0) {
                 await Material_1.Material.findByIdAndUpdate(entry.material, { $inc: { quantity: numValue } });
             }
-        }
-        // Delete linked entries across boards
-        if (entryCheck.entryGroupId) {
-            // disabled syncDeleteDiaryEntry
         }
         res.json({ success: true, message: 'Xóa ghi chép thành công.' });
     }

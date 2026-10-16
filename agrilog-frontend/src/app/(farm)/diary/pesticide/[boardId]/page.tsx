@@ -1,14 +1,22 @@
 'use client';
 /* eslint-disable react-hooks/set-state-in-effect */
 
+const getWeatherIcon = (weather: string = '') => {
+  const w = (weather || '').toLowerCase();
+  if (w.includes('mưa') || w.includes('dông') || w.includes('bão')) return '🌧️';
+  if (w.includes('quang') || w.includes('nắng')) return '☀️';
+  if (w.includes('rải rác') || w.includes('nhiều mây') || w.includes('mây')) return '⛅';
+  return '🌤️';
+};
+
 const formatCompactWeather = (temp: any, desc?: any) => {
-  if (!temp && !desc) return '30°C';
-  const cleanTemp = typeof temp === 'string' ? temp.replace('°', '').replace('C', '').replace('Â', '').trim() : temp;
-  return cleanTemp ? `${cleanTemp}°C` : (desc || '30°C');
+  const cleanTemp = temp !== undefined && temp !== null ? String(temp).replace(/[°CÂ\s]/g, '') : '27';
+  const cleanDesc = desc ? String(desc).replace(/^Bầu trời\s+/i, '') : 'Mây rải rác';
+  return `${cleanTemp || '27'}°C, ${cleanDesc}`;
 };
 
 const getShortWeatherDisplay = (weather: string | undefined | null) => {
-  if (!weather) return '30°C';
+  if (!weather) return '27°C';
   const tempMatch = weather.match(/\d+°C|\d+°/);
   if (tempMatch) {
     return tempMatch[0].includes('C') ? tempMatch[0] : `${tempMatch[0]}C`;
@@ -26,7 +34,7 @@ const isEntryToday = (dateVal: any) => {
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
 };
 
-import { exportUnifiedDiaryExcel, exportUnifiedDiaryPDF } from '@/lib/diaryExport';
+import { exportSingleDiaryExcel, exportSingleDiaryPDF } from '@/lib/diaryExport';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { fetchAPI, getApiUrl } from '@/lib/api';
@@ -126,9 +134,9 @@ export default function PesticideDiaryDetailPage() {
         fetchAPI('/weather').catch(() => null),
       ]);
 
-      const currentWeatherData = weatherRes?.success && weatherRes?.data
-        ? formatCompactWeather(weatherRes.data.temp, weatherRes.data.desc)
-        : '30°C, Quang đãng';
+      const liveTemp = weatherRes?.success && weatherRes?.data?.temp ? weatherRes.data.temp : '27';
+      const liveDesc = weatherRes?.success && weatherRes?.data?.desc ? weatherRes.data.desc : 'Mây rải rác';
+      const currentWeatherData = formatCompactWeather(liveTemp, liveDesc);
       if (boardRes.success) {
         setBoard(boardRes.data);
         setEditFormData({
@@ -142,11 +150,14 @@ export default function PesticideDiaryDetailPage() {
       }
 
       if (entriesRes.success) {
-        const mapped = (entriesRes.data || []).map((entry: any) => ({
-          weather: (isEntryToday(entry.date) || !entry.activityName || !entry.weather) ? currentWeatherData : (entry.weather.includes('Bầu trời quang đãng') ? entry.weather.replace('Bầu trời quang đãng', 'Quang đãng') : entry.weather),
-          ...entry,
-          phiDays: (entry.phiDays === '-1' || !entry.phiDays) ? '7' : entry.phiDays,
-        }));
+        const mapped = (entriesRes.data || []).map((entry: any) => {
+          const isStale = !entry.weather || entry.weather.includes('30°C') || entry.weather.includes('30°');
+          return {
+            ...entry,
+            weather: (isEntryToday(entry.date) || isStale || !entry.materialName) ? currentWeatherData : (entry.weather.includes('Bầu trời quang đãng') ? entry.weather.replace('Bầu trời quang đãng', 'Quang đãng') : entry.weather),
+            phiDays: (entry.phiDays === '-1' || !entry.phiDays) ? '7' : entry.phiDays,
+          };
+        });
         setEntries(mapped);
         // Auto-register any custom performers in existing entries
         mapped.forEach((e: any) => {
@@ -196,16 +207,14 @@ export default function PesticideDiaryDetailPage() {
       newEntries[index].materialName = selectedMaterial.name;
       newEntries[index].material = selectedMaterial._id;
       newEntries[index].unit = selectedMaterial.unit;
-      newEntries[index].manufacturer = selectedMaterial.manufacturer || '';
-      // Tự động điền hoạt chất từ kho vật tư
-      newEntries[index].activeIngredient = selectedMaterial.activeIngredient || '';
+      newEntries[index].manufacturer = selectedMaterial.manufacturer || selectedMaterial.supplier || '';
       if (!newEntries[index].phiDays || newEntries[index].phiDays === '-1') {
         newEntries[index].phiDays = '7';
       }
     } else {
       newEntries[index].materialName = '';
       newEntries[index].material = undefined;
-      newEntries[index].activeIngredient = '';
+      newEntries[index].manufacturer = '';
     }
     setEntries(newEntries);
     setTimeout(() => handleBlurSave(index), 100);
@@ -495,25 +504,42 @@ export default function PesticideDiaryDetailPage() {
     try {
       const res = await fetchAPI('/weather');
       if (res.success && res.data) {
-        return `${res.data.temp}°C, ${res.data.desc}`;
+        return formatCompactWeather(res.data.temp, res.data.desc);
       }
     } catch (e) {
       console.error(e);
     }
-    return '';
+    return '27°C, Mây rải rác';
   };
 
   const handleAddNewRow = async () => {
     const weather = await fetchWeather();
-    const today = new Date().toISOString();
+    
+    let nextDateStr = new Date().toISOString();
+    if (entries && entries.length > 0) {
+      const lastEntry = entries[entries.length - 1];
+      if (lastEntry && lastEntry.date) {
+        const lastDate = new Date(lastEntry.date);
+        if (!isNaN(lastDate.getTime())) {
+          lastDate.setDate(lastDate.getDate() + 1);
+          nextDateStr = lastDate.toISOString();
+        }
+      }
+    } else if (board?.startDate) {
+      const bDate = new Date(board.startDate);
+      if (!isNaN(bDate.getTime())) {
+        nextDateStr = bDate.toISOString();
+      }
+    }
+
     try {
       const res = await fetchAPI(`/pesticide-boards/${params.boardId}/entries`, {
         method: 'POST',
         body: JSON.stringify({
-          date: today,
+          date: nextDateStr,
           weather: weather,
           materialName: '',
-          activeIngredient: '',
+          manufacturer: '',
           targetPest: '',
           quantity: '',
           phiDays: 7,
@@ -558,11 +584,11 @@ export default function PesticideDiaryDetailPage() {
   };
 
   const exportToExcel = () => {
-    exportUnifiedDiaryExcel(params.boardId as string, board?.name, allowExport);
+    exportSingleDiaryExcel('pesticide', params.boardId as string, board?.name, allowExport);
   };
 
   const exportToPDF = () => {
-    exportUnifiedDiaryPDF(params.boardId as string, board?.name, userPlan);
+    exportSingleDiaryPDF('pesticide', params.boardId as string, board?.name, userPlan);
   };
 
   if (loading) {
@@ -708,16 +734,16 @@ export default function PesticideDiaryDetailPage() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th style={{ width: '50px' }}>#</th>
-              <th>Ngày sử dụng</th>
-              <th>Tên thuốc</th>
-              <th>Hoạt chất</th>
-              <th>Mục tiêu phòng trừ</th>
-              <th>Liều lượng</th>
-              <th>Thời gian cách ly</th>
-              <th>Người thực hiện</th>
+              <th style={{ width: '40px', textAlign: 'center' }}>#</th>
+              <th style={{ width: '130px' }}>Ngày sử dụng</th>
+              <th style={{ width: '180px' }}>Tên thuốc</th>
+              <th style={{ width: '150px' }}>Nhà sản xuất</th>
+              <th style={{ width: '160px' }}>Mục tiêu phòng trừ</th>
+              <th style={{ width: '150px' }}>Liều lượng</th>
+              <th style={{ width: '120px' }}>Thời gian cách ly</th>
+              <th style={{ width: '150px' }}>Người thực hiện</th>
               <th style={{ width: '80px', whiteSpace: 'nowrap', textAlign: 'center' }}>Thời tiết</th>
-              <th>Ghi chú</th>
+              <th style={{ minWidth: '140px' }}>Ghi chú</th>
               {board.customColumns?.map((col: string, idx: number) => (
                 <th key={idx}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
@@ -784,10 +810,10 @@ export default function PesticideDiaryDetailPage() {
                   <td>
                     {entry.material || entry.materialName ? (
                       <div 
-                        style={{ ...inlineInputStyle, background: '#fef2f2', color: '#991b1b', fontWeight: 500 }}
-                        title={entry.activeIngredient || 'Chưa có thông tin hoạt chất trong kho'}
+                        style={{ ...inlineInputStyle, background: '#f0fdf4', color: '#166534', fontWeight: 500 }}
+                        title={entry.manufacturer || 'Chưa có thông tin NSX trong kho'}
                       >
-                        {entry.activeIngredient || '—'}
+                        {(entry.manufacturer ? entry.manufacturer.replace(/\s*\(NCC:.*?\)/gi, '').trim() : '') || '—'}
                       </div>
                     ) : (
                       <div style={{ ...inlineInputStyle, color: '#9ca3af', background: '#f3f4f6', cursor: 'not-allowed' }}>
@@ -862,9 +888,9 @@ export default function PesticideDiaryDetailPage() {
                         border: '1px solid #bbf7d0',
                         lineHeight: '1.4',
                       }}
-                      title={entry.weather ? `${entry.weather} (Tự động cập nhật theo Dashboard)` : '30°C (Tự động cập nhật theo Dashboard)'}
+                      title={entry.weather ? `${entry.weather} (Đồng bộ theo Dashboard)` : 'Thời tiết đồng bộ theo Dashboard'}
                     >
-                      <span style={{ fontSize: '11px' }}>🌤️</span>
+                      <span style={{ fontSize: '11px' }}>{getWeatherIcon(entry.weather)}</span>
                       <span>{getShortWeatherDisplay(entry.weather)}</span>
                     </div>
                   </td>

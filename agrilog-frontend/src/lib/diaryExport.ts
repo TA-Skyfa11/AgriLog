@@ -2,10 +2,13 @@ import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { getApiUrl } from '@/lib/api';
 
+export type DiaryType = 'cultivation' | 'fertilizer' | 'pesticide';
+
 /**
- * Xuất file Excel gộp cả 3 bảng nhật ký thành 3 sheet riêng biệt
+ * Xuất file Excel riêng cho 1 bảng nhật ký cụ thể (Canh tác, Bón phân hoặc Thuốc BVTV)
  */
-export const exportUnifiedDiaryExcel = async (
+export const exportSingleDiaryExcel = async (
+  type: DiaryType,
   boardId: string,
   boardName?: string,
   allowExport: boolean = true
@@ -15,7 +18,19 @@ export const exportUnifiedDiaryExcel = async (
     return;
   }
 
-  const toastId = toast.loading('Đang chuẩn bị file Excel tổng hợp 3 bảng...');
+  const typeNames: Record<DiaryType, string> = {
+    cultivation: 'Nhật ký Canh tác',
+    fertilizer: 'Nhật ký Bón phân',
+    pesticide: 'Nhật ký Thuốc BVTV',
+  };
+
+  const typeSuffix: Record<DiaryType, string> = {
+    cultivation: 'canh_tac',
+    fertilizer: 'bon_phan',
+    pesticide: 'thuoc_bvtv',
+  };
+
+  const toastId = toast.loading(`Đang chuẩn bị file Excel ${typeNames[type]}...`);
   try {
     const apiUrl = getApiUrl();
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -37,115 +52,115 @@ export const exportUnifiedDiaryExcel = async (
     const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
 
-    // 1. SHEET 1: NHẬT KÝ CANH TÁC & CHĂM SÓC
-    const cultCols = cultivation?.board?.customColumns || [];
-    const cultRows = (cultivation?.entries || []).map((e: any, idx: number) => {
-      const row: any = {
-        'STT': idx + 1,
-        'Ngày': e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
-        'Giai đoạn': e.stage || '—',
-        'Hoạt động canh tác': e.activityName || '—',
-        'Người thực hiện': e.performer || '—',
-        'Thời tiết': e.weather || '—',
-        'Ghi chú': e.notes || '—',
-      };
-      cultCols.forEach((col: string) => {
-        row[col] = e.customValues?.[col] || '—';
-      });
-      return row;
-    });
-
-    const ws1 = XLSX.utils.json_to_sheet(
-      cultRows.length > 0 ? cultRows : [{ 'Thông báo': 'Chưa có dữ liệu nhật ký canh tác' }]
-    );
-    if (cultRows.length > 0) {
-      ws1['!cols'] = Object.keys(cultRows[0]).map((key) => {
-        let maxLen = key.length;
-        cultRows.forEach((r: any) => {
-          const l = r[key]?.toString().length || 0;
-          if (l > maxLen) maxLen = l;
+    if (type === 'cultivation') {
+      const cultCols = cultivation?.board?.customColumns || [];
+      const cultRows = (cultivation?.entries || []).map((e: any, idx: number) => {
+        const row: any = {
+          'STT': idx + 1,
+          'Ngày': e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
+          'Giai đoạn': e.stage || '—',
+          'Hoạt động canh tác': e.activityName || '—',
+          'Người thực hiện': e.performer || '—',
+          'Thời tiết': e.weather || '—',
+          'Ghi chú': e.notes || '—',
+        };
+        cultCols.forEach((col: string) => {
+          row[col] = e.customValues?.[col] || '—';
         });
-        return { wch: Math.min(Math.max(maxLen, 10), 50) + 2 };
+        return row;
       });
-    }
-    XLSX.utils.book_append_sheet(wb, ws1, '1. Nhật ký Canh tác');
 
-    // 2. SHEET 2: NHẬT KÝ SỬ DỤNG PHÂN BÓN
-    const fertCols = fertilizer?.board?.customColumns || [];
-    const fertRows = (fertilizer?.entries || []).map((e: any, idx: number) => {
-      const row: any = {
-        'STT': idx + 1,
-        'Ngày bón': e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
-        'Tên phân bón': e.materialName || '—',
-        'Nhà sản xuất': e.manufacturer || '—',
-        'Liều lượng': e.quantity || '—',
-        'Diện tích áp dụng (m²)': e.appliedArea || 0,
-        'Người thực hiện': e.performer || '—',
-        'Thời tiết': e.weather || '—',
-        'Ghi chú': e.notes || '—',
-      };
-      fertCols.forEach((col: string) => {
-        row[col] = e.customValues?.[col] || '—';
-      });
-      return row;
-    });
-
-    const ws2 = XLSX.utils.json_to_sheet(
-      fertRows.length > 0 ? fertRows : [{ 'Thông báo': 'Chưa có dữ liệu nhật ký bón phân' }]
-    );
-    if (fertRows.length > 0) {
-      ws2['!cols'] = Object.keys(fertRows[0]).map((key) => {
-        let maxLen = key.length;
-        fertRows.forEach((r: any) => {
-          const l = r[key]?.toString().length || 0;
-          if (l > maxLen) maxLen = l;
+      const ws = XLSX.utils.json_to_sheet(
+        cultRows.length > 0 ? cultRows : [{ 'Thông báo': 'Chưa có dữ liệu nhật ký canh tác' }]
+      );
+      if (cultRows.length > 0) {
+        ws['!cols'] = Object.keys(cultRows[0]).map((key) => {
+          let maxLen = key.length;
+          cultRows.forEach((r: any) => {
+            const l = r[key]?.toString().length || 0;
+            if (l > maxLen) maxLen = l;
+          });
+          return { wch: Math.min(Math.max(maxLen, 10), 50) + 2 };
         });
-        return { wch: Math.min(Math.max(maxLen, 10), 50) + 2 };
-      });
-    }
-    XLSX.utils.book_append_sheet(wb, ws2, '2. Nhật ký Bón phân');
-
-    // 3. SHEET 3: NHẬT KÝ SỬ DỤNG THUỐC BVTV
-    const pestCols = pesticide?.board?.customColumns || [];
-    const pestRows = (pesticide?.entries || []).map((e: any, idx: number) => {
-      const row: any = {
-        'STT': idx + 1,
-        'Ngày phun': e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
-        'Tên thuốc BVTV': e.materialName || '—',
-        'Hoạt chất': e.activeIngredient || '—',
-        'Mục tiêu phòng trừ': e.targetPest || '—',
-        'Liều lượng': e.quantity || '—',
-        'Thời gian cách ly (ngày)': e.phiDays || 0,
-        'Người thực hiện': e.performer || '—',
-        'Thời tiết': e.weather || '—',
-        'Ghi chú': e.notes || '—',
-      };
-      pestCols.forEach((col: string) => {
-        row[col] = e.customValues?.[col] || '—';
-      });
-      return row;
-    });
-
-    const ws3 = XLSX.utils.json_to_sheet(
-      pestRows.length > 0 ? pestRows : [{ 'Thông báo': 'Chưa có dữ liệu nhật ký thuốc BVTV' }]
-    );
-    if (pestRows.length > 0) {
-      ws3['!cols'] = Object.keys(pestRows[0]).map((key) => {
-        let maxLen = key.length;
-        pestRows.forEach((r: any) => {
-          const l = r[key]?.toString().length || 0;
-          if (l > maxLen) maxLen = l;
+      }
+      XLSX.utils.book_append_sheet(wb, ws, 'Nhật ký Canh tác');
+    } else if (type === 'fertilizer') {
+      const fertCols = fertilizer?.board?.customColumns || [];
+      const fertRows = (fertilizer?.entries || []).map((e: any, idx: number) => {
+        const row: any = {
+          'STT': idx + 1,
+          'Ngày bón': e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
+          'Tên phân bón': e.materialName || '—',
+          'Nhà sản xuất': e.manufacturer || '—',
+          'Liều lượng': e.quantity || '—',
+          'Diện tích áp dụng (m²)': e.appliedArea || 0,
+          'Người thực hiện': e.performer || '—',
+          'Thời tiết': e.weather || '—',
+          'Ghi chú': e.notes || '—',
+        };
+        fertCols.forEach((col: string) => {
+          row[col] = e.customValues?.[col] || '—';
         });
-        return { wch: Math.min(Math.max(maxLen, 10), 50) + 2 };
+        return row;
       });
-    }
-    XLSX.utils.book_append_sheet(wb, ws3, '3. Nhật ký Thuốc BVTV');
 
-    const rawName = mainBoard?.name || boardName || 'nhat_ky';
-    const cleanFileName = `${rawName.replace(/[^\p{L}\p{N}_-]+/gu, '_')}_tong_hop.xlsx`;
+      const ws = XLSX.utils.json_to_sheet(
+        fertRows.length > 0 ? fertRows : [{ 'Thông báo': 'Chưa có dữ liệu nhật ký bón phân' }]
+      );
+      if (fertRows.length > 0) {
+        ws['!cols'] = Object.keys(fertRows[0]).map((key) => {
+          let maxLen = key.length;
+          fertRows.forEach((r: any) => {
+            const l = r[key]?.toString().length || 0;
+            if (l > maxLen) maxLen = l;
+          });
+          return { wch: Math.min(Math.max(maxLen, 10), 50) + 2 };
+        });
+      }
+      XLSX.utils.book_append_sheet(wb, ws, 'Nhật ký Bón phân');
+    } else if (type === 'pesticide') {
+      const pestCols = pesticide?.board?.customColumns || [];
+      const pestRows = (pesticide?.entries || []).map((e: any, idx: number) => {
+        const row: any = {
+          'STT': idx + 1,
+          'Ngày phun': e.date ? format(new Date(e.date), 'dd/MM/yyyy') : '',
+          'Tên thuốc BVTV': e.materialName || '—',
+          'Nhà sản xuất': e.manufacturer || '—',
+          'Mục tiêu phòng trừ': e.targetPest || '—',
+          'Liều lượng': e.quantity || '—',
+          'Thời gian cách ly (ngày)': e.phiDays || 0,
+          'Người thực hiện': e.performer || '—',
+          'Thời tiết': e.weather || '—',
+          'Ghi chú': e.notes || '—',
+        };
+        pestCols.forEach((col: string) => {
+          row[col] = e.customValues?.[col] || '—';
+        });
+        return row;
+      });
+
+      const ws = XLSX.utils.json_to_sheet(
+        pestRows.length > 0 ? pestRows : [{ 'Thông báo': 'Chưa có dữ liệu nhật ký thuốc BVTV' }]
+      );
+      if (pestRows.length > 0) {
+        ws['!cols'] = Object.keys(pestRows[0]).map((key) => {
+          let maxLen = key.length;
+          pestRows.forEach((r: any) => {
+            const l = r[key]?.toString().length || 0;
+            if (l > maxLen) maxLen = l;
+          });
+          return { wch: Math.min(Math.max(maxLen, 10), 50) + 2 };
+        });
+      }
+      XLSX.utils.book_append_sheet(wb, ws, 'Nhật ký Thuốc BVTV');
+    }
+
+    const currentBoard = type === 'cultivation' ? cultivation?.board : type === 'fertilizer' ? fertilizer?.board : pesticide?.board;
+    const rawName = currentBoard?.name || mainBoard?.name || boardName || 'nhat_ky';
+    const cleanFileName = `${rawName.replace(/[^\p{L}\p{N}_-]+/gu, '_')}_${typeSuffix[type]}.xlsx`;
     XLSX.writeFile(wb, cleanFileName);
 
-    toast.success('Xuất file Excel tổng hợp 3 bảng thành công!', { id: toastId });
+    toast.success(`Xuất file Excel ${typeNames[type]} thành công!`, { id: toastId });
   } catch (error: any) {
     console.error('Lỗi khi xuất file Excel:', error);
     toast.error(error.message || 'Không thể xuất file Excel', { id: toastId });
@@ -153,9 +168,10 @@ export const exportUnifiedDiaryExcel = async (
 };
 
 /**
- * Xuất file PDF gộp cả 3 bảng nhật ký thành 3 phần rõ ràng
+ * Xuất file PDF riêng cho 1 bảng nhật ký cụ thể (Canh tác, Bón phân hoặc Thuốc BVTV)
  */
-export const exportUnifiedDiaryPDF = async (
+export const exportSingleDiaryPDF = async (
+  type: DiaryType,
   boardId: string,
   boardName?: string,
   userPlan: string = 'BASIC'
@@ -165,11 +181,23 @@ export const exportUnifiedDiaryPDF = async (
     return;
   }
 
-  const toastId = toast.loading('Đang khởi tạo file PDF tổng hợp 3 bảng...');
+  const typeNames: Record<DiaryType, string> = {
+    cultivation: 'Nhật ký Canh tác',
+    fertilizer: 'Nhật ký Bón phân',
+    pesticide: 'Nhật ký Thuốc BVTV',
+  };
+
+  const typeSuffix: Record<DiaryType, string> = {
+    cultivation: 'canh_tac',
+    fertilizer: 'bon_phan',
+    pesticide: 'thuoc_bvtv',
+  };
+
+  const toastId = toast.loading(`Đang khởi tạo file PDF ${typeNames[type]}...`);
   try {
     const apiUrl = getApiUrl();
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    const res = await fetch(`${apiUrl}/export/pdf/unified/${boardId}`, {
+    const res = await fetch(`${apiUrl}/export/pdf/${type}/${boardId}`, {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
@@ -186,15 +214,37 @@ export const exportUnifiedDiaryPDF = async (
     const a = document.createElement('a');
     a.href = downloadUrl;
     const rawName = boardName || 'nhat_ky';
-    a.download = `${rawName.replace(/[^\p{L}\p{N}_-]+/gu, '_')}_tong_hop.pdf`;
+    a.download = `${rawName.replace(/[^\p{L}\p{N}_-]+/gu, '_')}_${typeSuffix[type]}.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     window.URL.revokeObjectURL(downloadUrl);
 
-    toast.success('Xuất file PDF tổng hợp 3 bảng thành công!', { id: toastId });
+    toast.success(`Xuất file PDF ${typeNames[type]} thành công!`, { id: toastId });
   } catch (error: any) {
     console.error('Lỗi khi xuất file PDF:', error);
     toast.error(error.message || 'Không thể xuất file PDF', { id: toastId });
   }
+};
+
+/**
+ * Backward compatibility: Xuất file Excel gộp cả 3 bảng
+ */
+export const exportUnifiedDiaryExcel = async (
+  boardId: string,
+  boardName?: string,
+  allowExport: boolean = true
+) => {
+  return exportSingleDiaryExcel('cultivation', boardId, boardName, allowExport);
+};
+
+/**
+ * Backward compatibility: Xuất file PDF gộp cả 3 bảng
+ */
+export const exportUnifiedDiaryPDF = async (
+  boardId: string,
+  boardName?: string,
+  userPlan: string = 'BASIC'
+) => {
+  return exportSingleDiaryPDF('cultivation', boardId, boardName, userPlan);
 };

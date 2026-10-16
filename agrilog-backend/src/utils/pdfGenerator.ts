@@ -368,7 +368,7 @@ export const buildFertilizerHtml = (board: any, entries: any[], farmProfile: any
           </tr>
         </thead>
         <tbody>
-          ${rowsHtml || '<tr><td colspan="' + (9 + customCols.length) + '" class="text-center" style="padding: 20px;">Chưa có dữ liệu nhật ký bón phân</td></tr>'}
+          ${rowsHtml || '<tr><td colspan="' + (10 + customCols.length) + '" class="text-center" style="padding: 20px;">Chưa có dữ liệu nhật ký bón phân</td></tr>'}
         </tbody>
       </table>
 
@@ -406,7 +406,7 @@ export const buildPesticideHtml = (board: any, entries: any[], farmProfile: any)
       <td class="text-center text-bold">${idx + 1}</td>
       <td class="text-center">${formatDate(entry.date)}</td>
       <td class="text-bold">${entry.materialName || '—'}</td>
-      <td>${entry.activeIngredient || '—'}</td>
+      <td>${entry.manufacturer || '—'}</td>
       <td>${entry.targetPest || '—'}</td>
       <td class="text-center text-bold">${entry.quantity || '—'}</td>
       <td class="text-center text-bold" style="color: #c2410c;">${entry.phiDays ? entry.phiDays + ' ngày' : '0'}</td>
@@ -466,7 +466,7 @@ export const buildPesticideHtml = (board: any, entries: any[], farmProfile: any)
             <th style="width: 35px;">STT</th>
             <th style="width: 75px;">Ngày phun</th>
             <th style="width: 120px;">Tên thuốc BVTV</th>
-            <th style="width: 100px;">Hoạt chất</th>
+            <th style="width: 120px;">Nhà sản xuất</th>
             <th style="width: 100px;">Đối tượng hại</th>
             <th style="width: 75px;">Liều lượng</th>
             <th style="width: 65px;">Cách ly</th>
@@ -477,7 +477,7 @@ export const buildPesticideHtml = (board: any, entries: any[], farmProfile: any)
           </tr>
         </thead>
         <tbody>
-          ${rowsHtml || '<tr><td colspan="' + (10 + customCols.length) + '" class="text-center" style="padding: 20px;">Chưa có dữ liệu nhật ký thuốc BVTV</td></tr>'}
+          ${rowsHtml || '<tr><td colspan="' + (9 + customCols.length) + '" class="text-center" style="padding: 20px;">Chưa có dữ liệu nhật ký thuốc BVTV</td></tr>'}
         </tbody>
       </table>
 
@@ -543,7 +543,7 @@ export const buildReportsHtml = (stats: any, month: string, farmProfile: any): s
     <tr>
       <td class="text-center text-bold">${i + 1}</td>
       <td class="text-bold">${r.name || r.materialName || '—'}</td>
-      <td>${r.activeIngredient || '—'}</td>
+      <td>${r.manufacturer || '—'}</td>
       <td>${r.targetPest || '—'}</td>
       <td class="text-center">${r.timesUsed || 0}</td>
       <td class="text-center text-bold">${r.totalQuantity || 0}</td>
@@ -682,7 +682,7 @@ export const buildReportsHtml = (stats: any, month: string, farmProfile: any): s
           <tr>
             <th style="width: 35px;">STT</th>
             <th>Tên thuốc BVTV</th>
-            <th style="width: 100px;">Hoạt chất</th>
+            <th style="width: 110px;">Nhà sản xuất</th>
             <th style="width: 100px;">Đối tượng phòng trừ</th>
             <th style="width: 65px;">Số lần</th>
             <th style="width: 90px;">Tổng lượng</th>
@@ -794,7 +794,7 @@ export const buildUnifiedDiaryHtml = (
       <td class="text-center text-bold">${idx + 1}</td>
       <td class="text-center">${formatDate(entry.date)}</td>
       <td class="text-bold">${entry.materialName || '—'}</td>
-      <td>${entry.activeIngredient || '—'}</td>
+      <td>${entry.manufacturer || '—'}</td>
       <td>${entry.targetPest || '—'}</td>
       <td class="text-center text-bold">${entry.quantity || '—'}</td>
       <td class="text-center text-bold" style="color: #c2410c;">${entry.phiDays ? entry.phiDays + ' ngày' : '0'}</td>
@@ -1070,8 +1070,8 @@ export const buildUnifiedDiaryHtml = (
               <th style="width: 35px;">STT</th>
               <th style="width: 75px;">Ngày phun</th>
               <th style="width: 120px;">Tên thuốc BVTV</th>
-              <th style="width: 100px;">Hoạt chất</th>
-              <th style="width: 100px;">Đối tượng hại</th>
+                <th style="width: 110px;">Nhà sản xuất</th>
+                <th style="width: 100px;">Đối tượng hại</th>
               <th style="width: 75px;">Liều lượng</th>
               <th style="width: 65px;">Cách ly</th>
               <th style="width: 85px;">Người phun</th>

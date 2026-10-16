@@ -220,13 +220,15 @@ export const getFertilizerEntries = async (req: AuthRequest, res: Response) => {
     }).sort({ date: 1, createdAt: 1 });
 
     if (entries.length === 0 && !board.hasInitializedEntries) {
-      const today = board.startDate ? new Date(board.startDate) : new Date();
+      const startDate = board.startDate ? new Date(board.startDate) : new Date();
       const createdEntries: any[] = [];
       for (let i = 0; i < 3; i++) {
+        const rowDate = new Date(startDate);
+        rowDate.setDate(startDate.getDate() + i);
         const entryGroupId = 'eid_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7);
         const entry = await FertilizerEntry.create({
           fertilizerBoard: board._id,
-          date: today,
+          date: rowDate,
           materialName: '',
           quantity: '',
           unit: '',
@@ -241,6 +243,8 @@ export const getFertilizerEntries = async (req: AuthRequest, res: Response) => {
       }
       await FertilizerBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
       entries = createdEntries;
+    } else if (!board.hasInitializedEntries && entries.length > 0) {
+      await FertilizerBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
     }
 
     res.json({ success: true, data: entries });
@@ -372,14 +376,18 @@ export const updateFertilizerEntry = async (req: AuthRequest, res: Response) => 
 
 export const deleteFertilizerEntry = async (req: AuthRequest, res: Response) => {
   try {
-    const entryCheck = await FertilizerEntry.findById(req.params.id).populate('fertilizerBoard');
+    const entryCheck = await FertilizerEntry.findById(req.params.id);
     if (!entryCheck) return res.status(404).json({ success: false, message: 'Entry not found' });
-    const board = entryCheck.fertilizerBoard as any;
-    const profile = await FarmProfile.findById(board.farmProfile);
-    if (profile) {
-      const effectivePlan = getEffectivePlan(profile);
-      const isLocked = await checkBoardLocked(profile._id.toString(), board._id.toString(), effectivePlan);
-      if (isLocked) return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
+    
+    const boardId = (entryCheck.fertilizerBoard?._id || entryCheck.fertilizerBoard || '').toString();
+    const board = await FertilizerBoard.findById(boardId);
+    if (board) {
+      const profile = await FarmProfile.findById(board.farmProfile);
+      if (profile) {
+        const effectivePlan = getEffectivePlan(profile);
+        const isLocked = await checkBoardLocked(profile._id.toString(), board._id.toString(), effectivePlan);
+        if (isLocked) return res.status(403).json({ success: false, message: 'Bảng này đã bị khóa do vượt quá giới hạn gói cước hiện tại của bạn.' });
+      }
     }
 
     const entry = await FertilizerEntry.findByIdAndDelete(req.params.id);
@@ -391,11 +399,6 @@ export const deleteFertilizerEntry = async (req: AuthRequest, res: Response) => 
       if (numValue > 0) {
         await Material.findByIdAndUpdate(entry.material, { $inc: { quantity: numValue } });
       }
-    }
-
-    // Delete linked entries across boards
-    if (entryCheck.entryGroupId) {
-      // disabled syncDeleteDiaryEntry
     }
 
     res.json({ success: true, message: 'Xóa ghi chép thành công.' });

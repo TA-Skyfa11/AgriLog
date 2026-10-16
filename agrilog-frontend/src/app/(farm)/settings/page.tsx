@@ -193,9 +193,7 @@ export default function SettingsPage() {
           <div className={`${styles.navItem} ${activeTab === 'security' ? styles.active : ''}`} onClick={() => setActiveTab('security')}>
             <Shield size={18} /> Bảo mật
           </div>
-          <div className={`${styles.navItem} ${activeTab === 'notifications' ? styles.active : ''}`} onClick={() => setActiveTab('notifications')}>
-            <Bell size={18} /> Thông báo
-          </div>
+          {/* Notifications tab hidden per user request */}
           <div className={`${styles.navItem} ${activeTab === 'language' ? styles.active : ''}`} onClick={() => setActiveTab('language')}>
             <Globe size={18} /> Ngôn ngữ
           </div>

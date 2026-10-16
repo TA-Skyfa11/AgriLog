@@ -2,6 +2,10 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .header {
@@ -132,27 +136,28 @@
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
   max-width: 100%;
+  width: 100%;
   max-height: calc(100vh - 280px);
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #f1f5f9;
+  box-sizing: border-box;
 }
 
-
-.list {
-  /* ... */
-}
 .list::-webkit-scrollbar {
-  height: 10px;
-  width: 10px;
+  height: 8px;
+  width: 8px;
 }
 .list::-webkit-scrollbar-track {
-  background: var(--color-bg);
+  background: #f1f5f9;
   border-radius: 4px;
 }
 .list::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
-  border: 2px solid var(--color-bg);
+  border: 2px solid #f1f5f9;
 }
 .list::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
@@ -160,7 +165,9 @@
 
 .table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: max-content;
 }
 
 .table th {

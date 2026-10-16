@@ -662,13 +662,6 @@ export default function InventoryPage() {
                 <input type="text" name="manufacturer" className={styles.input} value={formData.manufacturer} onChange={handleInputChange} placeholder="VD: Đạm Phú Mỹ" />
               </div>
 
-              {formData.type === 'PESTICIDE' && (
-                <div className={styles.formGroup}>
-                  <label className={styles.label}>Hoạt chất</label>
-                  <input type="text" name="activeIngredient" className={styles.input} value={formData.activeIngredient} onChange={handleInputChange} placeholder="VD: Abamectin" />
-                </div>
-              )}
-
               <div className={styles.modalActions}>
                 <button type="button" className={styles.btnCancel} onClick={handleCloseModal}>Hủy</button>
                 <button type="submit" className={styles.button}>{editingId ? 'Cập nhật' : 'Xác nhận nhập'}</button>

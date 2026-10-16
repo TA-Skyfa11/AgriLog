@@ -1,14 +1,22 @@
 'use client';
 /* eslint-disable react-hooks/set-state-in-effect */
 
+const getWeatherIcon = (weather: string = '') => {
+  const w = (weather || '').toLowerCase();
+  if (w.includes('mưa') || w.includes('dông') || w.includes('bão')) return '🌧️';
+  if (w.includes('quang') || w.includes('nắng')) return '☀️';
+  if (w.includes('rải rác') || w.includes('nhiều mây') || w.includes('mây')) return '⛅';
+  return '🌤️';
+};
+
 const formatCompactWeather = (temp: any, desc?: any) => {
-  if (!temp && !desc) return '30°C';
-  const cleanTemp = typeof temp === 'string' ? temp.replace('°', '').replace('C', '').replace('Â', '').trim() : temp;
-  return cleanTemp ? `${cleanTemp}°C` : (desc || '30°C');
+  const cleanTemp = temp !== undefined && temp !== null ? String(temp).replace(/[°CÂ\s]/g, '') : '27';
+  const cleanDesc = desc ? String(desc).replace(/^Bầu trời\s+/i, '') : 'Mây rải rác';
+  return `${cleanTemp || '27'}°C, ${cleanDesc}`;
 };
 
 const getShortWeatherDisplay = (weather: string | undefined | null) => {
-  if (!weather) return '30°C';
+  if (!weather) return '27°C';
   const tempMatch = weather.match(/\d+°C|\d+°/);
   if (tempMatch) {
     return tempMatch[0].includes('C') ? tempMatch[0] : `${tempMatch[0]}C`;
@@ -26,7 +34,7 @@ const isEntryToday = (dateVal: any) => {
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
 };
 
-import { exportUnifiedDiaryExcel, exportUnifiedDiaryPDF } from '@/lib/diaryExport';
+import { exportSingleDiaryExcel, exportSingleDiaryPDF } from '@/lib/diaryExport';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { fetchAPI, getApiUrl } from '@/lib/api';
@@ -118,21 +126,6 @@ export default function FertilizerDiaryDetailPage() {
 
   const loadData = async () => {
     try {
-      // Non-blocking weather fetch in background
-      fetchAPI('/weather')
-        .then((wRes) => {
-          if (wRes && wRes.success && wRes.data) {
-            const weatherData = `${wRes.data.temp}°C, ${wRes.data.desc}`;
-            setEntries((prev) =>
-              prev.map((entry) => ({
-                ...entry,
-                weather: entry.weather || weatherData,
-              }))
-            );
-          }
-        })
-        .catch(() => {});
-
       const [boardRes, entriesRes, materialsRes, profileRes, weatherRes] = await Promise.all([
         fetchAPI(`/fertilizer-boards/${params.boardId}`),
         fetchAPI(`/fertilizer-boards/${params.boardId}/entries`),
@@ -141,9 +134,9 @@ export default function FertilizerDiaryDetailPage() {
         fetchAPI('/weather').catch(() => null),
       ]);
 
-      const currentWeatherData = weatherRes?.success && weatherRes?.data
-        ? formatCompactWeather(weatherRes.data.temp, weatherRes.data.desc)
-        : '30°C, Quang đãng';
+      const liveTemp = weatherRes?.success && weatherRes?.data?.temp ? weatherRes.data.temp : '27';
+      const liveDesc = weatherRes?.success && weatherRes?.data?.desc ? weatherRes.data.desc : 'Mây rải rác';
+      const currentWeatherData = formatCompactWeather(liveTemp, liveDesc);
       if (boardRes.success) {
         setBoard(boardRes.data);
         setEditFormData({
@@ -157,11 +150,14 @@ export default function FertilizerDiaryDetailPage() {
       }
 
       if (entriesRes.success) {
-        const mapped = (entriesRes.data || []).map((entry: any) => ({
-          ...entry,
-          appliedArea: entry.appliedArea || boardRes.data?.areaSqm || '',
-          weather: (isEntryToday(entry.date) || !entry.activityName || !entry.weather) ? currentWeatherData : (entry.weather.includes('Bầu trời quang đãng') ? entry.weather.replace('Bầu trời quang đãng', 'Quang đãng') : entry.weather),
-        }));
+        const mapped = (entriesRes.data || []).map((entry: any) => {
+          const isStale = !entry.weather || entry.weather.includes('30°C') || entry.weather.includes('30°');
+          return {
+            ...entry,
+            appliedArea: entry.appliedArea || boardRes.data?.areaSqm || '',
+            weather: (isEntryToday(entry.date) || isStale || !entry.materialName) ? currentWeatherData : (entry.weather.includes('Bầu trời quang đãng') ? entry.weather.replace('Bầu trời quang đãng', 'Quang đãng') : entry.weather),
+          };
+        });
         setEntries(mapped);
         // Auto-register any custom performers in existing entries
         mapped.forEach((e: any) => {
@@ -512,22 +508,39 @@ export default function FertilizerDiaryDetailPage() {
     try {
       const res = await fetchAPI('/weather');
       if (res.success && res.data) {
-        return `${res.data.temp}°C, ${res.data.desc}`;
+        return formatCompactWeather(res.data.temp, res.data.desc);
       }
     } catch (e) {
       console.error(e);
     }
-    return '';
+    return '27°C, Mây rải rác';
   };
 
   const handleAddNewRow = async () => {
     const weather = await fetchWeather();
-    const today = new Date().toISOString();
+    
+    let nextDateStr = new Date().toISOString();
+    if (entries && entries.length > 0) {
+      const lastEntry = entries[entries.length - 1];
+      if (lastEntry && lastEntry.date) {
+        const lastDate = new Date(lastEntry.date);
+        if (!isNaN(lastDate.getTime())) {
+          lastDate.setDate(lastDate.getDate() + 1);
+          nextDateStr = lastDate.toISOString();
+        }
+      }
+    } else if (board?.startDate) {
+      const bDate = new Date(board.startDate);
+      if (!isNaN(bDate.getTime())) {
+        nextDateStr = bDate.toISOString();
+      }
+    }
+
     try {
       const res = await fetchAPI(`/fertilizer-boards/${params.boardId}/entries`, {
         method: 'POST',
         body: JSON.stringify({
-          date: today,
+          date: nextDateStr,
           weather: weather,
           materialName: '',
           quantity: '',
@@ -573,11 +586,11 @@ export default function FertilizerDiaryDetailPage() {
   };
 
   const exportToExcel = () => {
-    exportUnifiedDiaryExcel(params.boardId as string, board?.name, allowExport);
+    exportSingleDiaryExcel('fertilizer', params.boardId as string, board?.name, allowExport);
   };
 
   const exportToPDF = () => {
-    exportUnifiedDiaryPDF(params.boardId as string, board?.name, userPlan);
+    exportSingleDiaryPDF('fertilizer', params.boardId as string, board?.name, userPlan);
   };
 
   if (loading) {
@@ -727,15 +740,15 @@ export default function FertilizerDiaryDetailPage() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th style={{ width: '50px' }}>#</th>
-              <th>Ngày sử dụng</th>
-              <th>Tên phân bón</th>
-              <th>Nhà sản xuất</th>
-              <th>Liều lượng</th>
-              <th>Diện tích áp dụng (m²)</th>
-              <th>Người thực hiện</th>
+              <th style={{ width: '40px', textAlign: 'center' }}>#</th>
+              <th style={{ width: '130px' }}>Ngày sử dụng</th>
+              <th style={{ width: '180px' }}>Tên phân bón</th>
+              <th style={{ width: '150px' }}>Nhà sản xuất</th>
+              <th style={{ width: '160px' }}>Liều lượng</th>
+              <th style={{ width: '130px' }}>Diện tích áp dụng (m²)</th>
+              <th style={{ width: '150px' }}>Người thực hiện</th>
               <th style={{ width: '80px', whiteSpace: 'nowrap', textAlign: 'center' }}>Thời tiết</th>
-              <th>Ghi chú</th>
+              <th style={{ minWidth: '140px' }}>Ghi chú</th>
               {board.customColumns?.map((col: string, idx: number) => (
                     <th key={idx}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
@@ -869,9 +882,9 @@ export default function FertilizerDiaryDetailPage() {
                         border: '1px solid #bbf7d0',
                         lineHeight: '1.4',
                       }}
-                      title={entry.weather ? `${entry.weather} (Tự động cập nhật theo Dashboard)` : '30°C (Tự động cập nhật theo Dashboard)'}
+                      title={entry.weather ? `${entry.weather} (Đồng bộ theo Dashboard)` : 'Thời tiết đồng bộ theo Dashboard'}
                     >
-                      <span style={{ fontSize: '11px' }}>🌤️</span>
+                      <span style={{ fontSize: '11px' }}>{getWeatherIcon(entry.weather)}</span>
                       <span>{getShortWeatherDisplay(entry.weather)}</span>
                     </div>
                   </td>

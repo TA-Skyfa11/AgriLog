@@ -15,15 +15,18 @@ export const getCurrentWeatherText = async (city = 'Hanoi'): Promise<string> => 
   try {
     const API_KEY = process.env.OPENWEATHERMAP_API_KEY;
     if (!API_KEY) return '30°C, Quang đãng';
-    const res = await fetch('https://api.openweathermap.org/data/2.5/weather?q=' + encodeURIComponent(city) + '&appid=' + API_KEY + '&units=metric&lang=vi');
-    if (!res.ok) return '30°C, Quang đãng';
+    let res = await fetch('https://api.openweathermap.org/data/2.5/weather?q=' + encodeURIComponent(city) + '&appid=' + API_KEY + '&units=metric&lang=vi');
+    if (!res.ok && city !== 'Hanoi') {
+      res = await fetch('https://api.openweathermap.org/data/2.5/weather?q=Hanoi&appid=' + API_KEY + '&units=metric&lang=vi');
+    }
+    if (!res.ok) return '27°C, Mây rải rác';
     const data: any = await res.json();
-    const temp = Math.round(data.main?.temp || 30);
-    const desc = data.weather?.[0]?.description || 'Quang đãng';
+    const temp = Math.round(data.main?.temp || 27);
+    const desc = data.weather?.[0]?.description || 'Mây rải rác';
     const text = formatCompactWeather(temp, desc);
     cachedWeather = { text, time: Date.now() };
     return text;
   } catch (err) {
-    return '30°C, Quang đãng';
+    return '27°C, Mây rải rác';
   }
 };

@@ -25,19 +25,19 @@ export const syncDiaryBoards = async (
     if (sourceType !== 'CULTIVATION') {
       const existing = await CultivationBoard.findOne({ farmProfile: data.farmProfile, groupId: data.groupId });
       if (!existing) {
-        await CultivationBoard.create(data);
+        await CultivationBoard.create({ ...data, hasInitializedEntries: true });
       }
     }
     if (sourceType !== 'FERTILIZER') {
       const existing = await FertilizerBoard.findOne({ farmProfile: data.farmProfile, groupId: data.groupId });
       if (!existing) {
-        await FertilizerBoard.create(data);
+        await FertilizerBoard.create({ ...data, hasInitializedEntries: true });
       }
     }
     if (sourceType !== 'PESTICIDE') {
       const existing = await PesticideBoard.findOne({ farmProfile: data.farmProfile, groupId: data.groupId });
       if (!existing) {
-        await PesticideBoard.create(data);
+        await PesticideBoard.create({ ...data, hasInitializedEntries: true });
       }
     }
   } catch (error) {

@@ -144,7 +144,6 @@ export default function ReportsPage() {
         'Cây trồng': row.cropType,
         'Tên thuốc BVTV': row.materialName,
         'Nhà sản xuất': row.manufacturer,
-        'Hoạt chất': row.activeIngredient,
         'Đối tượng sâu bệnh': row.targetPest,
         'Liều lượng': row.quantity,
         'Cách ly PHI (ngày)': row.phiDays,
@@ -161,7 +160,6 @@ export default function ReportsPage() {
         'Tên vật tư': row.name,
         'Phân loại': row.typeLabel,
         'Nhà sản xuất': row.manufacturer,
-        'Hoạt chất': row.activeIngredient,
         'Tồn kho hiện tại': `${row.quantity} ${row.unit}`,
         'Đã dùng trong tháng': row.usedInMonth,
         'Ngưỡng cảnh báo': `${row.minQuantityAlert} ${row.unit}`,
@@ -250,18 +248,6 @@ export default function ReportsPage() {
           </div>
           <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
             Nhân lực tham gia trực tiếp
-          </div>
-        </div>
-
-        <div style={{ padding: '1.25rem', backgroundColor: 'var(--color-surface)', borderRadius: '14px', border: '1px solid var(--color-border)' }}>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <DollarSign size={16} color="#2563eb" /> Tổng chi phí phát sinh
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#2563eb' }}>
-            {(summary.totalCost || 0).toLocaleString('vi-VN')} <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#64748b' }}>đ</span>
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
-            Phân: {(summary.totalFertilizerCost || 0).toLocaleString('vi-VN')}đ • Thuốc: {(summary.totalPesticideCost || 0).toLocaleString('vi-VN')}đ
           </div>
         </div>
 
@@ -538,7 +524,7 @@ export default function ReportsPage() {
                     <tr>
                       <th>STT</th>
                       <th>Tên thuốc BVTV</th>
-                      <th>Hoạt chất</th>
+                      <th>Nhà sản xuất</th>
                       <th>Đối tượng phòng trừ</th>
                       <th style={{ textAlign: 'center' }}>Số lần phun</th>
                       <th style={{ textAlign: 'center' }}>Tổng lượng dùng</th>
@@ -554,7 +540,7 @@ export default function ReportsPage() {
                       <tr key={idx}>
                         <td style={{ textAlign: 'center', fontWeight: 600 }}>{idx + 1}</td>
                         <td style={{ fontWeight: 600 }}>{row.name}</td>
-                        <td>{row.activeIngredient}</td>
+                        <td>{row.manufacturer || '—'}</td>
                         <td><span className={styles.badge} style={{ backgroundColor: '#eff6ff', color: '#1d4ed8' }}>{row.targetPest}</span></td>
                         <td style={{ textAlign: 'center' }}>{row.timesUsed} lần</td>
                         <td style={{ textAlign: 'center', color: '#ef4444', fontWeight: 700 }}>{row.totalQuantity}</td>
@@ -576,7 +562,6 @@ export default function ReportsPage() {
                       <th>Bảng / Cây trồng</th>
                       <th>Tên thuốc BVTV</th>
                       <th>Nhà sản xuất</th>
-                      <th>Hoạt chất</th>
                       <th>Đối tượng sâu bệnh</th>
                       <th style={{ textAlign: 'center' }}>Liều lượng</th>
                       <th style={{ textAlign: 'center' }}>Cách ly PHI</th>
@@ -587,7 +572,7 @@ export default function ReportsPage() {
                   </thead>
                   <tbody>
                     {pesticideDetails.length === 0 ? (
-                      <tr><td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Chưa có chi tiết phun thuốc trong tháng này</td></tr>
+                      <tr><td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Chưa có chi tiết phun thuốc trong tháng này</td></tr>
                     ) : pesticideDetails.map((entry: any, idx: number) => (
                       <tr key={idx}>
                         <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{entry.date ? format(new Date(entry.date), 'dd/MM/yyyy') : '—'}</td>
@@ -597,7 +582,6 @@ export default function ReportsPage() {
                         </td>
                         <td style={{ fontWeight: 600 }}>{entry.materialName}</td>
                         <td>{entry.manufacturer}</td>
-                        <td>{entry.activeIngredient}</td>
                         <td><span className={styles.badge} style={{ backgroundColor: '#eff6ff', color: '#1d4ed8' }}>{entry.targetPest}</span></td>
                         <td style={{ textAlign: 'center', fontWeight: 700, color: '#ef4444' }}>{entry.quantity}</td>
                         <td style={{ textAlign: 'center', fontWeight: 600, color: '#ea580c' }}>{entry.phiDays} ngày</td>
@@ -629,7 +613,6 @@ export default function ReportsPage() {
                     <th>Tên vật tư</th>
                     <th>Phân loại</th>
                     <th>Nhà sản xuất</th>
-                    <th>Hoạt chất</th>
                     <th style={{ textAlign: 'center' }}>Tồn kho hiện tại</th>
                     <th style={{ textAlign: 'center' }}>Đã dùng trong tháng</th>
                     <th style={{ textAlign: 'center' }}>Ngưỡng cảnh báo</th>
@@ -639,7 +622,7 @@ export default function ReportsPage() {
                 </thead>
                 <tbody>
                   {inventoryReport.length === 0 ? (
-                    <tr><td colSpan={10} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Chưa có vật tư nào được lưu trong kho</td></tr>
+                    <tr><td colSpan={9} style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Chưa có vật tư nào được lưu trong kho</td></tr>
                   ) : inventoryReport.map((mat: any, idx: number) => (
                     <tr key={idx}>
                       <td style={{ textAlign: 'center', fontWeight: 600 }}>{idx + 1}</td>
@@ -650,7 +633,6 @@ export default function ReportsPage() {
                         </span>
                       </td>
                       <td>{mat.manufacturer}</td>
-                      <td>{mat.activeIngredient}</td>
                       <td style={{ textAlign: 'center', fontWeight: 700, fontSize: '0.95rem' }}>
                         {mat.quantity} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#64748b' }}>{mat.unit}</span>
                       </td>

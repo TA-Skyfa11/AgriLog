@@ -1,14 +1,22 @@
 'use client';
 /* eslint-disable react-hooks/set-state-in-effect */
 
+const getWeatherIcon = (weather: string = '') => {
+  const w = (weather || '').toLowerCase();
+  if (w.includes('mưa') || w.includes('dông') || w.includes('bão')) return '🌧️';
+  if (w.includes('quang') || w.includes('nắng')) return '☀️';
+  if (w.includes('rải rác') || w.includes('nhiều mây') || w.includes('mây')) return '⛅';
+  return '🌤️';
+};
+
 const formatCompactWeather = (temp: any, desc?: any) => {
-  if (!temp && !desc) return '30°C';
-  const cleanTemp = typeof temp === 'string' ? temp.replace('°', '').replace('C', '').replace('Â', '').trim() : temp;
-  return cleanTemp ? `${cleanTemp}°C` : (desc || '30°C');
+  const cleanTemp = temp !== undefined && temp !== null ? String(temp).replace(/[°CÂ\s]/g, '') : '27';
+  const cleanDesc = desc ? String(desc).replace(/^Bầu trời\s+/i, '') : 'Mây rải rác';
+  return `${cleanTemp || '27'}°C, ${cleanDesc}`;
 };
 
 const getShortWeatherDisplay = (weather: string | undefined | null) => {
-  if (!weather) return '30°C';
+  if (!weather) return '27°C';
   const tempMatch = weather.match(/\d+°C|\d+°/);
   if (tempMatch) {
     return tempMatch[0].includes('C') ? tempMatch[0] : `${tempMatch[0]}C`;
@@ -26,7 +34,7 @@ const isEntryToday = (dateVal: any) => {
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
 };
 
-import { exportUnifiedDiaryExcel, exportUnifiedDiaryPDF } from '@/lib/diaryExport';
+import { exportSingleDiaryExcel, exportSingleDiaryPDF } from '@/lib/diaryExport';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { fetchAPI, getApiUrl } from '@/lib/api';
@@ -138,9 +146,9 @@ export default function CultivationDiaryDetailPage() {
         fetchAPI('/farm/profile'),
       ]);
 
-      const currentWeatherData = weatherRes?.success && weatherRes?.data
-        ? formatCompactWeather(weatherRes.data.temp, weatherRes.data.desc)
-        : '30°C, Quang đãng';
+      const liveTemp = weatherRes?.success && weatherRes?.data?.temp ? weatherRes.data.temp : '27';
+      const liveDesc = weatherRes?.success && weatherRes?.data?.desc ? weatherRes.data.desc : 'Mây rải rác';
+      const currentWeatherData = formatCompactWeather(liveTemp, liveDesc);
 
       if (boardRes.success) {
         setBoard(boardRes.data);
@@ -155,10 +163,13 @@ export default function CultivationDiaryDetailPage() {
       }
       if (entriesRes.success) {
         const sorted = (entriesRes.data || []).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        const autoWeatherEntries = sorted.map((entry: any) => ({
-          ...entry,
-          weather: (isEntryToday(entry.date) || !entry.activityName || !entry.weather) ? currentWeatherData : (entry.weather.includes('Bầu trời quang đãng') ? entry.weather.replace('Bầu trời quang đãng', 'Quang đãng') : entry.weather),
-        }));
+        const autoWeatherEntries = sorted.map((entry: any) => {
+          const isStale = !entry.weather || entry.weather.includes('30°C') || entry.weather.includes('30°');
+          return {
+            ...entry,
+            weather: (isEntryToday(entry.date) || isStale || !entry.activityName) ? currentWeatherData : (entry.weather.includes('Bầu trời quang đãng') ? entry.weather.replace('Bầu trời quang đãng', 'Quang đãng') : entry.weather),
+          };
+        });
         setEntries(autoWeatherEntries);
         // Auto-register any custom performers in existing entries
         autoWeatherEntries.forEach((e: any) => {
@@ -346,23 +357,39 @@ export default function CultivationDiaryDetailPage() {
     try {
       const res = await fetchAPI('/weather');
       if (res.success && res.data) {
-        return `${res.data.temp}°C, ${res.data.desc}`;
+        return formatCompactWeather(res.data.temp, res.data.desc);
       }
     } catch (e) {
       console.error(e);
     }
-    return '';
+    return '27°C, Mây rải rác';
   };
 
   const handleAddNewRow = async () => {
     const weather = await fetchWeather();
-    const today = new Date().toISOString();
+    
+    let nextDateStr = new Date().toISOString();
+    if (entries && entries.length > 0) {
+      const lastEntry = entries[entries.length - 1];
+      if (lastEntry && lastEntry.date) {
+        const lastDate = new Date(lastEntry.date);
+        if (!isNaN(lastDate.getTime())) {
+          lastDate.setDate(lastDate.getDate() + 1);
+          nextDateStr = lastDate.toISOString();
+        }
+      }
+    } else if (board?.startDate) {
+      const bDate = new Date(board.startDate);
+      if (!isNaN(bDate.getTime())) {
+        nextDateStr = bDate.toISOString();
+      }
+    }
 
     try {
       const res = await fetchAPI(`/cultivation-boards/${boardId}/entries`, {
         method: 'POST',
         body: JSON.stringify({
-          date: today,
+          date: nextDateStr,
           stage: '',
           activityName: '',
           weather: weather,
@@ -581,11 +608,11 @@ export default function CultivationDiaryDetailPage() {
   };
 
   const exportToExcel = () => {
-    exportUnifiedDiaryExcel(boardId, board?.name, allowExport);
+    exportSingleDiaryExcel('cultivation', boardId, board?.name, allowExport);
   };
 
   const exportToPDF = () => {
-    exportUnifiedDiaryPDF(boardId, board?.name, userPlan);
+    exportSingleDiaryPDF('cultivation', boardId, board?.name, userPlan);
   };
 
   if (loading) {
@@ -767,9 +794,9 @@ export default function CultivationDiaryDetailPage() {
                         border: '1px solid #bbf7d0',
                         lineHeight: '1.4',
                       }}
-                      title={entry.weather ? `${entry.weather} (Tự động cập nhật theo Dashboard)` : '30°C (Tự động cập nhật theo Dashboard)'}
+                      title={entry.weather ? `${entry.weather} (Đồng bộ theo Dashboard)` : 'Thời tiết đồng bộ theo Dashboard'}
                     >
-                      <span style={{ fontSize: '11px' }}>🌤️</span>
+                      <span style={{ fontSize: '11px' }}>{getWeatherIcon(entry.weather)}</span>
                       <span>{getShortWeatherDisplay(entry.weather)}</span>
                     </div>
                   </td>
