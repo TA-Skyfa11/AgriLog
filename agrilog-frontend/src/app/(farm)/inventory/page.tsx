@@ -598,14 +598,14 @@ export default function InventoryPage() {
                 <input type="text" name="name" className={styles.input} required value={formData.name} onChange={handleInputChange} placeholder="VD: Phân Ure, Thuốc trừ sâu..." />
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <div className={styles.formGroup} style={{ flex: 1 }}>
+              <div className={styles.quantityRow}>
+                <div className={styles.formGroup} style={{ marginBottom: 0 }}>
                   <label className={styles.label}>
                     Số lượng nhập <span style={{ color: '#ef4444' }}>*</span>
                   </label>
                   <input type="number" name="quantity" className={styles.input} required value={formData.quantity} onChange={handleInputChange} placeholder="0" min="0.01" step="any" />
                 </div>
-                <div className={styles.formGroup} style={{ width: '130px' }}>
+                <div className={styles.formGroup} style={{ marginBottom: 0 }}>
                   <label className={styles.label}>
                     Đơn vị <span style={{ color: '#ef4444' }}>*</span>
                   </label>

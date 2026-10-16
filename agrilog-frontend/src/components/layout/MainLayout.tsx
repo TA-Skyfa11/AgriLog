@@ -42,8 +42,39 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   const [showCart, setShowCart] = React.useState(false);
   const [time, setTime] = React.useState(new Date());
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [farmProfile, setFarmProfile] = React.useState<any>(null);
   const [showTrialModal, setShowTrialModal] = React.useState(false);
+
+  const notificationRef = React.useRef<HTMLDivElement>(null);
+  const cartRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    setIsMobileMenuOpen(false);
+    setShowNotifications(false);
+    setShowCart(false);
+  }, [pathname]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      if (showNotifications && notificationRef.current && !notificationRef.current.contains(target)) {
+        setShowNotifications(false);
+      }
+      if (showCart && cartRef.current && !cartRef.current.contains(target)) {
+        setShowCart(false);
+      }
+    };
+
+    if (showNotifications || showCart) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showNotifications, showCart]);
 
   React.useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000);
@@ -186,14 +217,38 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  const handleLogout = () => {
-    logoutOneSignal();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    clearCart();
-    router.push('/');
+  const handleLogout = async () => {
+    try {
+      await logoutOneSignal().catch(() => {});
+    } catch (e) {
+      console.warn('OneSignal logout failed:', e);
+    }
+
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('userPlan');
+      localStorage.removeItem('toastedIds');
+      localStorage.removeItem('has_fetched_notifications');
+      sessionStorage.clear();
+      clearCart();
+    } catch (e) {
+      console.warn('Storage cleanup failed:', e);
+    }
+
+    try {
+      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0;';
+      document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0;';
+      if (typeof window !== 'undefined' && window.location.hostname) {
+        document.cookie = `token=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0;`;
+        document.cookie = `role=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0;`;
+      }
+    } catch (e) {
+      console.warn('Cookie cleanup failed:', e);
+    }
+
+    // Force hard redirect to purge all in-memory React and router state
+    window.location.href = '/';
   };
 
   interface NavLinkItem {
@@ -235,6 +290,35 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
   // Lọc chỉ hiển thị các liên kết thuộc tính năng đang BẬT
   const links = rawLinks.filter(link => !link.featureKey || isFeatureEnabled(link.featureKey));
 
+  // Danh sách tab cho thanh điều hướng dưới đáy (Mobile Bottom Navigation)
+  const bottomNavTabs = React.useMemo(() => {
+    if (role === 'FARM') {
+      return [
+        { label: 'Trang chủ', href: '/dashboard', icon: <Home size={20} /> },
+        { label: 'Nhật ký', href: '/diary', icon: <Leaf size={20} /> },
+        { label: 'Công việc', href: '/tasks', icon: <Calendar size={20} /> },
+        { label: 'Kho vật tư', href: '/inventory', icon: <Package size={20} /> },
+        { label: 'Menu', isAction: true, onClick: () => setIsMobileMenuOpen(prev => !prev), icon: <Menu size={20} /> },
+      ];
+    }
+    if (role === 'ADMIN') {
+      return [
+        { label: 'Tổng quan', href: '/admin/dashboard', icon: <Home size={20} /> },
+        { label: 'Người dùng', href: '/admin/users', icon: <User size={20} /> },
+        { label: 'Chợ vật tư', href: '/admin/marketplace', icon: <ShoppingBag size={20} /> },
+        { label: 'Đơn hàng', href: '/admin/orders', icon: <ShoppingCart size={20} /> },
+        { label: 'Menu', isAction: true, onClick: () => setIsMobileMenuOpen(prev => !prev), icon: <Menu size={20} /> },
+      ];
+    }
+    return [
+      { label: 'Dashboard', href: '/company/dashboard', icon: <Home size={20} /> },
+      { label: 'Sản phẩm', href: '/company/products', icon: <PackagePlus size={20} /> },
+      { label: 'Đơn hàng', href: '/company/orders', icon: <ClipboardList size={20} /> },
+      { label: 'Cài đặt', href: '/company/settings', icon: <Settings size={20} /> },
+      { label: 'Menu', isAction: true, onClick: () => setIsMobileMenuOpen(prev => !prev), icon: <Menu size={20} /> },
+    ];
+  }, [role]);
+
   // Kiểm tra nếu route hiện tại đang truy cập thuộc tính năng bị tắt bởi Admin
   const isCurrentRouteDisabled = role !== 'ADMIN' && (disabledPaths || []).some(dp => {
     if (!dp) return false;
@@ -243,20 +327,55 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
 
   return (
     <div className={styles.layout}>
-      <aside className={`${styles.sidebar} ${isSidebarCollapsed ? styles.collapsed : ''}`}>
-        <div className={styles.brand} style={{ justifyContent: isSidebarCollapsed ? 'center' : 'space-between', padding: isSidebarCollapsed ? '0' : '0 1.5rem' }}>
+      {/* Mobile Drawer Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className={styles.backdrop} 
+          onClick={() => setIsMobileMenuOpen(false)} 
+          aria-label="Đóng menu trượt"
+        />
+      )}
+
+      {/* Mobile-only backdrop for open notifications or cart sheet */}
+      {(showNotifications || showCart) && (
+        <div 
+          className={styles.mobileSheetBackdrop} 
+          onClick={() => {
+            setShowNotifications(false);
+            setShowCart(false);
+          }} 
+          aria-label="Đóng bảng chi tiết"
+        />
+      )}
+
+      <aside className={`${styles.sidebar} ${isSidebarCollapsed ? styles.collapsed : ''} ${isMobileMenuOpen ? styles.mobileOpen : ''}`}>
+        <div className={styles.brand} style={{ justifyContent: isSidebarCollapsed ? 'center' : 'space-between', padding: isSidebarCollapsed ? '0' : '0 1.25rem' }}>
           {!isSidebarCollapsed && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div className={styles.brandIcon} style={{ background: 'transparent', width: 'auto', height: 'auto' }}><Image src={logoImg} alt="AgriLog Logo" width={48} height={48} priority style={{ objectFit: 'contain' }} /></div>
-              <span style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--color-primary-800, #166534)' }}>AgriLog {role === 'ADMIN' ? 'Admin' : ''}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <div className={styles.brandIcon} style={{ background: 'transparent', width: 'auto', height: 'auto' }}>
+                <Image src={logoImg} alt="AgriLog Logo" width={42} height={42} priority style={{ objectFit: 'contain' }} />
+              </div>
+              <span style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-primary-800, #166534)' }}>
+                AgriLog {role === 'ADMIN' ? 'Admin' : ''}
+              </span>
             </div>
           )}
-          <button 
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', padding: isSidebarCollapsed ? '1rem' : '0' }}
-          >
-             {isSidebarCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <button 
+              className={styles.drawerCloseBtn} 
+              onClick={() => setIsMobileMenuOpen(false)} 
+              aria-label="Đóng menu trượt"
+            >
+              <X size={22} />
+            </button>
+            <button 
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', padding: isSidebarCollapsed ? '1rem' : '0.25rem' }}
+              aria-label="Thu gọn thanh điều hướng"
+            >
+               {isSidebarCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
+            </button>
+          </div>
         </div>
         <nav className={styles.nav}>
           {links.map((link) => {
@@ -268,6 +387,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
               <Link
                 key={link.href}
                 href={link.href}
+                onClick={() => setIsMobileMenuOpen(false)}
                 className={`${styles.navItem} ${isActive ? styles.active : ''}`}
                 style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', padding: isSidebarCollapsed ? '0.75rem 0' : '0.75rem 1.25rem' }}
                 title={isSidebarCollapsed ? link.label : ''}
@@ -278,7 +398,16 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
             );
           })}
         </nav>
-        <div className={styles.userProfileBottom} style={{ justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', padding: isSidebarCollapsed ? '1.25rem 0' : '1.25rem 1rem' }}>
+        <div 
+          className={styles.userProfileBottom} 
+          style={{ 
+            justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', 
+            padding: isSidebarCollapsed ? '1rem 0' : '1.25rem 1rem',
+            flexDirection: isSidebarCollapsed ? 'column' : 'row',
+            gap: isSidebarCollapsed ? '0.625rem' : '0.75rem',
+            alignItems: 'center'
+          }}
+        >
           <div className={styles.avatar}>{userInitials}</div>
           {!isSidebarCollapsed && (
             <div className={styles.userInfoText}>
@@ -286,16 +415,35 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
               <div className={styles.userRole}>{role === 'FARM' ? 'Quản lý nông trại' : role === 'ADMIN' ? 'Admin' : 'Doanh nghiệp'}</div>
             </div>
           )}
-          {!isSidebarCollapsed && (
-            <button className={styles.logoutBtn} title={t('logout')} onClick={handleLogout}>
-              <LogOut size={20} />
-            </button>
-          )}
+          <button 
+            className={styles.logoutBtn} 
+            title={t('logout')} 
+            onClick={handleLogout} 
+            aria-label={t('logout')}
+            style={isSidebarCollapsed ? { width: '38px', height: '38px', marginTop: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center' } : undefined}
+          >
+            <LogOut size={20} />
+          </button>
         </div>
       </aside>
       
       <main className={`${styles.main} ${isSidebarCollapsed ? styles.collapsed : ''}`}>
         <header className={styles.header}>
+          {/* Mobile Header Left with Hamburger and Logo */}
+          <div className={styles.mobileHeaderLeft}>
+            <button 
+              className={styles.mobileMenuBtn} 
+              onClick={() => setIsMobileMenuOpen(true)}
+              aria-label="Mở thanh điều hướng"
+            >
+              <Menu size={24} />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Image src={logoImg} alt="AgriLog Logo" width={32} height={32} priority style={{ objectFit: 'contain' }} />
+              <span className={styles.mobileHeaderBrand}>AgriLog</span>
+            </div>
+          </div>
+
           <div className={styles.searchBar} style={{ visibility: 'hidden' }}>
             <Search size={20} color="#9ca3af" />
             <input type="text" placeholder="Tìm kiếm..." className={styles.searchInput} />
@@ -309,8 +457,14 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
               </div>
             </div>
             
-
-            <div className={styles.headerAvatar}>{userInitials}</div>
+            <div 
+              className={styles.headerAvatar} 
+              title={`${userName} (${role}) - Nhấn để đăng xuất`}
+              onClick={handleLogout}
+              style={{ cursor: 'pointer' }}
+            >
+              {userInitials}
+            </div>
           </div>
         </header>
         {/* Banner hết hạn gói cước */}
@@ -489,6 +643,46 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
           )}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className={styles.bottomNav} aria-label="Thanh điều hướng dưới">
+        {bottomNavTabs.map((tab) => {
+          const isActive = tab.isAction ? isMobileMenuOpen : (
+            tab.href === '/diary'
+              ? pathname === '/diary' || pathname.startsWith('/diary/board')
+              : pathname === tab.href || pathname.startsWith(tab.href + '/')
+          );
+
+          if (tab.isAction) {
+            return (
+              <button
+                key={tab.label}
+                type="button"
+                className={`${styles.bottomNavItem} ${isActive ? styles.active : ''}`}
+                onClick={tab.onClick}
+                aria-label={tab.label}
+              >
+                {isActive && <div className={styles.bottomNavActivePill} />}
+                <div className={styles.bottomNavIconWrapper}>{tab.icon}</div>
+                <span>{tab.label}</span>
+              </button>
+            );
+          }
+
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href!}
+              className={`${styles.bottomNavItem} ${isActive ? styles.active : ''}`}
+            >
+              {isActive && <div className={styles.bottomNavActivePill} />}
+              <div className={styles.bottomNavIconWrapper}>{tab.icon}</div>
+              <span>{tab.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
       <SelectTrialModal
         isOpen={showTrialModal}
         onClose={() => setShowTrialModal(false)}

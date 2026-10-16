@@ -170,6 +170,7 @@ export default function CustomSelect({
           display: 'flex',
           alignItems: 'center',
           width: '100%',
+          minWidth: '120px',
           minHeight: '32px',
           padding: '5px 26px 5px 8px',
           border: '1px solid',
@@ -178,15 +179,14 @@ export default function CustomSelect({
           cursor: 'pointer',
           fontSize: '0.875rem',
           lineHeight: '1.4',
-          whiteSpace: 'normal',
-          wordBreak: 'break-word',
+          whiteSpace: 'nowrap',
           position: 'relative',
           borderColor: isOpen ? '#3b82f6' : '#e5e7eb',
           boxShadow: isOpen ? '0 0 0 2px rgba(59,130,246,0.15)' : 'none',
           transition: 'border-color 0.15s, box-shadow 0.15s',
         }}
       >
-        <span style={{ color: (selectedOption || (value && value !== '—' && value !== 'Chưa đặt tên')) ? '#111827' : '#9ca3af', flex: 1, wordBreak: 'break-word' }}>
+        <span style={{ color: (selectedOption || (value && value !== '—' && value !== 'Chưa đặt tên')) ? '#111827' : '#9ca3af', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {selectedOption ? selectedOption.label : (value && value !== '—' && value !== 'Chưa đặt tên' ? value : placeholder)}
         </span>
         <ChevronDown

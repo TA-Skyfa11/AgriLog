@@ -29,9 +29,9 @@ const getShortWeatherDisplay = (weather: string | undefined | null) => {
 
 const isEntryToday = (dateVal: any) => {
   if (!dateVal) return true;
-  const d = new Date(dateVal);
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const dateStr = typeof dateVal === 'string' ? dateVal.split('T')[0] : new Date(dateVal).toLocaleDateString('en-CA');
+  return dateStr === todayStr;
 };
 
 import { exportSingleDiaryExcel, exportSingleDiaryPDF } from '@/lib/diaryExport';
@@ -74,6 +74,9 @@ const AutoResizeTextarea = (props: any) => {
         if (props.onInput) props.onInput(e);
       }}
       style={{
+        minWidth: '120px',
+        whiteSpace: 'normal',
+        wordBreak: 'normal',
         ...props.style,
         overflow: 'hidden',
         resize: 'none',
@@ -103,7 +106,9 @@ export default function PesticideDiaryDetailPage() {
 
   const inlineInputStyle: React.CSSProperties = {
     width: '100%',
-    minWidth: '0',
+    minWidth: '120px',
+    whiteSpace: 'normal',
+    wordBreak: 'normal',
     border: '1px solid #e5e7eb',
     background: '#f9fafb',
     padding: '6px 8px',
@@ -242,7 +247,7 @@ export default function PesticideDiaryDetailPage() {
           method: 'POST',
           body: JSON.stringify({
             ...payload,
-            date: payload.date ? new Date(payload.date).toISOString() : new Date().toISOString(),
+            date: payload.date || format(new Date(), 'yyyy-MM-dd'),
             quantity: payload.quantity || '',
             phiDays: Number(payload.phiDays) || 0,
             cost: Number(payload.cost) || 0,
@@ -514,7 +519,6 @@ export default function PesticideDiaryDetailPage() {
 
   const handleAddNewRow = async () => {
     const weather = await fetchWeather();
-    
     let nextDateStr = new Date().toISOString();
     if (entries && entries.length > 0) {
       const lastEntry = entries[entries.length - 1];
@@ -531,7 +535,6 @@ export default function PesticideDiaryDetailPage() {
         nextDateStr = bDate.toISOString();
       }
     }
-
     try {
       const res = await fetchAPI(`/pesticide-boards/${params.boardId}/entries`, {
         method: 'POST',
@@ -745,7 +748,7 @@ export default function PesticideDiaryDetailPage() {
               <th style={{ width: '80px', whiteSpace: 'nowrap', textAlign: 'center' }}>Thời tiết</th>
               <th style={{ minWidth: '140px' }}>Ghi chú</th>
               {board.customColumns?.map((col: string, idx: number) => (
-                <th key={idx}>
+                <th key={idx} style={{ width: '160px', minWidth: '160px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                     <span>{col}</span>
                     <div style={{ display: 'flex', gap: '4px' }}>
@@ -755,8 +758,8 @@ export default function PesticideDiaryDetailPage() {
                   </div>
                 </th>
               ))}
-              <th style={{ width: '90px', whiteSpace: 'nowrap', textAlign: 'center' }}>Hình ảnh</th>
-              <th className={styles.actionColumnHeader} style={{ width: '80px', textAlign: 'center' }}>Thao tác</th>
+              <th style={{ width: '90px', minWidth: '90px', whiteSpace: 'nowrap', textAlign: 'center' }}>Hình ảnh</th>
+              <th className={styles.actionColumnHeader} style={{ width: '80px', minWidth: '80px', textAlign: 'center' }}>Thao tác</th>
             </tr>
           </thead>
           <tbody>

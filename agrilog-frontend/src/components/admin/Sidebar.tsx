@@ -12,10 +12,21 @@ export function Sidebar() {
 
   const handleLogout = (e: React.MouseEvent) => {
     e.preventDefault();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('userPlan');
+      localStorage.removeItem('toastedIds');
+      sessionStorage.clear();
+    } catch (err) {}
+    try {
+      document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0;';
+      document.cookie = 'role=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0;';
+      if (typeof window !== 'undefined' && window.location.hostname) {
+        document.cookie = `token=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0;`;
+        document.cookie = `role=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:01 GMT; max-age=0;`;
+      }
+    } catch (err) {}
     window.location.href = '/';
   };
 

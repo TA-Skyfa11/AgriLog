@@ -25,6 +25,9 @@ const AutoResizeTextarea = (props: any) => {
         if (props.onInput) props.onInput(e);
       }}
       style={{
+        minWidth: '120px',
+        whiteSpace: 'normal',
+        wordBreak: 'normal',
         ...props.style,
         resize: 'none',
         overflow: 'hidden',

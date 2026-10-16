@@ -29,9 +29,9 @@ const getShortWeatherDisplay = (weather: string | undefined | null) => {
 
 const isEntryToday = (dateVal: any) => {
   if (!dateVal) return true;
-  const d = new Date(dateVal);
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const dateStr = typeof dateVal === 'string' ? dateVal.split('T')[0] : new Date(dateVal).toLocaleDateString('en-CA');
+  return dateStr === todayStr;
 };
 
 import { exportSingleDiaryExcel, exportSingleDiaryPDF } from '@/lib/diaryExport';
@@ -72,6 +72,9 @@ const AutoResizeTextarea = (props: any) => {
         if (props.onInput) props.onInput(e);
       }}
       style={{
+        minWidth: '120px',
+        whiteSpace: 'normal',
+        wordBreak: 'normal',
         ...props.style,
         resize: 'none',
         overflow: 'hidden'
@@ -107,8 +110,9 @@ export default function CultivationDiaryDetailPage() {
   // Define new inline input style
   const inlineInputStyle: React.CSSProperties = {
     width: '100%',
-        whiteSpace: 'pre-wrap',
-    wordWrap: 'break-word',
+    minWidth: '120px',
+    whiteSpace: 'normal',
+    wordBreak: 'normal',
     border: '1px solid #e5e7eb',
     background: '#f9fafb',
     padding: '6px 8px',
@@ -123,7 +127,7 @@ export default function CultivationDiaryDetailPage() {
 
   const [harvestData, setHarvestData] = useState({
     harvestYield: '',
-    harvestDate: new Date().toISOString().split('T')[0],
+    harvestDate: format(new Date(), 'yyyy-MM-dd'),
   });
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -243,7 +247,7 @@ export default function CultivationDiaryDetailPage() {
           method: 'POST',
           body: JSON.stringify({
             ...payload,
-            date: payload.date ? new Date(payload.date).toISOString() : new Date().toISOString(),
+            date: payload.date || format(new Date(), 'yyyy-MM-dd'),
           }),
         });
         if (res.success) {
@@ -367,7 +371,6 @@ export default function CultivationDiaryDetailPage() {
 
   const handleAddNewRow = async () => {
     const weather = await fetchWeather();
-    
     let nextDateStr = new Date().toISOString();
     if (entries && entries.length > 0) {
       const lastEntry = entries[entries.length - 1];
@@ -572,7 +575,7 @@ export default function CultivationDiaryDetailPage() {
         body: JSON.stringify({
           status: 'HARVESTED',
           harvestYield: Number(harvestData.harvestYield),
-          harvestDate: new Date(harvestData.harvestDate).toISOString(),
+          harvestDate: harvestData.harvestDate || format(new Date(), 'yyyy-MM-dd'),
         }),
       });
 
@@ -693,16 +696,16 @@ export default function CultivationDiaryDetailPage() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th style={{ width: '40px', textAlign: 'center' }}>#</th>
-              <th style={{ width: '130px' }}>Ngày</th>
-              <th style={{ width: '160px' }}>Giai đoạn sinh trưởng</th>
-              <th style={{ width: '160px' }}>Hoạt động canh tác</th>
-              <th style={{ width: '120px' }}>Người thực hiện</th>
-              <th style={{ width: '80px', whiteSpace: 'nowrap', textAlign: 'center' }}>Thời tiết</th>
+              <th style={{ width: '45px', minWidth: '45px', textAlign: 'center' }}>#</th>
+              <th style={{ width: '130px', minWidth: '130px' }}>Ngày</th>
+              <th style={{ width: '160px', minWidth: '160px' }}>Giai đoạn sinh trưởng</th>
+              <th style={{ width: '180px', minWidth: '180px' }}>Hoạt động canh tác</th>
+              <th style={{ width: '140px', minWidth: '140px' }}>Người thực hiện</th>
+              <th style={{ width: '80px', minWidth: '80px', whiteSpace: 'nowrap', textAlign: 'center' }}>Thời tiết</th>
               <th style={{ minWidth: '140px' }}>Ghi chú/Quan sát</th>
               {/* Dynamic columns inserted here */}
               {customCols.map((col: string) => (
-                <th key={col}>
+                <th key={col} style={{ width: '160px', minWidth: '160px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                     <span>{col}</span>
                     <div style={{ display: 'flex', gap: '4px' }}>
@@ -713,8 +716,8 @@ export default function CultivationDiaryDetailPage() {
                 </th>
               ))}
               {/* Attachment column always at the end */}
-              <th style={{ width: '90px', whiteSpace: 'nowrap', textAlign: 'center' }}>Hình ảnh</th>
-              <th className={styles.actionColumnHeader} style={{ width: '80px', textAlign: 'center' }}>Thao tác</th>
+              <th style={{ width: '90px', minWidth: '90px', whiteSpace: 'nowrap', textAlign: 'center' }}>Hình ảnh</th>
+              <th className={styles.actionColumnHeader} style={{ width: '80px', minWidth: '80px', textAlign: 'center' }}>Thao tác</th>
             </tr>
           </thead>
           <tbody>

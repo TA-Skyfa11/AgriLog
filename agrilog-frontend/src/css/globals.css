@@ -58,18 +58,25 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+  /* Mobile System Tokens */
+  --mobile-header-height: 56px;
+  --mobile-bottom-nav-height: 62px;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --touch-target-min: 44px;
 }
 
 * {
   box-sizing: border-box;
   padding: 0;
   margin: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html, body {
-  height: 100%;
+  min-height: 100%;
   width: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -89,6 +96,40 @@ a {
 button, input, select, textarea {
   font-family: inherit;
   color: inherit;
+}
+
+/* Touch friendly minimum tap target */
+button, a[role="button"] {
+  touch-action: manipulation;
+}
+
+/* Prevent auto-zooming on iOS when tapping inputs */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Responsive Table Wrapper */
+.responsiveTableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Visibility helpers */
+.mobileOnly {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .mobileOnly {
+    display: flex !important;
+  }
+  .desktopOnly {
+    display: none !important;
+  }
 }
 
 /* Custom Scrollbar */
