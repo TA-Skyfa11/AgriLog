@@ -24,11 +24,40 @@ const generateToken = (userId: string): string => {
 
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, role: requestedRole, name } = req.body;
+    let { phone, email, password, role: requestedRole, name } = req.body;
     
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({ success: false, message: 'Email này đã được đăng ký' });
+    // Normalize phone
+    const normalizedPhone = phone ? String(phone).replace(/[\s.-]/g, '') : '';
+    const cleanPhone = normalizedPhone.startsWith('+84')
+      ? '0' + normalizedPhone.slice(3)
+      : normalizedPhone.startsWith('84') && normalizedPhone.length === 11
+      ? '0' + normalizedPhone.slice(2)
+      : normalizedPhone;
+
+    if (!cleanPhone) {
+      return res.status(400).json({ success: false, message: 'Số điện thoại không được để trống' });
+    }
+
+    const phoneExists = await User.findOne({
+      $or: [
+        { phone: cleanPhone },
+        { phone: normalizedPhone },
+      ]
+    });
+    if (phoneExists) {
+      return res.status(400).json({ success: false, message: 'Số điện thoại này đã được đăng ký' });
+    }
+
+    // Normalize email if provided
+    const normalizedEmail = email && typeof email === 'string' && email.trim() !== ''
+      ? email.trim().toLowerCase()
+      : undefined;
+
+    if (normalizedEmail) {
+      const emailExists = await User.findOne({ email: normalizedEmail });
+      if (emailExists) {
+        return res.status(400).json({ success: false, message: 'Email này đã được đăng ký' });
+      }
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -40,7 +69,8 @@ export const register = async (req: Request, res: Response) => {
 
     const user = await User.create({
       name,
-      email,
+      phone: cleanPhone,
+      email: normalizedEmail,
       passwordHash,
       role: finalRole,
     });
@@ -48,10 +78,11 @@ export const register = async (req: Request, res: Response) => {
     // Create notification for admin
     const admin = await User.findOne({ role: Role.ADMIN });
     if (admin) {
+      const accountLabel = cleanPhone + (normalizedEmail ? ` (${normalizedEmail})` : '');
       await Notification.create({
         user: admin._id,
         title: 'Người dùng mới đăng ký',
-        message: `Tài khoản ${email} vừa đăng ký vào hệ thống.`,
+        message: `Tài khoản ${accountLabel} vừa đăng ký vào hệ thống.`,
         type: 'SYSTEM',
         referenceId: user._id.toString()
       });
@@ -70,6 +101,7 @@ export const register = async (req: Request, res: Response) => {
         id: user._id,
         _id: user._id,
         name: user.name,
+        phone: user.phone,
         email: user.email,
         role: user.role,
         allowDevPayment: user.allowDevPayment || false,
@@ -82,12 +114,37 @@ export const register = async (req: Request, res: Response) => {
 
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
-    const normalizedEmail = email?.trim().toLowerCase();
+    const { password } = req.body;
+    const rawIdentifier = String(req.body.identifier || req.body.email || req.body.phone || '').trim();
 
-    const user = await User.findOne({ email: normalizedEmail });
+    if (!rawIdentifier) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập email hoặc số điện thoại' });
+    }
+
+    let user = null;
+    if (rawIdentifier.includes('@')) {
+      const normalizedEmail = rawIdentifier.toLowerCase();
+      user = await User.findOne({ email: normalizedEmail });
+    } else {
+      const cleaned = rawIdentifier.replace(/[\s.-]/g, '');
+      const standardPhone = cleaned.startsWith('+84')
+        ? '0' + cleaned.slice(3)
+        : cleaned.startsWith('84') && cleaned.length === 11
+        ? '0' + cleaned.slice(2)
+        : cleaned;
+
+      user = await User.findOne({
+        $or: [
+          { phone: standardPhone },
+          { phone: cleaned },
+          { phone: rawIdentifier },
+          { email: rawIdentifier.toLowerCase() }
+        ]
+      });
+    }
+
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Sai email hoặc mật khẩu' });
+      return res.status(401).json({ success: false, message: 'Sai số điện thoại/email hoặc mật khẩu' });
     }
 
     // Check account lockout
@@ -108,7 +165,7 @@ export const login = async (req: Request, res: Response) => {
         user.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // lock for 15 minutes
       }
       await user.save();
-      return res.status(401).json({ success: false, message: 'Sai email hoặc mật khẩu' });
+      return res.status(401).json({ success: false, message: 'Sai số điện thoại/email hoặc mật khẩu' });
     }
 
     // Reset login attempts on success
@@ -140,6 +197,7 @@ export const login = async (req: Request, res: Response) => {
         id: user._id,
         _id: user._id,
         name: user.name,
+        phone: user.phone,
         email: user.email,
         role: user.role,
         allowDevPayment: user.allowDevPayment || false,
@@ -183,7 +241,9 @@ export const verifyMfa = async (req: Request, res: Response) => {
       token,
       user: {
         id: user._id,
+        _id: user._id,
         name: user.name,
+        phone: user.phone,
         email: user.email,
         role: user.role,
         allowDevPayment: user.allowDevPayment || false,
@@ -300,7 +360,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     const { email } = req.body;
     const user = await User.findOne({ email: email.trim().toLowerCase() });
     
-    if (!user) {
+    if (!user || !user.email) {
       return res.status(404).json({ success: false, message: 'Email chưa được đăng ký trong hệ thống' });
     }
 
@@ -543,6 +603,7 @@ export const googleAuth = async (req: Request, res: Response) => {
         id: user._id,
         _id: user._id,
         name: user.name,
+        phone: user.phone,
         email: user.email,
         role: user.role,
         avatar: user.avatar,

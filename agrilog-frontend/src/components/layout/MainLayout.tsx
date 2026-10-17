@@ -93,7 +93,13 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
           const user = JSON.parse(userStr);
           if (user) {
             if (user.role) currentRole = user.role;
-            if (user.email) {
+            if (user.name) {
+              fallbackName = user.name;
+              fallbackInitials = user.name.substring(0, 2).toUpperCase();
+            } else if (user.phone) {
+              fallbackName = user.phone;
+              fallbackInitials = 'ĐT';
+            } else if (user.email) {
               fallbackName = user.email.split('@')[0];
               fallbackInitials = fallbackName.substring(0, 2).toUpperCase();
             }

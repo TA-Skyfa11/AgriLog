@@ -110,6 +110,7 @@ export const initSupabaseSchema = async () => {
   // Commonly queried B-tree indexes for fast queries
   const indexes = [
     `CREATE INDEX IF NOT EXISTS idx_users_email ON users ((data->>'email'))`,
+    `CREATE INDEX IF NOT EXISTS idx_users_phone ON users ((data->>'phone'))`,
     `CREATE INDEX IF NOT EXISTS idx_users_role ON users ((data->>'role'))`,
     `CREATE INDEX IF NOT EXISTS idx_users_google_id ON users ((data->>'googleId'))`,
     `CREATE INDEX IF NOT EXISTS idx_farm_profiles_user ON farm_profiles ((data->>'user'))`,

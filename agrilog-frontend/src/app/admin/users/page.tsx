@@ -231,7 +231,7 @@ export default function UsersPage() {
               <th>STT</th>
               <th>Vai trò</th>
               <th>Tên / Thương hiệu</th>
-              <th>Email Đăng Ký</th>
+              <th>SĐT / Email Đăng Ký</th>
               <th>Ngày Đăng Ký</th>
               <th>Số lượng (Bảng/SP)</th>
               <th>Trạng Thái</th>
@@ -266,7 +266,20 @@ export default function UsersPage() {
                       <span className={styles.farmName}>{name || 'Chưa cập nhật'}</span>
                     </div>
                   </td>
-                  <td>{row.user.email}</td>
+                  <td>
+                    {row.user.phone ? (
+                      <div>
+                        <span style={{ fontWeight: 600 }}>{row.user.phone}</span>
+                        {row.user.email && (
+                          <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)', display: 'block' }}>
+                            {row.user.email}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      row.user.email || '—'
+                    )}
+                  </td>
                   <td>{new Date(row.user.createdAt).toLocaleDateString('vi-VN')}</td>
                   <td>{row.boardCount || 0}</td>
                   <td>
@@ -276,7 +289,7 @@ export default function UsersPage() {
                   </td>
                   <td>
                     <button
-                      onClick={() => handleToggleDevPayment(row.user._id, row.user.email, row.user.allowDevPayment || false)}
+                      onClick={() => handleToggleDevPayment(row.user._id, row.user.phone || row.user.email || 'Người dùng', row.user.allowDevPayment || false)}
                       style={{
                         padding: '0.35rem 0.65rem',
                         fontSize: '0.78rem',
@@ -325,7 +338,7 @@ export default function UsersPage() {
                       {row.user.isActive !== false ? 'Khóa' : 'Mở khóa'}
                     </button>
                     <button
-                      onClick={() => openResetModal(row.user._id, row.user.email, row.user.allowAdminReset || false)}
+                      onClick={() => openResetModal(row.user._id, row.user.phone || row.user.email || 'Người dùng', row.user.allowAdminReset || false)}
                       style={{
                         padding: '0.35rem 0.75rem', fontSize: '0.8rem', fontWeight: 500,
                         border: '1px solid var(--color-border)', borderRadius: '6px',
@@ -338,7 +351,7 @@ export default function UsersPage() {
                       <KeyRound size={14} /> Đặt lại MK
                     </button>
                     <button
-                      onClick={() => handleDeleteUser(row.user._id, row.user.email)}
+                      onClick={() => handleDeleteUser(row.user._id, row.user.phone || row.user.email || 'Người dùng')}
                       style={{
                         padding: '0.35rem 0.75rem', fontSize: '0.8rem', fontWeight: 500,
                         border: '1px solid var(--color-error)', borderRadius: '6px',

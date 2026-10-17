@@ -31,6 +31,7 @@ export default function RegisterPage() {
   
   // Account
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -89,6 +90,22 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
+    const cleanPhone = phone.replace(/[\s.-]/g, '');
+    if (!cleanPhone) {
+      setError('Vui lòng nhập số điện thoại');
+      return;
+    }
+
+    if (!/^(0|\+84)[0-9]{9}$/.test(cleanPhone)) {
+      setError('Số điện thoại không hợp lệ (gồm 10 chữ số, ví dụ: 0987654321)');
+      return;
+    }
+
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Email không đúng định dạng');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Mật khẩu xác nhận không khớp');
       return;
@@ -104,7 +121,13 @@ export default function RegisterPage() {
     try {
       const registerData = await fetchAPI('/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ name, email, password, role }),
+        body: JSON.stringify({
+          name,
+          phone: cleanPhone,
+          email: email.trim() || undefined,
+          password,
+          role
+        }),
       });
 
       if (registerData.success) {
@@ -117,6 +140,7 @@ export default function RegisterPage() {
         localStorage.removeItem('cart'); // Clear cart on new account
 
         // Now setup profile
+        const effectiveContactPhone = contactPhone.trim() || cleanPhone;
         if (role === 'FARM') {
           const profileData = await fetchAPI('/farm/profile', {
             method: 'PUT',
@@ -124,7 +148,7 @@ export default function RegisterPage() {
               farmName: profileName,
               address,
               areaSqm: areaSqm ? Number(areaSqm) : undefined,
-              contactPhone
+              contactPhone: effectiveContactPhone
             }),
           });
           if (profileData.success) {
@@ -140,7 +164,7 @@ export default function RegisterPage() {
             body: JSON.stringify({
               companyName: profileName,
               address,
-              contactPhone,
+              contactPhone: effectiveContactPhone,
               taxCode,
               businessType
             }),
@@ -542,8 +566,13 @@ export default function RegisterPage() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="email">Email <span style={{ color: 'red' }}>*</span></label>
-                  <input id="email" type="email" className={styles.input} placeholder="nhap@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                  <label className={styles.label} htmlFor="phone">Số điện thoại <span style={{ color: 'red' }}>*</span></label>
+                  <input id="phone" type="tel" className={styles.input} placeholder="0987654321" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="email">Email <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85em', fontWeight: 'normal' }}>(Tùy chọn)</span></label>
+                  <input id="email" type="email" className={styles.input} placeholder="nhap@email.com (không bắt buộc)" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
                 
                 <div className={styles.formGroup}>
@@ -565,8 +594,8 @@ export default function RegisterPage() {
                   </div>
 
                   <div className={styles.formGroup}>
-                    <label className={styles.label} htmlFor="contactPhone">Số điện thoại</label>
-                    <input id="contactPhone" type="tel" className={styles.input} placeholder="0987654321" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+                    <label className={styles.label} htmlFor="contactPhone">Số điện thoại liên hệ</label>
+                    <input id="contactPhone" type="tel" className={styles.input} placeholder={phone ? `Mặc định dùng ${phone}` : "0987654321"} value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
                   </div>
                   
                   <div className={styles.formGroup}>

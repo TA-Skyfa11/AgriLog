@@ -7,11 +7,24 @@ export const registerSchema = z.object({
     .trim()
     .min(2, 'Họ tên phải có ít nhất 2 ký tự')
     .max(100, 'Họ tên không được vượt quá 100 ký tự'),
+  phone: z
+    .string('Số điện thoại không được để trống')
+    .trim()
+    .min(1, 'Số điện thoại không được để trống')
+    .refine((val) => {
+      const cleaned = val.replace(/[\s.-]/g, '');
+      return /^(0|\+84)[0-9]{9}$/.test(cleaned);
+    }, {
+      message: 'Số điện thoại không hợp lệ (gồm 10 chữ số, ví dụ: 0987654321)',
+    }),
   email: z
-    .string('Email không được để trống')
+    .string()
     .trim()
     .toLowerCase()
-    .email('Email không đúng định dạng'),
+    .email('Email không đúng định dạng')
+    .optional()
+    .or(z.literal(''))
+    .nullable(),
   password: z
     .string('Mật khẩu không được để trống')
     .min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
@@ -23,16 +36,25 @@ export const registerSchema = z.object({
     .default(Role.FARM),
 });
 
-export const loginSchema = z.object({
-  email: z
-    .string('Email không được để trống')
-    .trim()
-    .toLowerCase()
-    .email('Email không đúng định dạng'),
-  password: z
-    .string('Mật khẩu không được để trống')
-    .min(1, 'Vui lòng nhập mật khẩu'),
-});
+export const loginSchema = z
+  .object({
+    identifier: z.string().trim().optional(),
+    email: z.string().trim().optional(),
+    phone: z.string().trim().optional(),
+    password: z
+      .string('Mật khẩu không được để trống')
+      .min(1, 'Vui lòng nhập mật khẩu'),
+  })
+  .refine(
+    (data) => {
+      const val = data.identifier || data.email || data.phone;
+      return typeof val === 'string' && val.trim().length > 0;
+    },
+    {
+      message: 'Vui lòng nhập email hoặc số điện thoại',
+      path: ['identifier'],
+    }
+  );
 
 export const verifyMfaSchema = z.object({
   email: z

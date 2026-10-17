@@ -8,7 +8,8 @@ export enum Role {
 
 export interface IUser extends Document {
   name: string;
-  email: string;
+  phone?: string;
+  email?: string;
   passwordHash?: string;
   role: Role;
   isActive: boolean;
@@ -30,7 +31,8 @@ export interface IUser extends Document {
 const userSchema = new Schema<IUser>(
   {
     name: { type: String, required: false, trim: true },
-    email: { type: String, required: true, unique: true, trim: true, lowercase: true },
+    phone: { type: String, required: false, trim: true },
+    email: { type: String, required: false, trim: true, lowercase: true },
     passwordHash: { type: String, required: false },
     role: { type: String, enum: Object.values(Role), default: Role.FARM },
     isActive: { type: Boolean, default: true },

@@ -10,7 +10,7 @@ import styles from '@/css/login.module.css';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -51,7 +51,7 @@ export default function LoginPage() {
     try {
       const data = await fetchAPI('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier: identifier.trim(), email: identifier.trim(), password }),
       });
 
       if (data.success) {
@@ -188,15 +188,16 @@ export default function LoginPage() {
 
           <form className={styles.form} onSubmit={handleSubmit}>
             <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="email">Email</label>
+              <label className={styles.label} htmlFor="identifier">Số điện thoại hoặc Email</label>
               <input
-                id="email"
-                type="email"
+                id="identifier"
+                type="text"
                 className={styles.input}
-                placeholder="nhap@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                placeholder="0987654321 hoặc nhap@email.com"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
+                autoComplete="username"
               />
             </div>
             
