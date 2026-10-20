@@ -88,7 +88,7 @@ export default function UsersPage() {
   const openResetModal = async (userId: string, email: string, allowAdminReset: boolean) => {
     setResetUserId(userId);
     setResetUserEmail(email);
-    setResetUserAllowed(allowAdminReset);
+    setResetUserAllowed(allowAdminReset !== false);
     setResetNewPassword('');
     setResetError('');
     setResetSuccess('');
@@ -338,7 +338,7 @@ export default function UsersPage() {
                       {row.user.isActive !== false ? 'Khóa' : 'Mở khóa'}
                     </button>
                     <button
-                      onClick={() => openResetModal(row.user._id, row.user.phone || row.user.email || 'Người dùng', row.user.allowAdminReset || false)}
+                      onClick={() => openResetModal(row.user._id, row.user.phone || row.user.email || 'Người dùng', row.user.allowAdminReset !== false)}
                       style={{
                         padding: '0.35rem 0.75rem', fontSize: '0.8rem', fontWeight: 500,
                         border: '1px solid var(--color-border)', borderRadius: '6px',
@@ -485,8 +485,8 @@ export default function UsersPage() {
 
             {!resetUserAllowed && (
               <div style={{ padding: '1rem', background: '#fef2f2', color: '#b91c1c', borderRadius: '6px', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
-                <strong>Lưu ý:</strong> Tài khoản này chưa bật tùy chọn <em>&quot;Cho phép Admin đặt lại mật khẩu&quot;</em> trong cài đặt bảo mật. 
-                Bạn không thể đặt lại mật khẩu trừ khi chủ tài khoản kích hoạt tính năng này.
+                <strong>Lưu ý:</strong> Tài khoản này đã tắt tùy chọn <em>&quot;Cho phép Admin đặt lại mật khẩu&quot;</em> trong cài đặt bảo mật. 
+                Bạn không thể đặt lại mật khẩu trừ khi chủ tài khoản kích hoạt lại tính năng này.
               </div>
             )}
 

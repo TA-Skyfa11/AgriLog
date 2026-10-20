@@ -45,6 +45,7 @@ async function runCrudTests() {
   });
   assert(userDoc._id === 'crud_test_user_01', 'Tạo tài khoản với ID tùy chỉnh thành công');
   assert(userDoc.isActive === true, 'Tự động áp dụng giá trị mặc định isActive: true từ Schema');
+  assert(userDoc.allowAdminReset === true, 'Tự động áp dụng giá trị mặc định allowAdminReset: true từ Schema');
   assert(userDoc.role === Role.FARM, 'Tự động áp dụng role mặc định là FARM');
   assert(userDoc.createdAt instanceof Date, 'Tự động sinh trường createdAt dạng Date object');
 

@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
-import { Lock, Eye, EyeOff, Save } from 'lucide-react';
+import { Lock, Eye, EyeOff, Save, Shield, Check } from 'lucide-react';
 
 export default function CompanySettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
@@ -21,18 +21,28 @@ export default function CompanySettingsPage() {
   const [showNew, setShowNew] = useState(false);
   const [changingPw, setChangingPw] = useState(false);
 
+  // Security
+  const [allowAdminReset, setAllowAdminReset] = useState(true);
+  const [togglingReset, setTogglingReset] = useState(false);
+
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetchAPI('/company/profile');
-        if (res.success && res.data) {
+        const [profileRes, meRes] = await Promise.all([
+          fetchAPI('/company/profile').catch(() => ({ success: false })),
+          fetchAPI('/auth/me').catch(() => ({ success: false })),
+        ]);
+        if (profileRes.success && profileRes.data) {
           setProfile({
-            companyName: res.data.companyName || '',
-            address: res.data.address || '',
-            contactPhone: res.data.contactPhone || '',
-            businessType: res.data.businessType || '',
-            taxCode: res.data.taxCode || '',
+            companyName: profileRes.data.companyName || '',
+            address: profileRes.data.address || '',
+            contactPhone: profileRes.data.contactPhone || '',
+            businessType: profileRes.data.businessType || '',
+            taxCode: profileRes.data.taxCode || '',
           });
+        }
+        if (meRes.success && meRes.data) {
+          setAllowAdminReset(meRes.data.allowAdminReset !== false);
         }
       } catch (e) {} finally { setLoading(false); }
     };
@@ -63,6 +73,24 @@ export default function CompanySettingsPage() {
     } finally { setChangingPw(false); setTimeout(() => setMessage({ type: '', text: '' }), 4000); }
   };
 
+  const handleToggleAdminReset = async () => {
+    setTogglingReset(true);
+    setMessage({ type: '', text: '' });
+    try {
+      const res = await fetchAPI('/auth/toggle-admin-reset', {
+        method: 'PUT',
+        body: JSON.stringify({ allow: !allowAdminReset }),
+      });
+      setAllowAdminReset(!allowAdminReset);
+      setMessage({ type: 'success', text: res.message || 'Cập nhật thành công' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Cập nhật thất bại' });
+    } finally {
+      setTogglingReset(false);
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    }
+  };
+
   const inputStyle = { width: '100%', padding: '0.75rem 1rem', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '0.9rem', backgroundColor: 'var(--color-surface)' };
   const labelStyle = { display: 'block' as const, marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text-main)' };
   const tabStyle = (t: string) => ({ padding: '0.75rem 1.25rem', borderRadius: '8px', cursor: 'pointer' as const, display: 'flex', alignItems: 'center' as const, gap: '0.5rem', fontSize: '0.9rem', fontWeight: activeTab === t ? 600 : 400, backgroundColor: activeTab === t ? 'var(--color-primary-50)' : 'transparent', color: activeTab === t ? 'var(--color-primary-700)' : 'var(--color-text-muted)', border: 'none' });
@@ -83,6 +111,7 @@ export default function CompanySettingsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <div style={tabStyle('profile')} onClick={() => setActiveTab('profile')}><Save size={18} /> Hồ sơ</div>
             <div style={tabStyle('password')} onClick={() => setActiveTab('password')}><Lock size={18} /> Mật khẩu</div>
+            <div style={tabStyle('security')} onClick={() => setActiveTab('security')}><Shield size={18} /> Bảo mật</div>
           </div>
         </Card>
 
@@ -102,6 +131,7 @@ export default function CompanySettingsPage() {
               </button>
             </form>
           )}
+
           {activeTab === 'password' && (
             <form onSubmit={handleChangePw} style={{ maxWidth: '480px', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Đổi mật khẩu</h2>
@@ -112,6 +142,79 @@ export default function CompanySettingsPage() {
                 {changingPw ? 'Đang đổi...' : 'Đổi mật khẩu'}
               </button>
             </form>
+          )}
+
+          {activeTab === 'security' && (
+            <div>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>Cài đặt bảo mật</h2>
+              <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+                Quản lý các tùy chọn bảo mật và quyền khôi phục tài khoản.
+              </p>
+
+              <div style={{
+                padding: '1.5rem',
+                backgroundColor: 'var(--color-surface)',
+                borderRadius: '8px',
+                border: '1px solid var(--color-border)',
+                maxWidth: '600px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, color: 'var(--color-text-main)', marginBottom: '0.5rem', fontSize: '0.95rem' }}>
+                      Cho phép Admin đặt lại mật khẩu
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+                      Khi bật (mặc định), Admin hệ thống có thể hỗ trợ đặt lại mật khẩu cho tài khoản doanh nghiệp khi bạn quên mật khẩu. 
+                      Nếu tắt, chỉ bạn mới có thể tự thay đổi mật khẩu của mình.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleToggleAdminReset}
+                    disabled={togglingReset}
+                    style={{
+                      flexShrink: 0,
+                      width: '52px',
+                      height: '28px',
+                      borderRadius: '14px',
+                      border: 'none',
+                      cursor: togglingReset ? 'not-allowed' : 'pointer',
+                      backgroundColor: allowAdminReset ? 'var(--color-primary-600)' : '#d1d5db',
+                      position: 'relative',
+                      transition: 'background-color 0.3s ease',
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute',
+                      top: '3px',
+                      left: allowAdminReset ? '26px' : '3px',
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '50%',
+                      backgroundColor: 'white',
+                      transition: 'left 0.3s ease',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                    }}></span>
+                  </button>
+                </div>
+                <div style={{
+                  marginTop: '1rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  backgroundColor: allowAdminReset ? '#f0fdf4' : '#fef3c7',
+                  color: allowAdminReset ? '#15803d' : '#92400e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  {allowAdminReset ? <Check size={14} /> : <Shield size={14} />}
+                  {allowAdminReset 
+                    ? 'Admin hiện có thể hỗ trợ đặt lại mật khẩu khi bạn quên.' 
+                    : 'Chỉ bạn mới có thể thay đổi mật khẩu của mình.'}
+                </div>
+              </div>
+            </div>
           )}
         </Card>
       </div>

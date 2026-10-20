@@ -149,6 +149,31 @@ export const initSupabaseSchema = async () => {
 
   // Execute all DDL statements in a single network roundtrip
   await sql.unsafe(statements.join(';\n'));
+
+  // Migration: Ensure allowAdminReset defaults to true for all existing users (new and existing accounts)
+  try {
+    const migrationCheck = await sql`SELECT 1 FROM public.system_features WHERE id = 'migration_allow_admin_reset_default_v1' LIMIT 1;`;
+    if (migrationCheck.length === 0) {
+      await sql.unsafe(`
+        UPDATE public.users
+        SET data = jsonb_set(COALESCE(data, '{}'::jsonb), '{allowAdminReset}', 'true'::jsonb, true);
+        INSERT INTO public.system_features (id, data, created_at, updated_at)
+        VALUES ('migration_allow_admin_reset_default_v1', '{"key":"migration_allow_admin_reset_default_v1","applied":true}'::jsonb, NOW(), NOW())
+        ON CONFLICT (id) DO NOTHING;
+      `);
+      console.log('✓ Migration: All existing accounts updated to allowAdminReset = true');
+    }
+
+    // Also ensure any rows where allowAdminReset is null/missing default to true
+    await sql.unsafe(`
+      UPDATE public.users
+      SET data = jsonb_set(COALESCE(data, '{}'::jsonb), '{allowAdminReset}', 'true'::jsonb, true)
+      WHERE data->>'allowAdminReset' IS NULL;
+    `);
+  } catch (migErr) {
+    console.warn('⚠️ [Migration Warning] Error migrating users allowAdminReset:', (migErr as Error).message);
+  }
+
   isSchemaInitialized = true;
 };
 

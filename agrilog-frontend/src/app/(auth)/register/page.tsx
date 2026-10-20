@@ -20,6 +20,9 @@ import {
   AlertTriangle,
   Gift,
   Sparkles,
+  Sprout,
+  Briefcase,
+  ArrowRight,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -86,7 +89,7 @@ export default function RegisterPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAccountSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -111,8 +114,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!profileName.trim()) {
-      setError(role === 'FARM' ? 'Vui lòng nhập Tên Nông Trại' : 'Vui lòng nhập Tên Doanh Nghiệp');
+    if (password.length < 6) {
+      setError('Mật khẩu phải có ít nhất 6 ký tự');
       return;
     }
 
@@ -122,7 +125,7 @@ export default function RegisterPage() {
       const registerData = await fetchAPI('/auth/register', {
         method: 'POST',
         body: JSON.stringify({
-          name,
+          name: name.trim(),
           phone: cleanPhone,
           email: email.trim() || undefined,
           password,
@@ -137,48 +140,130 @@ export default function RegisterPage() {
         localStorage.setItem('token', registerData.token);
         localStorage.setItem('user', JSON.stringify(registerData.user));
         setCurrentUser(registerData.user);
-        localStorage.removeItem('cart'); // Clear cart on new account
+        localStorage.removeItem('cart');
 
-        // Now setup profile
-        const effectiveContactPhone = contactPhone.trim() || cleanPhone;
-        if (role === 'FARM') {
-          const profileData = await fetchAPI('/farm/profile', {
-            method: 'PUT',
-            body: JSON.stringify({
-              farmName: profileName,
-              address,
-              areaSqm: areaSqm ? Number(areaSqm) : undefined,
-              contactPhone: effectiveContactPhone
-            }),
-          });
-          if (profileData.success) {
-            if (profileData.data?.isTrial) {
-              setTrialInfo(profileData.data);
-            }
-            await loadPackages();
-            setStep(2); // Go to billing or trial celebration
-          }
-        } else {
-          const profileData = await fetchAPI('/company/profile', {
-            method: 'PUT',
-            body: JSON.stringify({
-              companyName: profileName,
-              address,
-              contactPhone: effectiveContactPhone,
-              taxCode,
-              businessType
-            }),
-          });
-          if (profileData.success) {
-            router.push('/company/dashboard');
-          }
+        // Set default profileName if empty
+        if (!profileName.trim()) {
+          setProfileName(role === 'FARM' ? `Nông trại ${name.trim() || 'của tôi'}` : `Doanh nghiệp ${name.trim() || 'của tôi'}`);
         }
+        if (!contactPhone.trim()) {
+          setContactPhone(cleanPhone);
+        }
+
+        toast.success('Tạo tài khoản thành công! Vui lòng hoàn tất thông tin.');
+        setStep(2); // Chuyển sang trang riêng để điền thông tin tài khoản/hồ sơ
+      } else {
+        setError(registerData.message || 'Đăng ký thất bại');
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
         setError('Đăng ký thất bại. Vui lòng kiểm tra lại.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    const effectiveName = profileName.trim() || (role === 'FARM' ? `Nông trại ${name.trim() || 'của tôi'}` : `Doanh nghiệp ${name.trim() || 'của tôi'}`);
+    const cleanPhone = phone.replace(/[\s.-]/g, '');
+    const effectiveContactPhone = contactPhone.trim() || cleanPhone;
+
+    setLoading(true);
+
+    try {
+      if (role === 'FARM') {
+        const profileData = await fetchAPI('/farm/profile', {
+          method: 'PUT',
+          body: JSON.stringify({
+            farmName: effectiveName,
+            address,
+            areaSqm: areaSqm ? Number(areaSqm) : undefined,
+            contactPhone: effectiveContactPhone
+          }),
+        });
+
+        if (profileData.success) {
+          if (profileData.data?.isTrial) {
+            setTrialInfo(profileData.data);
+          }
+          await loadPackages();
+          toast.success('Lưu thông tin nông trại thành công!');
+          setStep(3); // Go to billing or trial celebration
+        } else {
+          setError(profileData.message || 'Lưu thông tin nông trại thất bại');
+        }
+      } else {
+        const profileData = await fetchAPI('/company/profile', {
+          method: 'PUT',
+          body: JSON.stringify({
+            companyName: effectiveName,
+            address,
+            contactPhone: effectiveContactPhone,
+            taxCode,
+            businessType
+          }),
+        });
+
+        if (profileData.success) {
+          toast.success('Lưu thông tin doanh nghiệp thành công!');
+          router.push('/company/dashboard');
+        } else {
+          setError(profileData.message || 'Lưu thông tin doanh nghiệp thất bại');
+        }
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Lưu thông tin thất bại. Vui lòng kiểm tra lại.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSkipProfile = async () => {
+    setError('');
+    const effectiveName = profileName.trim() || (role === 'FARM' ? `Nông trại ${name.trim() || 'của tôi'}` : `Doanh nghiệp ${name.trim() || 'của tôi'}`);
+    const cleanPhone = phone.replace(/[\s.-]/g, '');
+    const effectiveContactPhone = contactPhone.trim() || cleanPhone;
+
+    setLoading(true);
+    try {
+      if (role === 'FARM') {
+        const profileData = await fetchAPI('/farm/profile', {
+          method: 'PUT',
+          body: JSON.stringify({
+            farmName: effectiveName,
+            contactPhone: effectiveContactPhone,
+          }),
+        });
+        if (profileData.success && profileData.data?.isTrial) {
+          setTrialInfo(profileData.data);
+        }
+        await loadPackages();
+        setStep(3);
+      } else {
+        await fetchAPI('/company/profile', {
+          method: 'PUT',
+          body: JSON.stringify({
+            companyName: effectiveName,
+            contactPhone: effectiveContactPhone,
+          }),
+        });
+        router.push('/company/dashboard');
+      }
+    } catch {
+      if (role === 'FARM') {
+        setStep(3);
+      } else {
+        router.push('/company/dashboard');
       }
     } finally {
       setLoading(false);
@@ -335,6 +420,67 @@ export default function RegisterPage() {
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
+
+  const renderStepper = () => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.75rem' }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '0.4rem',
+        fontSize: '0.825rem', fontWeight: 600,
+        color: step === 1 ? 'var(--color-primary-600)' : '#16a34a'
+      }}>
+        <span style={{
+          width: '24px', height: '24px', borderRadius: '50%',
+          backgroundColor: step > 1 ? '#16a34a' : 'var(--color-primary-600)',
+          color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '0.75rem', fontWeight: 700
+        }}>
+          {step > 1 ? '✓' : '1'}
+        </span>
+        Tài khoản
+      </div>
+
+      <div style={{ width: '28px', height: '2px', backgroundColor: step >= 2 ? '#16a34a' : 'var(--color-border)' }} />
+
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '0.4rem',
+        fontSize: '0.825rem', fontWeight: 600,
+        color: step === 2 ? 'var(--color-primary-600)' : step > 2 ? '#16a34a' : 'var(--color-text-muted)'
+      }}>
+        <span style={{
+          width: '24px', height: '24px', borderRadius: '50%',
+          backgroundColor: step === 2 ? 'var(--color-primary-600)' : step > 2 ? '#16a34a' : 'var(--color-border)',
+          color: step >= 2 ? 'white' : 'var(--color-text-muted)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '0.75rem', fontWeight: 700
+        }}>
+          {step > 2 ? '✓' : '2'}
+        </span>
+        {role === 'FARM' ? 'Nông trại' : 'Doanh nghiệp'}
+      </div>
+
+      {role === 'FARM' && (
+        <>
+          <div style={{ width: '28px', height: '2px', backgroundColor: step === 3 ? 'var(--color-primary-600)' : 'var(--color-border)' }} />
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            fontSize: '0.825rem', fontWeight: 600,
+            color: step === 3 ? 'var(--color-primary-600)' : 'var(--color-text-muted)'
+          }}>
+            <span style={{
+              width: '24px', height: '24px', borderRadius: '50%',
+              backgroundColor: step === 3 ? 'var(--color-primary-600)' : 'var(--color-border)',
+              color: step === 3 ? 'white' : 'var(--color-text-muted)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.75rem', fontWeight: 700
+            }}>
+              3
+            </span>
+            Gói dịch vụ
+          </div>
+        </>
+      )}
+    </div>
+  );
 
   const renderBillingStep = () => {
     if (showSuccess) {
@@ -521,40 +667,48 @@ export default function RegisterPage() {
       </div>
 
       <div className={styles.formSection}>
-        <div className={styles.card} style={step === 2 ? { maxWidth: '800px', width: '100%' } : { maxHeight: '90vh', overflowY: 'auto', paddingRight: '1rem' }}>
+        <div className={styles.card} style={step === 3 ? { maxWidth: '800px', width: '100%' } : { maxWidth: '480px', width: '100%' }}>
           {step === 1 && (
             <>
-              <div className={styles.header}>
-                <h1 className={styles.title}>Đăng ký Tài Khoản</h1>
-                <p className={styles.subtitle}>Điền đầy đủ thông tin để tham gia nền tảng</p>
+              {renderStepper()}
+
+              <div className={styles.header} style={{ marginBottom: '1.5rem' }}>
+                <h1 className={styles.title} style={{ fontSize: '1.875rem' }}>Đăng ký Tài Khoản</h1>
+                <p className={styles.subtitle}>Điền thông tin để tạo tài khoản mới</p>
               </div>
               
               {error && <div style={{ color: 'var(--color-error)', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: '8px' }}>{error}</div>}
 
-              <form className={styles.form} onSubmit={handleSubmit}>
-                <div className={styles.formGroup} style={{ marginBottom: '1.5rem' }}>
+              <form className={styles.form} onSubmit={handleAccountSubmit}>
+                <div className={styles.formGroup} style={{ marginBottom: '0.5rem' }}>
                   <label className={styles.label}>Loại tài khoản</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
                     <div 
                       onClick={() => setRole('FARM')}
                       style={{ 
-                        padding: '1rem', border: `2px solid ${role === 'FARM' ? 'var(--color-primary-500)' : 'var(--color-border)'}`, 
+                        padding: '0.875rem 0.5rem', border: `2px solid ${role === 'FARM' ? 'var(--color-primary-500)' : 'var(--color-border)'}`, 
                         borderRadius: '8px', cursor: 'pointer', textAlign: 'center',
-                        backgroundColor: role === 'FARM' ? 'var(--color-primary-50)' : 'transparent'
+                        backgroundColor: role === 'FARM' ? 'var(--color-primary-50)' : 'transparent',
+                        transition: 'all 0.2s ease'
                       }}
                     >
-                      <div style={{ fontWeight: 600, color: role === 'FARM' ? 'var(--color-primary-700)' : 'var(--color-text-main)' }}>Nông trại</div>
+                      <div style={{ fontWeight: 600, color: role === 'FARM' ? 'var(--color-primary-700)' : 'var(--color-text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                        <Sprout size={16} /> Nông trại
+                      </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>Quản lý canh tác</div>
                     </div>
                     <div 
                       onClick={() => setRole('COMPANY')}
                       style={{ 
-                        padding: '1rem', border: `2px solid ${role === 'COMPANY' ? 'var(--color-primary-500)' : 'var(--color-border)'}`, 
+                        padding: '0.875rem 0.5rem', border: `2px solid ${role === 'COMPANY' ? 'var(--color-primary-500)' : 'var(--color-border)'}`, 
                         borderRadius: '8px', cursor: 'pointer', textAlign: 'center',
-                        backgroundColor: role === 'COMPANY' ? 'var(--color-primary-50)' : 'transparent'
+                        backgroundColor: role === 'COMPANY' ? 'var(--color-primary-50)' : 'transparent',
+                        transition: 'all 0.2s ease'
                       }}
                     >
-                      <div style={{ fontWeight: 600, color: role === 'COMPANY' ? 'var(--color-primary-700)' : 'var(--color-text-main)' }}>Doanh nghiệp</div>
+                      <div style={{ fontWeight: 600, color: role === 'COMPANY' ? 'var(--color-primary-700)' : 'var(--color-text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                        <Briefcase size={16} /> Doanh nghiệp
+                      </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>Bán vật tư nông nghiệp</div>
                     </div>
                   </div>
@@ -585,62 +739,12 @@ export default function RegisterPage() {
                   <input id="confirmPassword" type="password" className={styles.input} placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
                 </div>
 
-                <hr style={{ margin: '1.5rem 0', borderColor: 'var(--color-border)', borderTop: 'none' }} />
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem 1rem' }}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.label} htmlFor="profileName">{role === 'FARM' ? 'Tên Nông Trại' : 'Tên Doanh Nghiệp'} <span style={{ color: 'red' }}>*</span></label>
-                    <input id="profileName" type="text" className={styles.input} placeholder={role === 'FARM' ? "Ví dụ: Nông trại Xanh" : "Ví dụ: Cty Bình Điền"} value={profileName} onChange={(e) => setProfileName(e.target.value)} required />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.label} htmlFor="contactPhone">Số điện thoại liên hệ</label>
-                    <input id="contactPhone" type="tel" className={styles.input} placeholder={phone ? `Mặc định dùng ${phone}` : "0987654321"} value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-                  </div>
-                  
-                  <div className={styles.formGroup}>
-                    <label className={styles.label} htmlFor="address">Địa chỉ</label>
-                    <input id="address" type="text" className={styles.input} placeholder="Tỉnh/Thành phố..." value={address} onChange={(e) => setAddress(e.target.value)} />
-                  </div>
-
-                  {role === 'FARM' ? (
-                    <div className={styles.formGroup}>
-                      <label className={styles.label} htmlFor="areaSqm">Diện tích tổng (m²)</label>
-                      <input id="areaSqm" type="number" className={styles.input} placeholder="Ví dụ: 5000" value={areaSqm} onChange={(e) => setAreaSqm(e.target.value)} />
-                    </div>
-                  ) : (
-                    <div className={styles.formGroup}>
-                      <label className={styles.label} htmlFor="taxCode">Mã số thuế</label>
-                      <input id="taxCode" type="text" className={styles.input} placeholder="Ví dụ: 0312345678" value={taxCode} onChange={(e) => setTaxCode(e.target.value)} />
-                    </div>
-                  )}
-
-                  {role === 'COMPANY' && (
-                    <div className={styles.formGroup} style={{ gridColumn: '1 / span 2' }}>
-                      <label className={styles.label} htmlFor="businessType">Loại hình kinh doanh</label>
-                      <input id="businessType" type="text" className={styles.input} placeholder="Ví dụ: Sản xuất phân bón, thuốc BVTV" value={businessType} onChange={(e) => setBusinessType(e.target.value)} />
-                    </div>
-                  )}
-                </div>
-
-                <button type="submit" className={styles.button} disabled={loading} style={{ marginTop: '1rem' }}>
-                  {loading ? 'Đang xử lý...' : 'Đăng ký & Bắt đầu sử dụng'}
+                <button type="submit" className={styles.button} disabled={loading} style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  {loading ? 'Đang tạo tài khoản...' : <>Tiếp tục: Thiết lập thông tin <ArrowRight size={16} /></>}
                 </button>
               </form>
 
-              {/* Ẩn tính năng đăng ký bằng Google
-              <div className={styles.divider}>
-                <span className={styles.dividerText}>Hoặc</span>
-              </div>
-
-              <GoogleAuthButton
-                mode="signup"
-                role={role}
-                onError={(msg) => setError(msg)}
-              />
-              */}
-
-              <div className={styles.footer}>
+              <div className={styles.footer} style={{ marginTop: '1.25rem' }}>
                 Đã có tài khoản?{' '}
                 <Link href="/login" className={styles.footerLink}>
                   Đăng nhập ngay
@@ -649,7 +753,144 @@ export default function RegisterPage() {
             </>
           )}
 
-          {step === 2 && renderBillingStep()}
+          {step === 2 && (
+            <>
+              {renderStepper()}
+
+              <div className={styles.header} style={{ marginBottom: '1.5rem' }}>
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                  padding: '0.25rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600,
+                  backgroundColor: role === 'FARM' ? '#dcfce7' : '#fef3c7',
+                  color: role === 'FARM' ? '#16a34a' : '#d97706',
+                  marginBottom: '0.5rem'
+                }}>
+                  {role === 'FARM' ? <Sprout size={14} /> : <Briefcase size={14} />}
+                  {role === 'FARM' ? 'Hồ sơ Nông trại' : 'Hồ sơ Doanh nghiệp'}
+                </div>
+                <h1 className={styles.title} style={{ fontSize: '1.875rem' }}>
+                  {role === 'FARM' ? 'Thông tin Nông Trại' : 'Thông tin Doanh Nghiệp'}
+                </h1>
+                <p className={styles.subtitle}>
+                  {role === 'FARM' 
+                    ? 'Bổ sung thông tin nông trại của bạn để bắt đầu quản lý mùa vụ' 
+                    : 'Bổ sung thông tin doanh nghiệp để kết nối giao thương vật tư'}
+                </p>
+              </div>
+
+              {error && <div style={{ color: 'var(--color-error)', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: '8px' }}>{error}</div>}
+
+              <form className={styles.form} onSubmit={handleProfileSubmit}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="profileName">
+                    {role === 'FARM' ? 'Tên Nông Trại' : 'Tên Doanh Nghiệp'} <span style={{ color: 'red' }}>*</span>
+                  </label>
+                  <input
+                    id="profileName"
+                    type="text"
+                    className={styles.input}
+                    placeholder={role === 'FARM' ? "Ví dụ: Nông trại Xanh Đà Lạt" : "Ví dụ: Cty Phân Bón Bình Điền"}
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="contactPhone">Số điện thoại liên hệ</label>
+                  <input
+                    id="contactPhone"
+                    type="tel"
+                    className={styles.input}
+                    placeholder={phone || "0987654321"}
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem', display: 'block' }}>
+                    Để trống sẽ tự động dùng số điện thoại tài khoản ({phone})
+                  </span>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="address">Địa chỉ</label>
+                  <input
+                    id="address"
+                    type="text"
+                    className={styles.input}
+                    placeholder="Ví dụ: Xã Tân Hội, Huyện Đức Trọng, Lâm Đồng"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                  />
+                </div>
+
+                {role === 'FARM' ? (
+                  <div className={styles.formGroup}>
+                    <label className={styles.label} htmlFor="areaSqm">Diện tích tổng (m²)</label>
+                    <input
+                      id="areaSqm"
+                      type="number"
+                      className={styles.input}
+                      placeholder="Ví dụ: 5000"
+                      value={areaSqm}
+                      onChange={(e) => setAreaSqm(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label} htmlFor="taxCode">Mã số thuế</label>
+                      <input
+                        id="taxCode"
+                        type="text"
+                        className={styles.input}
+                        placeholder="Ví dụ: 0312345678"
+                        value={taxCode}
+                        onChange={(e) => setTaxCode(e.target.value)}
+                      />
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.label} htmlFor="businessType">Loại hình kinh doanh</label>
+                      <input
+                        id="businessType"
+                        type="text"
+                        className={styles.input}
+                        placeholder="Ví dụ: Sản xuất phân bón, thuốc BVTV"
+                        value={businessType}
+                        onChange={(e) => setBusinessType(e.target.value)}
+                      />
+                    </div>
+                  </>
+                )}
+
+                <button type="submit" className={styles.button} disabled={loading} style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  {loading ? 'Đang lưu...' : <>Hoàn tất & Tiếp tục <ArrowRight size={16} /></>}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSkipProfile}
+                  disabled={loading}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--color-text-muted)',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    padding: '0.5rem',
+                    textAlign: 'center',
+                    transition: 'color 0.2s',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-main)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+                >
+                  Bỏ qua bước này, thiết lập sau
+                </button>
+              </form>
+            </>
+          )}
+
+          {step === 3 && renderBillingStep()}
         </div>
       </div>
 

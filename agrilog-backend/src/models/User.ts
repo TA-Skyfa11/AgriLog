@@ -36,7 +36,7 @@ const userSchema = new Schema<IUser>(
     passwordHash: { type: String, required: false },
     role: { type: String, enum: Object.values(Role), default: Role.FARM },
     isActive: { type: Boolean, default: true },
-    allowAdminReset: { type: Boolean, default: false },
+    allowAdminReset: { type: Boolean, default: true },
     allowDevPayment: { type: Boolean, default: false },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
