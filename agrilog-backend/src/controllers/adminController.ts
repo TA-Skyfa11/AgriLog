@@ -187,6 +187,7 @@ export const addUser = async (req: AuthRequest, res: Response) => {
       email,
       passwordHash,
       role: role || Role.FARM,
+      allowAdminReset: true,
     });
 
     res.status(201).json({
@@ -271,10 +272,10 @@ export const adminResetPassword = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'Người dùng không tồn tại' });
     }
 
-    if (!user.allowAdminReset) {
+    if (user.allowAdminReset === false) {
       return res.status(403).json({ 
         success: false, 
-        message: 'Người dùng này chưa cho phép Admin đặt lại mật khẩu. Hãy yêu cầu họ bật tùy chọn này trong phần Cài đặt > Bảo mật.' 
+        message: 'Người dùng này đã tắt quyền cho phép Admin đặt lại mật khẩu. Hãy yêu cầu họ bật tùy chọn này trong phần Cài đặt > Bảo mật.' 
       });
     }
 

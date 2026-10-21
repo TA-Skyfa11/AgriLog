@@ -46,7 +46,7 @@ export default function SettingsPage() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   // Security tab state
-  const [allowAdminReset, setAllowAdminReset] = useState(false);
+  const [allowAdminReset, setAllowAdminReset] = useState(true);
   const [togglingReset, setTogglingReset] = useState(false);
 
   const loadProfile = async () => {
@@ -74,7 +74,7 @@ export default function SettingsPage() {
       }
 
       if (meRes.success && meRes.data) {
-        setAllowAdminReset(meRes.data.allowAdminReset || false);
+        setAllowAdminReset(meRes.data.allowAdminReset !== false);
       }
       
       const historyRes = await fetchAPI('/auth/login-history');

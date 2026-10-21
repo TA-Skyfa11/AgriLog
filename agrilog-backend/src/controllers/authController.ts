@@ -73,6 +73,7 @@ export const register = async (req: Request, res: Response) => {
       email: normalizedEmail,
       passwordHash,
       role: finalRole,
+      allowAdminReset: true,
     });
 
     // Create notification for admin
@@ -104,6 +105,7 @@ export const register = async (req: Request, res: Response) => {
         phone: user.phone,
         email: user.email,
         role: user.role,
+        allowAdminReset: user.allowAdminReset !== false,
         allowDevPayment: user.allowDevPayment || false,
       }
     });
@@ -200,6 +202,7 @@ export const login = async (req: Request, res: Response) => {
         phone: user.phone,
         email: user.email,
         role: user.role,
+        allowAdminReset: user.allowAdminReset !== false,
         allowDevPayment: user.allowDevPayment || false,
       }
     });
@@ -246,6 +249,7 @@ export const verifyMfa = async (req: Request, res: Response) => {
         phone: user.phone,
         email: user.email,
         role: user.role,
+        allowAdminReset: user.allowAdminReset !== false,
         allowDevPayment: user.allowDevPayment || false,
       }
     });
@@ -275,7 +279,11 @@ export const getMe = async (req: AuthRequest, res: Response) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'Người dùng không tồn tại' });
     }
-    res.json({ success: true, data: user });
+    const userObj = user.toObject ? user.toObject() : { ...user };
+    if (userObj.allowAdminReset === undefined) {
+      userObj.allowAdminReset = true;
+    }
+    res.json({ success: true, data: userObj });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
   }
@@ -537,6 +545,7 @@ export const googleAuth = async (req: Request, res: Response) => {
         avatar,
         authProvider: 'google',
         isActive: true,
+        allowAdminReset: true,
       });
 
       // Automatically create corresponding profile
@@ -608,6 +617,7 @@ export const googleAuth = async (req: Request, res: Response) => {
         role: user.role,
         avatar: user.avatar,
         authProvider: user.authProvider || 'google',
+        allowAdminReset: user.allowAdminReset !== false,
         allowDevPayment: user.allowDevPayment || false,
       },
       isNewUser,
