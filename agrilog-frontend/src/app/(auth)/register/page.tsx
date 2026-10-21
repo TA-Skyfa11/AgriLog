@@ -27,7 +27,7 @@ export default function RegisterPage() {
   const router = useRouter();
   
   const [step, setStep] = useState(1);
-  const [role, setRole] = useState('FARM'); // FARM or COMPANY
+  const role = 'FARM';
   
   // Account
   const [name, setName] = useState('');
@@ -37,12 +37,10 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   
   // Profile
-  const [profileName, setProfileName] = useState(''); // Maps to farmName or companyName
+  const [profileName, setProfileName] = useState(''); // Maps to farmName
   const [contactPhone, setContactPhone] = useState('');
   const [address, setAddress] = useState('');
   const [areaSqm, setAreaSqm] = useState('');
-  const [taxCode, setTaxCode] = useState('');
-  const [businessType, setBusinessType] = useState('');
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -112,7 +110,7 @@ export default function RegisterPage() {
     }
 
     if (!profileName.trim()) {
-      setError(role === 'FARM' ? 'Vui lòng nhập Tên Nông Trại' : 'Vui lòng nhập Tên Doanh Nghiệp');
+      setError('Vui lòng nhập Tên Nông Trại');
       return;
     }
 
@@ -139,39 +137,23 @@ export default function RegisterPage() {
         setCurrentUser(registerData.user);
         localStorage.removeItem('cart'); // Clear cart on new account
 
-        // Now setup profile
+        // Now setup farm profile
         const effectiveContactPhone = contactPhone.trim() || cleanPhone;
-        if (role === 'FARM') {
-          const profileData = await fetchAPI('/farm/profile', {
-            method: 'PUT',
-            body: JSON.stringify({
-              farmName: profileName,
-              address,
-              areaSqm: areaSqm ? Number(areaSqm) : undefined,
-              contactPhone: effectiveContactPhone
-            }),
-          });
-          if (profileData.success) {
-            if (profileData.data?.isTrial) {
-              setTrialInfo(profileData.data);
-            }
-            await loadPackages();
-            setStep(2); // Go to billing or trial celebration
+        const profileData = await fetchAPI('/farm/profile', {
+          method: 'PUT',
+          body: JSON.stringify({
+            farmName: profileName,
+            address,
+            areaSqm: areaSqm ? Number(areaSqm) : undefined,
+            contactPhone: effectiveContactPhone
+          }),
+        });
+        if (profileData.success) {
+          if (profileData.data?.isTrial) {
+            setTrialInfo(profileData.data);
           }
-        } else {
-          const profileData = await fetchAPI('/company/profile', {
-            method: 'PUT',
-            body: JSON.stringify({
-              companyName: profileName,
-              address,
-              contactPhone: effectiveContactPhone,
-              taxCode,
-              businessType
-            }),
-          });
-          if (profileData.success) {
-            router.push('/company/dashboard');
-          }
+          await loadPackages();
+          setStep(2); // Go to billing or trial celebration
         }
       }
     } catch (err: unknown) {
@@ -189,12 +171,12 @@ export default function RegisterPage() {
   useEffect(() => {
     if (!showSuccess) return;
     if (countdown <= 0) {
-      router.push(role === 'FARM' ? '/dashboard' : '/company/dashboard');
+      router.push('/dashboard');
       return;
     }
     const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
     return () => clearTimeout(timer);
-  }, [showSuccess, countdown, router, role]);
+  }, [showSuccess, countdown, router]);
 
   // Đếm ngược thời gian đơn thanh toán (15 phút)
   useEffect(() => {
@@ -532,34 +514,6 @@ export default function RegisterPage() {
               {error && <div style={{ color: 'var(--color-error)', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: '8px' }}>{error}</div>}
 
               <form className={styles.form} onSubmit={handleSubmit}>
-                <div className={styles.formGroup} style={{ marginBottom: '1.5rem' }}>
-                  <label className={styles.label}>Loại tài khoản</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
-                    <div 
-                      onClick={() => setRole('FARM')}
-                      style={{ 
-                        padding: '1rem', border: `2px solid ${role === 'FARM' ? 'var(--color-primary-500)' : 'var(--color-border)'}`, 
-                        borderRadius: '8px', cursor: 'pointer', textAlign: 'center',
-                        backgroundColor: role === 'FARM' ? 'var(--color-primary-50)' : 'transparent'
-                      }}
-                    >
-                      <div style={{ fontWeight: 600, color: role === 'FARM' ? 'var(--color-primary-700)' : 'var(--color-text-main)' }}>Nông trại</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>Quản lý canh tác</div>
-                    </div>
-                    <div 
-                      onClick={() => setRole('COMPANY')}
-                      style={{ 
-                        padding: '1rem', border: `2px solid ${role === 'COMPANY' ? 'var(--color-primary-500)' : 'var(--color-border)'}`, 
-                        borderRadius: '8px', cursor: 'pointer', textAlign: 'center',
-                        backgroundColor: role === 'COMPANY' ? 'var(--color-primary-50)' : 'transparent'
-                      }}
-                    >
-                      <div style={{ fontWeight: 600, color: role === 'COMPANY' ? 'var(--color-primary-700)' : 'var(--color-text-main)' }}>Doanh nghiệp</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>Bán vật tư nông nghiệp</div>
-                    </div>
-                  </div>
-                </div>
-
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="name">Họ và tên <span style={{ color: 'red' }}>*</span></label>
                   <input id="name" type="text" className={styles.input} placeholder="Nguyễn Văn A" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -589,8 +543,8 @@ export default function RegisterPage() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem 1rem' }}>
                   <div className={styles.formGroup}>
-                    <label className={styles.label} htmlFor="profileName">{role === 'FARM' ? 'Tên Nông Trại' : 'Tên Doanh Nghiệp'} <span style={{ color: 'red' }}>*</span></label>
-                    <input id="profileName" type="text" className={styles.input} placeholder={role === 'FARM' ? "Ví dụ: Nông trại Xanh" : "Ví dụ: Cty Bình Điền"} value={profileName} onChange={(e) => setProfileName(e.target.value)} required />
+                    <label className={styles.label} htmlFor="profileName">Tên Nông Trại <span style={{ color: 'red' }}>*</span></label>
+                    <input id="profileName" type="text" className={styles.input} placeholder="Ví dụ: Nông trại Xanh" value={profileName} onChange={(e) => setProfileName(e.target.value)} required />
                   </div>
 
                   <div className={styles.formGroup}>
@@ -603,24 +557,10 @@ export default function RegisterPage() {
                     <input id="address" type="text" className={styles.input} placeholder="Tỉnh/Thành phố..." value={address} onChange={(e) => setAddress(e.target.value)} />
                   </div>
 
-                  {role === 'FARM' ? (
-                    <div className={styles.formGroup}>
-                      <label className={styles.label} htmlFor="areaSqm">Diện tích tổng (m²)</label>
-                      <input id="areaSqm" type="number" className={styles.input} placeholder="Ví dụ: 5000" value={areaSqm} onChange={(e) => setAreaSqm(e.target.value)} />
-                    </div>
-                  ) : (
-                    <div className={styles.formGroup}>
-                      <label className={styles.label} htmlFor="taxCode">Mã số thuế</label>
-                      <input id="taxCode" type="text" className={styles.input} placeholder="Ví dụ: 0312345678" value={taxCode} onChange={(e) => setTaxCode(e.target.value)} />
-                    </div>
-                  )}
-
-                  {role === 'COMPANY' && (
-                    <div className={styles.formGroup} style={{ gridColumn: '1 / span 2' }}>
-                      <label className={styles.label} htmlFor="businessType">Loại hình kinh doanh</label>
-                      <input id="businessType" type="text" className={styles.input} placeholder="Ví dụ: Sản xuất phân bón, thuốc BVTV" value={businessType} onChange={(e) => setBusinessType(e.target.value)} />
-                    </div>
-                  )}
+                  <div className={styles.formGroup}>
+                    <label className={styles.label} htmlFor="areaSqm">Diện tích tổng (m²)</label>
+                    <input id="areaSqm" type="number" className={styles.input} placeholder="Ví dụ: 5000" value={areaSqm} onChange={(e) => setAreaSqm(e.target.value)} />
+                  </div>
                 </div>
 
                 <button type="submit" className={styles.button} disabled={loading} style={{ marginTop: '1rem' }}>

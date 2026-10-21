@@ -8,6 +8,7 @@ import { MaterialLog } from '../models/MaterialLog';
 import { CultivationBoard } from '../models/CultivationBoard';
 import { PesticideBoard } from '../models/PesticideBoard';
 import { getSql } from '../config/db';
+import { getCurrentWeatherText } from '../utils/weatherUtils';
 
 import { PLAN_LIMITS, checkBoardLocked, getRetentionDate, getEffectivePlan, parseQuantityInMaterialUnit } from '../utils/boardUtils';
 import {
@@ -220,29 +221,23 @@ export const getFertilizerEntries = async (req: AuthRequest, res: Response) => {
     }).sort({ date: 1, createdAt: 1 });
 
     if (entries.length === 0 && !board.hasInitializedEntries) {
+      const currentWeather = await getCurrentWeatherText((profile as any)?.address || (profile as any)?.city || 'Hanoi');
       const startDate = board.startDate ? new Date(board.startDate) : new Date();
-      const createdEntries: any[] = [];
-      for (let i = 0; i < 3; i++) {
-        const rowDate = new Date(startDate);
-        rowDate.setDate(startDate.getDate() + i);
-        const entryGroupId = 'eid_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7);
-        const entry = await FertilizerEntry.create({
-          fertilizerBoard: board._id,
-          date: rowDate,
-          materialName: '',
-          quantity: '',
-          unit: '',
-          appliedArea: board.areaSqm || 0,
-          performer: '',
-          weather: '',
-          notes: '',
-          entryGroupId,
-        });
-        // disabled syncCreateDiaryEntry
-        createdEntries.push(entry);
-      }
+      const entryGroupId = 'eid_' + Date.now() + '_0_' + Math.random().toString(36).substring(2, 7);
+      const entry = await FertilizerEntry.create({
+        fertilizerBoard: board._id,
+        date: startDate,
+        materialName: '',
+        quantity: '',
+        unit: '',
+        appliedArea: board.areaSqm || 0,
+        performer: '',
+        weather: currentWeather,
+        notes: '',
+        entryGroupId,
+      });
       await FertilizerBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
-      entries = createdEntries;
+      entries = [entry];
     } else if (!board.hasInitializedEntries && entries.length > 0) {
       await FertilizerBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
     }
@@ -285,6 +280,7 @@ export const createFertilizerEntry = async (req: AuthRequest, res: Response) => 
 
     const entry = new FertilizerEntry({
       ...req.body,
+      date: req.body.date || new Date(),
       fertilizerBoard: req.params.boardId,
       entryGroupId,
     });

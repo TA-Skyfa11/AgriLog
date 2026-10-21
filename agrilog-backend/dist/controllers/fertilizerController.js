@@ -6,6 +6,7 @@ const FertilizerBoard_1 = require("../models/FertilizerBoard");
 const FertilizerEntry_1 = require("../models/FertilizerEntry");
 const Material_1 = require("../models/Material");
 const db_1 = require("../config/db");
+const weatherUtils_1 = require("../utils/weatherUtils");
 const boardUtils_1 = require("../utils/boardUtils");
 const syncUtils_1 = require("../utils/syncUtils");
 const getFertilizerBoards = async (req, res) => {
@@ -183,29 +184,23 @@ const getFertilizerEntries = async (req, res) => {
             date: { $gte: retentionDate }
         }).sort({ date: 1, createdAt: 1 });
         if (entries.length === 0 && !board.hasInitializedEntries) {
+            const currentWeather = await (0, weatherUtils_1.getCurrentWeatherText)(profile?.address || profile?.city || 'Hanoi');
             const startDate = board.startDate ? new Date(board.startDate) : new Date();
-            const createdEntries = [];
-            for (let i = 0; i < 3; i++) {
-                const rowDate = new Date(startDate);
-                rowDate.setDate(startDate.getDate() + i);
-                const entryGroupId = 'eid_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7);
-                const entry = await FertilizerEntry_1.FertilizerEntry.create({
-                    fertilizerBoard: board._id,
-                    date: rowDate,
-                    materialName: '',
-                    quantity: '',
-                    unit: '',
-                    appliedArea: board.areaSqm || 0,
-                    performer: '',
-                    weather: '',
-                    notes: '',
-                    entryGroupId,
-                });
-                // disabled syncCreateDiaryEntry
-                createdEntries.push(entry);
-            }
+            const entryGroupId = 'eid_' + Date.now() + '_0_' + Math.random().toString(36).substring(2, 7);
+            const entry = await FertilizerEntry_1.FertilizerEntry.create({
+                fertilizerBoard: board._id,
+                date: startDate,
+                materialName: '',
+                quantity: '',
+                unit: '',
+                appliedArea: board.areaSqm || 0,
+                performer: '',
+                weather: currentWeather,
+                notes: '',
+                entryGroupId,
+            });
             await FertilizerBoard_1.FertilizerBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
-            entries = createdEntries;
+            entries = [entry];
         }
         else if (!board.hasInitializedEntries && entries.length > 0) {
             await FertilizerBoard_1.FertilizerBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
@@ -247,6 +242,7 @@ const createFertilizerEntry = async (req, res) => {
         const entryGroupId = req.body.entryGroupId || ('eid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9));
         const entry = new FertilizerEntry_1.FertilizerEntry({
             ...req.body,
+            date: req.body.date || new Date(),
             fertilizerBoard: req.params.boardId,
             entryGroupId,
         });

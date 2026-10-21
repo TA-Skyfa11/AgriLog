@@ -6,6 +6,9 @@ import { CultivationEntry } from '../models/CultivationEntry';
 import { FertilizerEntry } from '../models/FertilizerEntry';
 import { PesticideEntry } from '../models/PesticideEntry';
 
+import { FarmProfile } from '../models/FarmProfile';
+import { getCurrentWeatherText } from './weatherUtils';
+
 export interface CommonBoardData {
   farmProfile: Types.ObjectId | string;
   name: string;
@@ -22,22 +25,85 @@ export const syncDiaryBoards = async (
   data: CommonBoardData
 ) => {
   try {
-    if (sourceType !== 'CULTIVATION') {
-      const existing = await CultivationBoard.findOne({ farmProfile: data.farmProfile, groupId: data.groupId });
-      if (!existing) {
-        await CultivationBoard.create({ ...data, hasInitializedEntries: true });
+    // 1. Tìm hoặc tạo cả 3 bảng trong cùng groupId
+    let cultBoard = await CultivationBoard.findOne({ farmProfile: data.farmProfile, groupId: data.groupId });
+    if (!cultBoard) {
+      cultBoard = await CultivationBoard.create({ ...data, hasInitializedEntries: true });
+    }
+
+    let fertBoard = await FertilizerBoard.findOne({ farmProfile: data.farmProfile, groupId: data.groupId });
+    if (!fertBoard) {
+      fertBoard = await FertilizerBoard.create({ ...data, hasInitializedEntries: true });
+    }
+
+    let pestBoard = await PesticideBoard.findOne({ farmProfile: data.farmProfile, groupId: data.groupId });
+    if (!pestBoard) {
+      pestBoard = await PesticideBoard.create({ ...data, hasInitializedEntries: true });
+    }
+
+    // 2. Lấy thời tiết và ngày khởi tạo (ngày bắt đầu hoặc hôm nay)
+    const profile = await FarmProfile.findById(data.farmProfile);
+    const currentWeather = await getCurrentWeatherText((profile as any)?.address || (profile as any)?.city || 'Hanoi');
+    const initialDate = data.startDate ? new Date(data.startDate) : new Date();
+
+    // 3. Đảm bảo mỗi bảng có đúng 1 hàng của ngày hôm đó
+    if (cultBoard) {
+      const cCount = await CultivationEntry.countDocuments({ cultivationBoard: cultBoard._id });
+      if (cCount === 0) {
+        const entryGroupId = 'eid_' + Date.now() + '_cult_' + Math.random().toString(36).substring(2, 7);
+        await CultivationEntry.create({
+          cultivationBoard: cultBoard._id,
+          date: initialDate,
+          stage: '',
+          activityName: '',
+          performer: '',
+          weather: currentWeather,
+          notes: '',
+          entryGroupId,
+        });
+        await CultivationBoard.findByIdAndUpdate(cultBoard._id, { hasInitializedEntries: true });
       }
     }
-    if (sourceType !== 'FERTILIZER') {
-      const existing = await FertilizerBoard.findOne({ farmProfile: data.farmProfile, groupId: data.groupId });
-      if (!existing) {
-        await FertilizerBoard.create({ ...data, hasInitializedEntries: true });
+
+    if (fertBoard) {
+      const fCount = await FertilizerEntry.countDocuments({ fertilizerBoard: fertBoard._id });
+      if (fCount === 0) {
+        const entryGroupId = 'eid_' + Date.now() + '_fert_' + Math.random().toString(36).substring(2, 7);
+        await FertilizerEntry.create({
+          fertilizerBoard: fertBoard._id,
+          date: initialDate,
+          materialName: '',
+          quantity: '',
+          unit: '',
+          appliedArea: fertBoard.areaSqm || 0,
+          performer: '',
+          weather: currentWeather,
+          notes: '',
+          entryGroupId,
+        });
+        await FertilizerBoard.findByIdAndUpdate(fertBoard._id, { hasInitializedEntries: true });
       }
     }
-    if (sourceType !== 'PESTICIDE') {
-      const existing = await PesticideBoard.findOne({ farmProfile: data.farmProfile, groupId: data.groupId });
-      if (!existing) {
-        await PesticideBoard.create({ ...data, hasInitializedEntries: true });
+
+    if (pestBoard) {
+      const pCount = await PesticideEntry.countDocuments({ pesticideBoard: pestBoard._id });
+      if (pCount === 0) {
+        const entryGroupId = 'eid_' + Date.now() + '_pest_' + Math.random().toString(36).substring(2, 7);
+        await PesticideEntry.create({
+          pesticideBoard: pestBoard._id,
+          date: initialDate,
+          materialName: '',
+          manufacturer: '',
+          targetPest: '',
+          quantity: '',
+          phiDays: 7,
+          performer: '',
+          weather: currentWeather,
+          notes: '',
+          customValues: {},
+          entryGroupId,
+        });
+        await PesticideBoard.findByIdAndUpdate(pestBoard._id, { hasInitializedEntries: true });
       }
     }
   } catch (error) {

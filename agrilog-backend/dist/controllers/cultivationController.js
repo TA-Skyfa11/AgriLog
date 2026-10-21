@@ -95,25 +95,6 @@ const createCultivationBoard = async (req, res) => {
             description: board.description,
             groupId: board.groupId
         });
-        // Tạo sẵn 3 hàng thực tế trong Database và đồng bộ sang Bón phân & Phun thuốc
-        const currentWeather = await (0, weatherUtils_1.getCurrentWeatherText)(profile?.address || profile?.city || 'Hanoi');
-        const startDate = board.startDate ? new Date(board.startDate) : new Date();
-        for (let i = 0; i < 3; i++) {
-            const rowDate = new Date(startDate);
-            rowDate.setDate(startDate.getDate() + i);
-            const entryGroupId = 'eid_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7);
-            const entry = await CultivationEntry_1.CultivationEntry.create({
-                cultivationBoard: board._id,
-                date: rowDate,
-                stage: '',
-                activityName: '',
-                performer: '',
-                weather: currentWeather,
-                notes: '',
-                entryGroupId,
-            });
-            // disabled syncCreateDiaryEntry
-        }
         res.status(201).json({ success: true, data: board });
     }
     catch (error) {
@@ -204,34 +185,27 @@ const getCultivationEntries = async (req, res) => {
             cultivationBoard: req.params.boardId,
             date: { $gte: retentionDate }
         }).sort({ date: 1, createdAt: 1 });
-        // Nếu bảng chưa từng được khởi tạo và chưa có hàng nào, tạo sẵn 3 hàng thực tế trong Database
+        // Nếu bảng chưa từng được khởi tạo và chưa có hàng nào, tạo sẵn 1 hàng thực tế trong Database
         if (entries.length === 0 && !board.hasInitializedEntries) {
             const currentWeather = await (0, weatherUtils_1.getCurrentWeatherText)(profile?.address || profile?.city || 'Hanoi');
             const startDate = board.startDate ? new Date(board.startDate) : new Date();
-            const createdEntries = [];
-            for (let i = 0; i < 3; i++) {
-                const rowDate = new Date(startDate);
-                rowDate.setDate(startDate.getDate() + i);
-                const entryGroupId = 'eid_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7);
-                const entry = await CultivationEntry_1.CultivationEntry.create({
-                    cultivationBoard: board._id,
-                    date: rowDate,
-                    stage: '',
-                    activityName: '',
-                    performer: '',
-                    weather: currentWeather,
-                    notes: '',
-                    entryGroupId,
-                });
-                // disabled syncCreateDiaryEntry
-                createdEntries.push(entry);
-            }
+            const entryGroupId = 'eid_' + Date.now() + '_0_' + Math.random().toString(36).substring(2, 7);
+            const entry = await CultivationEntry_1.CultivationEntry.create({
+                cultivationBoard: board._id,
+                date: startDate,
+                stage: '',
+                activityName: '',
+                performer: '',
+                weather: currentWeather,
+                notes: '',
+                entryGroupId,
+            });
             await CultivationBoard_1.CultivationBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
             if (board.groupId) {
                 await FertilizerBoard_1.FertilizerBoard.updateMany({ groupId: board.groupId }, { hasInitializedEntries: true });
                 await PesticideBoard_1.PesticideBoard.updateMany({ groupId: board.groupId }, { hasInitializedEntries: true });
             }
-            entries = createdEntries;
+            entries = [entry];
         }
         else if (!board.hasInitializedEntries && entries.length > 0) {
             await CultivationBoard_1.CultivationBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
@@ -260,6 +234,7 @@ const createCultivationEntry = async (req, res) => {
         const entryGroupId = req.body.entryGroupId || ('eid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9));
         const entry = new CultivationEntry_1.CultivationEntry({
             ...req.body,
+            date: req.body.date || new Date(),
             cultivationBoard: req.params.boardId,
             entryGroupId,
         });

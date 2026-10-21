@@ -6,6 +6,7 @@ const PesticideBoard_1 = require("../models/PesticideBoard");
 const PesticideEntry_1 = require("../models/PesticideEntry");
 const Material_1 = require("../models/Material");
 const db_1 = require("../config/db");
+const weatherUtils_1 = require("../utils/weatherUtils");
 const boardUtils_1 = require("../utils/boardUtils");
 const syncUtils_1 = require("../utils/syncUtils");
 const getPesticideBoards = async (req, res) => {
@@ -182,30 +183,24 @@ const getPesticideEntries = async (req, res) => {
             date: { $gte: retentionDate }
         }).sort({ date: 1, createdAt: 1 });
         if (entries.length === 0 && !board.hasInitializedEntries) {
+            const currentWeather = await (0, weatherUtils_1.getCurrentWeatherText)(profile?.address || profile?.city || 'Hanoi');
             const startDate = board.startDate ? new Date(board.startDate) : new Date();
-            const createdEntries = [];
-            for (let i = 0; i < 3; i++) {
-                const rowDate = new Date(startDate);
-                rowDate.setDate(startDate.getDate() + i);
-                const entryGroupId = 'eid_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7);
-                const entry = await PesticideEntry_1.PesticideEntry.create({
-                    pesticideBoard: board._id,
-                    date: rowDate,
-                    materialName: '',
-                    activeIngredient: '',
-                    targetPest: '',
-                    quantity: '',
-                    phiDays: 7,
-                    performer: '',
-                    weather: '',
-                    notes: '',
-                    entryGroupId,
-                });
-                // disabled syncCreateDiaryEntry
-                createdEntries.push(entry);
-            }
+            const entryGroupId = 'eid_' + Date.now() + '_0_' + Math.random().toString(36).substring(2, 7);
+            const entry = await PesticideEntry_1.PesticideEntry.create({
+                pesticideBoard: board._id,
+                date: startDate,
+                materialName: '',
+                activeIngredient: '',
+                targetPest: '',
+                quantity: '',
+                phiDays: 7,
+                performer: '',
+                weather: currentWeather,
+                notes: '',
+                entryGroupId,
+            });
             await PesticideBoard_1.PesticideBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
-            entries = createdEntries;
+            entries = [entry];
         }
         else if (!board.hasInitializedEntries && entries.length > 0) {
             await PesticideBoard_1.PesticideBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
@@ -247,6 +242,7 @@ const createPesticideEntry = async (req, res) => {
         const entryGroupId = req.body.entryGroupId || ('eid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9));
         const entry = new PesticideEntry_1.PesticideEntry({
             ...req.body,
+            date: req.body.date || new Date(),
             pesticideBoard: req.params.boardId,
             entryGroupId,
         });

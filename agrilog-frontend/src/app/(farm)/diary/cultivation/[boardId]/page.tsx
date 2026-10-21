@@ -371,28 +371,13 @@ export default function CultivationDiaryDetailPage() {
 
   const handleAddNewRow = async () => {
     const weather = await fetchWeather();
-    let nextDateStr = new Date().toISOString();
-    if (entries && entries.length > 0) {
-      const lastEntry = entries[entries.length - 1];
-      if (lastEntry && lastEntry.date) {
-        const lastDate = new Date(lastEntry.date);
-        if (!isNaN(lastDate.getTime())) {
-          lastDate.setDate(lastDate.getDate() + 1);
-          nextDateStr = lastDate.toISOString();
-        }
-      }
-    } else if (board?.startDate) {
-      const bDate = new Date(board.startDate);
-      if (!isNaN(bDate.getTime())) {
-        nextDateStr = bDate.toISOString();
-      }
-    }
+    const today = format(new Date(), 'yyyy-MM-dd');
 
     try {
       const res = await fetchAPI(`/cultivation-boards/${boardId}/entries`, {
         method: 'POST',
         body: JSON.stringify({
-          date: nextDateStr,
+          date: today,
           stage: '',
           activityName: '',
           weather: weather,

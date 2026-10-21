@@ -97,14 +97,14 @@ const getDashboardStats = async (req, res) => {
         const pCount = await PesticideBoard_1.PesticideBoard.countDocuments();
         const totalBoards = cCount + fCount + pCount;
         // Recent Activities (Mix of recent users and recent products)
-        const recentUsers = await User_1.User.find().sort({ createdAt: -1 }).limit(5).select('email role createdAt');
+        const recentUsers = await User_1.User.find().sort({ createdAt: -1 }).limit(5).select('email phone role createdAt');
         const recentProducts = await Product_1.Product.find().sort({ createdAt: -1 }).limit(5).select('name createdAt status');
         let activities = [];
         recentUsers.forEach(u => {
             activities.push({
                 id: u._id,
                 type: 'USER',
-                text: `Người dùng mới: ${u.email}`,
+                text: `Người dùng mới: ${u.phone || u.email || 'Người dùng'}`,
                 time: u.createdAt
             });
         });
@@ -217,10 +217,11 @@ const toggleDevPaymentPermission = async (req, res) => {
         await user.save();
         res.json({
             success: true,
-            message: `Đã ${user.allowDevPayment ? 'cấp quyền' : 'thu hồi quyền'} bypass thanh toán (Dev Test) cho tài khoản ${user.email}`,
+            message: `Đã ${user.allowDevPayment ? 'cấp quyền' : 'thu hồi quyền'} bypass thanh toán (Dev Test) cho tài khoản ${user.phone || user.email || 'người dùng'}`,
             data: {
                 userId: user._id,
                 email: user.email,
+                phone: user.phone,
                 allowDevPayment: user.allowDevPayment,
             },
         });

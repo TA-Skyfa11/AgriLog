@@ -43,7 +43,8 @@ var Role;
 })(Role || (exports.Role = Role = {}));
 const userSchema = new supabaseModel_1.Schema({
     name: { type: String, required: false, trim: true },
-    email: { type: String, required: true, unique: true, trim: true, lowercase: true },
+    phone: { type: String, required: false, trim: true },
+    email: { type: String, required: false, trim: true, lowercase: true },
     passwordHash: { type: String, required: false },
     role: { type: String, enum: Object.values(Role), default: Role.FARM },
     isActive: { type: Boolean, default: true },

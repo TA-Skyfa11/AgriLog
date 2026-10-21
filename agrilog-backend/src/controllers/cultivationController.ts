@@ -119,26 +119,6 @@ export const createCultivationBoard = async (req: AuthRequest, res: Response) =>
       groupId: board.groupId as string
     });
 
-    // Tạo sẵn 3 hàng thực tế trong Database và đồng bộ sang Bón phân & Phun thuốc
-    const currentWeather = await getCurrentWeatherText((profile as any)?.address || (profile as any)?.city || 'Hanoi');
-    const startDate = board.startDate ? new Date(board.startDate) : new Date();
-    for (let i = 0; i < 3; i++) {
-      const rowDate = new Date(startDate);
-      rowDate.setDate(startDate.getDate() + i);
-      const entryGroupId = 'eid_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7);
-      const entry = await CultivationEntry.create({
-        cultivationBoard: board._id,
-        date: rowDate,
-        stage: '',
-        activityName: '',
-        performer: '',
-        weather: currentWeather,
-        notes: '',
-        entryGroupId,
-      });
-      // disabled syncCreateDiaryEntry
-    }
-
     res.status(201).json({ success: true, data: board });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
@@ -238,34 +218,27 @@ export const getCultivationEntries = async (req: AuthRequest, res: Response) => 
       date: { $gte: retentionDate }
     }).sort({ date: 1, createdAt: 1 });
 
-    // Nếu bảng chưa từng được khởi tạo và chưa có hàng nào, tạo sẵn 3 hàng thực tế trong Database
+    // Nếu bảng chưa từng được khởi tạo và chưa có hàng nào, tạo sẵn 1 hàng thực tế trong Database
     if (entries.length === 0 && !board.hasInitializedEntries) {
       const currentWeather = await getCurrentWeatherText((profile as any)?.address || (profile as any)?.city || 'Hanoi');
       const startDate = board.startDate ? new Date(board.startDate) : new Date();
-      const createdEntries: any[] = [];
-      for (let i = 0; i < 3; i++) {
-        const rowDate = new Date(startDate);
-        rowDate.setDate(startDate.getDate() + i);
-        const entryGroupId = 'eid_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 7);
-        const entry = await CultivationEntry.create({
-          cultivationBoard: board._id,
-          date: rowDate,
-          stage: '',
-          activityName: '',
-          performer: '',
-          weather: currentWeather,
-          notes: '',
-          entryGroupId,
-        });
-        // disabled syncCreateDiaryEntry
-        createdEntries.push(entry);
-      }
+      const entryGroupId = 'eid_' + Date.now() + '_0_' + Math.random().toString(36).substring(2, 7);
+      const entry = await CultivationEntry.create({
+        cultivationBoard: board._id,
+        date: startDate,
+        stage: '',
+        activityName: '',
+        performer: '',
+        weather: currentWeather,
+        notes: '',
+        entryGroupId,
+      });
       await CultivationBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
       if (board.groupId) {
         await FertilizerBoard.updateMany({ groupId: board.groupId }, { hasInitializedEntries: true });
         await PesticideBoard.updateMany({ groupId: board.groupId }, { hasInitializedEntries: true });
       }
-      entries = createdEntries;
+      entries = [entry];
     } else if (!board.hasInitializedEntries && entries.length > 0) {
       await CultivationBoard.findByIdAndUpdate(board._id, { hasInitializedEntries: true });
     }
@@ -294,6 +267,7 @@ export const createCultivationEntry = async (req: AuthRequest, res: Response) =>
 
     const entry = new CultivationEntry({
       ...req.body,
+      date: req.body.date || new Date(),
       cultivationBoard: req.params.boardId,
       entryGroupId,
     });
