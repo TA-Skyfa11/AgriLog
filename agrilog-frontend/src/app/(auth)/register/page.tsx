@@ -5,7 +5,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { fetchAPI } from '@/lib/api';
-import GoogleAuthButton from '@/components/common/GoogleAuthButton';
 import styles from '@/css/login.module.css';
 import billingStyles from '@/css/billing.module.css';
 import {
@@ -21,7 +20,6 @@ import {
   Gift,
   Sparkles,
   Sprout,
-  Briefcase,
   ArrowRight,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -40,12 +38,10 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   
   // Profile
-  const [profileName, setProfileName] = useState(''); // Maps to farmName or companyName
+  const [profileName, setProfileName] = useState(''); // Maps to farmName
   const [contactPhone, setContactPhone] = useState('');
   const [address, setAddress] = useState('');
   const [areaSqm, setAreaSqm] = useState('');
-  const [taxCode, setTaxCode] = useState('');
-  const [businessType, setBusinessType] = useState('');
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -435,7 +431,7 @@ export default function RegisterPage() {
         }}>
           {step > 2 ? '✓' : '2'}
         </span>
-        'Nông trại'
+        Nông trại
       </div>
 
       {role === 'FARM' && (
