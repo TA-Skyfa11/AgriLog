@@ -3,6 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# Workers Observability: Bật tự động ghi nhận Logs, Traces & Exceptions lên Cloudflare Dashboard
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
 # Cloudflare Hyperdrive binding for PostgreSQL connection pooling & caching
 [[hyperdrive]]
 binding = "HYPERDRIVE"
