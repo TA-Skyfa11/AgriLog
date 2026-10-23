@@ -1,0 +1,11 @@
+name = "agrilog-worker"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare Hyperdrive binding for PostgreSQL connection pooling & caching
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "eaa0b02831be4e7c9d03e43cb19544e7"
+# Khi dev local, wrangler sẽ tự động nạp kết nối từ file .dev.vars (WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE)
+# Không hardcode mật khẩu tại đây để đảm bảo an toàn bảo mật khi commit Git

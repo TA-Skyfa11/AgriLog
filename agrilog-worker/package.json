@@ -1,0 +1,23 @@
+{
+  "name": "agrilog-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker with Hyperdrive database connection for AgriLog",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "dotenv -e .dev.vars -- wrangler dev",
+    "dev:remote": "wrangler dev --remote",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "@types/pg": "^8.11.10",
+    "dotenv-cli": "^11.0.0",
+    "typescript": "^5.6.3",
+    "wrangler": "^3.90.0"
+  }
+}

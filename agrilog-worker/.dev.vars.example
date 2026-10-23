@@ -1,0 +1,3 @@
+# Template mẫu biến môi trường cho Cloudflare Worker local development
+# Sao chép file này thành .dev.vars và điền thông tin kết nối Supabase của bạn
+WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgresql://postgres.[PROJECT_REF]:[PASSWORD]@[REGION].pooler.supabase.com:5432/postgres"

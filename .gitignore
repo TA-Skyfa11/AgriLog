@@ -9,6 +9,11 @@
 *.env.*
 **/agrilog-backend/.env*
 **/agrilog-frontend/.env*
+.dev.vars
+.dev.vars.*
+*.dev.vars
+*.dev.vars.*
+**/.dev.vars*
 
 # NGOẠI LỆ: Cho phép commit các file template mẫu để đồng đội tham khảo cấu hình
 !.env.example
@@ -16,6 +21,8 @@
 !.env.*.example
 !agrilog-backend/.env.example
 !agrilog-frontend/.env.example
+!*.dev.vars.example
+!**/.dev.vars.example
 
 # Khóa bí mật, chứng chỉ SSL & SSH Keys
 *.pem
@@ -52,6 +59,8 @@ coverage/
 **/coverage/
 *.tsbuildinfo
 **/*.tsbuildinfo
+.wrangler/
+**/.wrangler/
 
 # ==============================================================================
 # 3. Database dumps, Cache & Runtime Logs
