@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+﻿import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import { User, Role } from './models/User';
 import { FarmProfile } from './models/FarmProfile';
@@ -21,20 +21,26 @@ const importData = async () => {
   try {
     await connectDB();
 
-    // Xóa dữ liệu cũ
-    await User.deleteMany();
-    await FarmProfile.deleteMany();
-    await Cooperative.deleteMany();
-    await CultivationBoard.deleteMany();
-    await CultivationEntry.deleteMany();
-    await FertilizerBoard.deleteMany();
-    await FertilizerEntry.deleteMany();
-    await PesticideBoard.deleteMany();
-    await PesticideEntry.deleteMany();
-    await Material.deleteMany();
-    await Task.deleteMany();
-
-    console.log('Đã xóa toàn bộ dữ liệu cũ...');
+    // 🛡️ CHẾ ĐỘ BẢO VỆ DỮ LIỆU KHÁCH HÀNG:
+    // Cấm tuyệt đối xóa trắng database nếu không có biến môi trường xác nhận rõ ràng
+    if (process.env.ALLOW_DATABASE_WIPE === 'YES_DELETE_ALL_DATA') {
+      console.warn('⚠️ [CẢNH BÁO NGUY HIỂM] Đang xóa dữ liệu cũ do có cờ ALLOW_DATABASE_WIPE...');
+      await User.deleteMany();
+      await FarmProfile.deleteMany();
+      await Cooperative.deleteMany();
+      await CultivationBoard.deleteMany();
+      await CultivationEntry.deleteMany();
+      await FertilizerBoard.deleteMany();
+      await FertilizerEntry.deleteMany();
+      await PesticideBoard.deleteMany();
+      await PesticideEntry.deleteMany();
+      await Material.deleteMany();
+      await Task.deleteMany();
+      console.log('Đã xóa toàn bộ dữ liệu cũ...');
+    } else {
+      console.log('🛡️ [AN TOÀN BẢO VỆ] ĐÃ BỎ QUA lệnh xóa trắng database (deleteMany).');
+      console.log('🛡️ Toàn bộ tài khoản và dữ liệu nhật ký của người dùng/khách hàng được BẢO TOÀN NGUYÊN VẸN 100%!');
+    }
 
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash('123456', salt);
@@ -315,7 +321,7 @@ const importData = async () => {
     await PesticideEntry.create({ pesticideBoard: pBoard._id, date: new Date('2026-06-20'), material: pesticide1._id, materialName: pesticide1.name, quantity: '150', unit: 'ml', phiDays: 7, cost: 210000, notes: 'Phòng trừ sâu vẽ bùa' });
 
     // 9. Tạo Gói dịch vụ
-    await ServicePackage.deleteMany();
+    if (process.env.ALLOW_DATABASE_WIPE === 'YES_DELETE_ALL_DATA') { await ServicePackage.deleteMany(); }
     for (const pkg of SERVICE_PACKAGES_DATA) {
       await ServicePackage.create(pkg);
     }

@@ -23,19 +23,27 @@ dotenv_1.default.config();
 const importData = async () => {
     try {
         await (0, db_1.connectDB)();
-        // Xóa dữ liệu cũ
-        await User_1.User.deleteMany();
-        await FarmProfile_1.FarmProfile.deleteMany();
-        await Cooperative_1.Cooperative.deleteMany();
-        await CultivationBoard_1.CultivationBoard.deleteMany();
-        await CultivationEntry_1.CultivationEntry.deleteMany();
-        await FertilizerBoard_1.FertilizerBoard.deleteMany();
-        await FertilizerEntry_1.FertilizerEntry.deleteMany();
-        await PesticideBoard_1.PesticideBoard.deleteMany();
-        await PesticideEntry_1.PesticideEntry.deleteMany();
-        await Material_1.Material.deleteMany();
-        await Task_1.Task.deleteMany();
-        console.log('Đã xóa toàn bộ dữ liệu cũ...');
+        // 🛡️ CHẾ ĐỘ BẢO VỆ DỮ LIỆU KHÁCH HÀNG:
+        // Cấm tuyệt đối xóa trắng database nếu không có biến môi trường xác nhận rõ ràng
+        if (process.env.ALLOW_DATABASE_WIPE === 'YES_DELETE_ALL_DATA') {
+            console.warn('⚠️ [CẢNH BÁO NGUY HIỂM] Đang xóa dữ liệu cũ do có cờ ALLOW_DATABASE_WIPE...');
+            await User_1.User.deleteMany();
+            await FarmProfile_1.FarmProfile.deleteMany();
+            await Cooperative_1.Cooperative.deleteMany();
+            await CultivationBoard_1.CultivationBoard.deleteMany();
+            await CultivationEntry_1.CultivationEntry.deleteMany();
+            await FertilizerBoard_1.FertilizerBoard.deleteMany();
+            await FertilizerEntry_1.FertilizerEntry.deleteMany();
+            await PesticideBoard_1.PesticideBoard.deleteMany();
+            await PesticideEntry_1.PesticideEntry.deleteMany();
+            await Material_1.Material.deleteMany();
+            await Task_1.Task.deleteMany();
+            console.log('Đã xóa toàn bộ dữ liệu cũ...');
+        }
+        else {
+            console.log('🛡️ [AN TOÀN BẢO VỆ] ĐÃ BỎ QUA lệnh xóa trắng database (deleteMany).');
+            console.log('🛡️ Toàn bộ tài khoản và dữ liệu nhật ký của người dùng/khách hàng được BẢO TOÀN NGUYÊN VẸN 100%!');
+        }
         const salt = await bcryptjs_1.default.genSalt(10);
         const passwordHash = await bcryptjs_1.default.hash('123456', salt);
         // 1. Tạo Admin
@@ -296,7 +304,9 @@ const importData = async () => {
         await FertilizerEntry_1.FertilizerEntry.create({ fertilizerBoard: fBoard._id, date: new Date('2026-07-01'), material: fertilizer2._id, materialName: fertilizer2.name, quantity: '50', unit: 'kg', cost: 450000, notes: 'Bón thúc lần 2' });
         await PesticideEntry_1.PesticideEntry.create({ pesticideBoard: pBoard._id, date: new Date('2026-06-20'), material: pesticide1._id, materialName: pesticide1.name, quantity: '150', unit: 'ml', phiDays: 7, cost: 210000, notes: 'Phòng trừ sâu vẽ bùa' });
         // 9. Tạo Gói dịch vụ
-        await ServicePackage_1.ServicePackage.deleteMany();
+        if (process.env.ALLOW_DATABASE_WIPE === 'YES_DELETE_ALL_DATA') {
+            await ServicePackage_1.ServicePackage.deleteMany();
+        }
         for (const pkg of seedServicePackages_1.SERVICE_PACKAGES_DATA) {
             await ServicePackage_1.ServicePackage.create(pkg);
         }
