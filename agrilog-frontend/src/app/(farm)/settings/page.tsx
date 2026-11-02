@@ -117,12 +117,6 @@ export default function SettingsPage() {
     }
   };
 
-  useEffect(() => {
-    loadProfile();
-    loadCooperative();
-  }, []);
-
-
   const loadCooperative = async () => {
     try {
       setCoopLoading(true);
@@ -136,6 +130,11 @@ export default function SettingsPage() {
       setCoopLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadProfile();
+    loadCooperative();
+  }, []);
 
   const handleJoinCooperative = async (e: React.FormEvent) => {
     e.preventDefault();
