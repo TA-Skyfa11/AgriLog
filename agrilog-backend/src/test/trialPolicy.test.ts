@@ -1,4 +1,4 @@
-import assert from 'assert';
+﻿import assert from 'assert';
 import dotenv from 'dotenv';
 dotenv.config();
 import { connectDB, sql } from '../config/db';
@@ -41,6 +41,21 @@ function it(name: string, fn: () => void | Promise<void>) {
 
 async function runTests() {
   await connectDB();
+
+  // Snapshot cấu hình Dùng thử hiện tại để hoàn trả lại sau khi test
+  const existingSetting = await getOrCreateTrialSetting();
+  const backupSetting = existingSetting ? {
+    isEnabled: existingSetting.isEnabled,
+    durationMonths: existingSetting.durationMonths,
+    trialPlan: existingSetting.trialPlan,
+    lockOnExpiry: existingSetting.lockOnExpiry,
+    expiryAction: existingSetting.expiryAction,
+    trialPromptMessage: existingSetting.trialPromptMessage,
+    expiryNotificationMessage: existingSetting.expiryNotificationMessage,
+    requirePlanSelection: existingSetting.requirePlanSelection,
+  } : null;
+
+  try {
 
   console.log('📌 1. Kiểm thử cấu hình chính sách Dùng thử mặc định:');
   await it('Khởi tạo TrialSetting mặc định có đủ các trường', async () => {
@@ -103,7 +118,7 @@ async function runTests() {
     // Dọn dẹp
     await FarmProfile.deleteMany({ user: { $in: [testUserId, noTrialUserId] } });
     // Bật lại trial
-    await TrialSetting.updateOne({}, { $set: { isEnabled: true, durationMonths: 1, trialPlan: 'PREMIUM' } });
+    // Hoàn trả cấu hình ở finally
   });
 
   console.log('\n📌 5. Kiểm thử gói cước dùng thử trọn bộ (ALL - Cả 3 gói):');
@@ -122,10 +137,15 @@ async function runTests() {
 
     // Dọn dẹp
     await FarmProfile.deleteMany({ user: allTrialUserId });
-    await TrialSetting.updateOne({}, { $set: { isEnabled: true, durationMonths: 1, trialPlan: 'PREMIUM' } });
+    // Hoàn trả cấu hình ở finally
   });
 
-  await sql.end();
+  } finally {
+    if (backupSetting) {
+      await TrialSetting.updateOne({}, { $set: backupSetting });
+    }
+    await sql.end();
+  }
 
   console.log(`\n========================================`);
   console.log(`🏁 Kết quả kiểm thử: ${passedTests} passed, ${failedTests} failed`);

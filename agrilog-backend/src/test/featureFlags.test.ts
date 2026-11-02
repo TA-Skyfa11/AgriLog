@@ -1,4 +1,4 @@
-import assert from 'assert';
+﻿import assert from 'assert';
 import dotenv from 'dotenv';
 dotenv.config();
 import { connectDB, sql } from '../config/db';
@@ -36,6 +36,15 @@ function it(name: string, fn: () => void | Promise<void>) {
 
 async function runTests() {
   await connectDB();
+
+  // Snapshot trạng thái các tính năng trước khi kiểm thử để hoàn trả ở teardown
+  const existingMarketplace = await SystemFeature.findOne({ key: 'marketplace' });
+  const backupMarketplaceStatus = existingMarketplace ? existingMarketplace.isEnabled : false;
+
+  const existingReports = await SystemFeature.findOne({ key: 'reports' });
+  const backupReportsStatus = existingReports ? existingReports.isEnabled : true;
+
+  try {
 
   console.log('📌 1. Kiểm thử khởi tạo và nạp tính năng mặc định:');
   await it('Đảm bảo danh sách tính năng mặc định có đủ 11 module', () => {
@@ -96,7 +105,16 @@ async function runTests() {
     await SystemFeature.updateOne({ key: 'reports' }, { $set: { isEnabled: true } });
   });
 
-  await sql.end();
+  } finally {
+    // Khôi phục chính xác trạng thái ban đầu của các tính năng trong Database
+    if (existingMarketplace) {
+      await SystemFeature.updateOne({ key: 'marketplace' }, { $set: { isEnabled: backupMarketplaceStatus } });
+    }
+    if (existingReports) {
+      await SystemFeature.updateOne({ key: 'reports' }, { $set: { isEnabled: backupReportsStatus } });
+    }
+    await sql.end();
+  }
 
   console.log(`\n========================================`);
   console.log(`🏁 Kết quả kiểm thử: ${passedTests} passed, ${failedTests} failed`);

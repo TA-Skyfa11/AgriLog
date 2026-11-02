@@ -51,7 +51,7 @@ export const DEFAULT_SYSTEM_FEATURES = [
     path: '/marketplace',
     icon: 'ShoppingBag',
     order: 5,
-    isEnabled: true,
+    isEnabled: false,
   },
   {
     key: 'tasks',
