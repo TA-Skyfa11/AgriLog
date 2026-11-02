@@ -121,6 +121,7 @@
 .input:focus {
   outline: none;
   border-color: var(--color-primary-500);
+
 }
 
 .button {
@@ -277,4 +278,69 @@ input:checked + .slider:before {
   color: var(--color-text-main);
   font-size: 0.875rem;
   outline: none;
+}
+
+/* Cooperative Section */
+.coopCard {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.coopBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background-color: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.coopCodeTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #f1f5f9;
+  color: #0f172a;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  border: 1px dashed #94a3b8;
+}
+
+.coopInfoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+
+.coopInfoItem {
+  background: var(--color-bg);
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+}
+
+.coopInfoLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.25rem;
+}
+
+.coopInfoValue {
+  font-size: 0.9375rem;
+  color: var(--color-text-main);
+  font-weight: 600;
 }

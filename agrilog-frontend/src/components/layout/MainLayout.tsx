@@ -24,7 +24,7 @@ import { logoutOneSignal } from '@/lib/onesignal';
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  role: 'FARM' | 'ADMIN' | 'COMPANY';
+  role: 'FARM' | 'ADMIN' | 'COMPANY' | 'COOPERATIVE';
 }
 
 export default function MainLayout({ children, role }: MainLayoutProps) {
@@ -113,6 +113,19 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
         return;
       }
 
+            if (currentRole === 'COOPERATIVE') {
+        try {
+          const data = await fetchAPI('/cooperative/dashboard');
+          if (data.success && data.data && data.data.cooperative) {
+            setUserName(data.data.cooperative.name);
+            setUserInitials('HTX');
+            return;
+          }
+        } catch (e) {}
+        setUserName(fallbackName || 'Cán bộ HTX');
+        setUserInitials('HTX');
+        return;
+      }
       if (currentRole === 'COMPANY') {
         try {
           const data = await fetchAPI('/company/profile');
@@ -292,7 +305,16 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
     { href: '/company/settings', label: 'Cài đặt', icon: <Settings size={20} /> },
   ];
 
-  const rawLinks: NavLinkItem[] = role === 'FARM' ? farmLinks : role === 'ADMIN' ? adminLinks : companyLinks;
+    const cooperativeLinks: NavLinkItem[] = [
+    { href: '/cooperative/dashboard', label: 'Bảng điều khiển HTX', icon: <Home size={20} /> },
+    { href: '/cooperative/compliance', label: 'Giám sát tuân thủ an toàn', icon: <ShieldAlert size={20} /> },
+    { href: '/cooperative/members', label: 'Quản lý Xã viên', icon: <User size={20} /> },
+    { href: '/cooperative/export', label: 'Xuất hồ sơ mùa vụ', icon: <ClipboardList size={20} /> },
+    { href: '/cooperative/comparison', label: 'So sánh mùa vụ HTX', icon: <BarChart2 size={20} /> },
+    { href: '/cooperative/settings', label: t('settings.title'), icon: <Settings size={20} /> },
+  ];
+
+  const rawLinks: NavLinkItem[] = role === 'FARM' ? farmLinks : role === 'ADMIN' ? adminLinks : role === 'COMPANY' ? companyLinks : cooperativeLinks;
   // Lọc chỉ hiển thị các liên kết thuộc tính năng đang BẬT
   const links = rawLinks.filter(link => !link.featureKey || isFeatureEnabled(link.featureKey));
 
@@ -304,6 +326,15 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
         { label: 'Nhật ký', href: '/diary', icon: <Leaf size={20} /> },
         { label: 'Công việc', href: '/tasks', icon: <Calendar size={20} /> },
         { label: 'Kho vật tư', href: '/inventory', icon: <Package size={20} /> },
+        { label: 'Menu', isAction: true, onClick: () => setIsMobileMenuOpen(prev => !prev), icon: <Menu size={20} /> },
+      ];
+    }
+        if (role === 'COOPERATIVE') {
+      return [
+        { label: 'HTX', href: '/cooperative/dashboard', icon: <Home size={20} /> },
+        { label: 'Tuân thủ PHI', href: '/cooperative/compliance', icon: <ShieldAlert size={20} /> },
+        { label: 'Xã viên', href: '/cooperative/members', icon: <User size={20} /> },
+        { label: 'Hồ sơ vụ', href: '/cooperative/export', icon: <ClipboardList size={20} /> },
         { label: 'Menu', isAction: true, onClick: () => setIsMobileMenuOpen(prev => !prev), icon: <Menu size={20} /> },
       ];
     }
@@ -418,7 +449,7 @@ export default function MainLayout({ children, role }: MainLayoutProps) {
           {!isSidebarCollapsed && (
             <div className={styles.userInfoText}>
               <div className={styles.userName}>{userName}</div>
-              <div className={styles.userRole}>{role === 'FARM' ? 'Quản lý nông trại' : role === 'ADMIN' ? 'Admin' : 'Doanh nghiệp'}</div>
+              <div className={styles.userRole}>{role === 'FARM' ? 'Quản lý nông trại' : role === 'ADMIN' ? 'Admin' : role === 'COOPERATIVE' ? 'Quản lý Hợp tác xã' : 'Doanh nghiệp'}</div>
             </div>
           )}
           <button 

@@ -68,7 +68,8 @@ export const ALL_TABLES = [
   'commission_settings',
   'login_histories',
   'sessions',
-  'crop_standards'
+  'crop_standards',
+  'cooperatives'
 ];
 
 let isSchemaInitialized = false;
@@ -113,6 +114,8 @@ export const initSupabaseSchema = async () => {
     `CREATE INDEX IF NOT EXISTS idx_users_phone ON users ((data->>'phone'))`,
     `CREATE INDEX IF NOT EXISTS idx_users_role ON users ((data->>'role'))`,
     `CREATE INDEX IF NOT EXISTS idx_users_google_id ON users ((data->>'googleId'))`,
+    `CREATE INDEX IF NOT EXISTS idx_cooperatives_manager ON cooperatives ((data->>'manager'))`,
+    `CREATE INDEX IF NOT EXISTS idx_farm_profiles_coop ON farm_profiles ((data->>'cooperative'))`,
     `CREATE INDEX IF NOT EXISTS idx_farm_profiles_user ON farm_profiles ((data->>'user'))`,
     `CREATE INDEX IF NOT EXISTS idx_company_profiles_user ON company_profiles ((data->>'user'))`,
     `CREATE INDEX IF NOT EXISTS idx_cult_boards_profile ON cultivation_boards ((data->>'farmProfile'))`,

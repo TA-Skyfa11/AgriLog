@@ -7,6 +7,9 @@ export interface IFarmProfile extends Document {
   areaSqm: number;
   mainCropType: string;
   contactPhone: string;
+  ownerName?: string;
+  memberCode?: string;
+  cooperative?: Types.ObjectId;
   plan: 'FREE' | 'BASIC' | 'STANDARD' | 'PREMIUM' | 'ALL';
   planExpiresAt?: Date;
   previousPlan?: 'FREE' | 'BASIC' | 'STANDARD' | 'PREMIUM' | 'ALL';
@@ -30,6 +33,9 @@ const farmProfileSchema = new Schema<IFarmProfile>(
     areaSqm: { type: Number, required: false },
     mainCropType: { type: String, required: false },
     contactPhone: { type: String, required: false },
+    ownerName: { type: String, required: false },
+    memberCode: { type: String, required: false },
+    cooperative: { type: Schema.Types.ObjectId, ref: 'Cooperative', required: false },
     plan: { type: String, enum: ['FREE', 'BASIC', 'STANDARD', 'PREMIUM', 'ALL'], default: 'FREE' },
     planExpiresAt: { type: Date, required: false },
     previousPlan: { type: String, enum: ['FREE', 'BASIC', 'STANDARD', 'PREMIUM', 'ALL'], required: false },

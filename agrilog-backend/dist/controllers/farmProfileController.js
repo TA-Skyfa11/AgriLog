@@ -33,8 +33,9 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.removeFarmPerformer = exports.addFarmPerformer = exports.getFarmPerformers = exports.selectTrialPlan = exports.updateFarmProfile = exports.getFarmProfile = exports.createDefaultFarmProfile = void 0;
+exports.removeFarmPerformer = exports.leaveCooperative = exports.joinCooperative = exports.getFarmCooperative = exports.addFarmPerformer = exports.getFarmPerformers = exports.selectTrialPlan = exports.updateFarmProfile = exports.getFarmProfile = exports.createDefaultFarmProfile = void 0;
 const FarmProfile_1 = require("../models/FarmProfile");
+const Cooperative_1 = require("../models/Cooperative");
 const Notification_1 = require("../models/Notification");
 const boardUtils_1 = require("../utils/boardUtils");
 /**
@@ -48,7 +49,8 @@ const createDefaultFarmProfile = async (userId, initialData = {}) => {
     // Nếu chính sách dùng thử đang BẬT và tài khoản chưa từng mua gói
     if (trialSetting.isEnabled) {
         const durationDays = (trialSetting.durationMonths || 6) * 30;
-        plan = trialSetting.trialPlan || 'ALL';
+        const designatedPlan = trialSetting.trialPlan || 'PREMIUM';
+        plan = designatedPlan;
         planExpiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
         isTrial = true;
     }
@@ -68,13 +70,10 @@ const createDefaultFarmProfile = async (userId, initialData = {}) => {
     // Tạo thông báo chào mừng dùng thử miễn phí
     if (isTrial && planExpiresAt) {
         try {
-            const planNameText = plan === 'ALL'
-                ? 'toàn bộ các gói dịch vụ (Basic, Standard, Premium)'
-                : `gói ${plan}`;
-            const welcomeMsg = trialSetting.trialPromptMessage || `Chào mừng bạn đến với AgriLog! Bạn được tặng ${trialSetting.durationMonths} tháng dùng thử miễn phí (${planNameText}). Vui lòng chọn gói dịch vụ để bắt đầu trải nghiệm (hạn dùng đến ${planExpiresAt.toLocaleDateString('vi-VN')}).`;
+            const welcomeMsg = trialSetting.trialPromptMessage || `Chào mừng bạn đến với AgriLog! Nông trại của bạn đã được kích hoạt gói ${plan} miễn phí ${trialSetting.durationMonths} tháng (hạn dùng đến ${planExpiresAt.toLocaleDateString('vi-VN')}). Hãy bắt đầu trải nghiệm ngay mọi tính năng!`;
             await Notification_1.Notification.create({
                 user: userId,
-                title: `Kích hoạt dùng thử miễn phí ${trialSetting.durationMonths} tháng`,
+                title: `Kích hoạt gói dịch vụ ${plan} miễn phí ${trialSetting.durationMonths} tháng`,
                 message: welcomeMsg,
                 type: 'BILLING',
             });
@@ -282,6 +281,181 @@ const addFarmPerformer = async (req, res) => {
     }
 };
 exports.addFarmPerformer = addFarmPerformer;
+/**
+ * Lấy thông tin Hợp tác xã mà nông trại đang tham gia
+ */
+const getFarmCooperative = async (req, res) => {
+    try {
+        const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile || !profile.cooperative) {
+            return res.json({ success: true, data: null });
+        }
+        const coop = await Cooperative_1.Cooperative.findById(profile.cooperative).populate('manager', 'name phone email');
+        if (!coop) {
+            profile.cooperative = undefined;
+            await profile.save();
+            return res.json({ success: true, data: null });
+        }
+        return res.json({
+            success: true,
+            data: {
+                _id: coop._id,
+                name: coop.name,
+                code: coop.code,
+                address: coop.address,
+                contactPhone: coop.contactPhone,
+                email: coop.email,
+                establishedYear: coop.establishedYear,
+                certificationStandards: coop.certificationStandards,
+                description: coop.description,
+                managerName: coop.manager?.name || 'Ban Quản trị HTX',
+                managerPhone: coop.manager?.phone || coop.contactPhone,
+                memberCount: coop.members ? coop.members.length : 0,
+            },
+        });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.getFarmCooperative = getFarmCooperative;
+/**
+ * Nông dân chủ động nhập mã HTX (HTX-xxxx) để gia nhập
+ */
+const joinCooperative = async (req, res) => {
+    try {
+        const { coopCode } = req.body;
+        if (!coopCode || typeof coopCode !== 'string') {
+            return res.status(400).json({ success: false, message: 'Vui lòng cung cấp mã Hợp tác xã.' });
+        }
+        const trimmedCode = coopCode.trim().toUpperCase();
+        const coop = await Cooperative_1.Cooperative.findOne({ code: trimmedCode });
+        if (!coop) {
+            return res.status(404).json({ success: false, message: `Không tìm thấy Hợp tác xã nào có mã "${trimmedCode}". Vui lòng kiểm tra lại mã chính xác!` });
+        }
+        let profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile) {
+            profile = await (0, exports.createDefaultFarmProfile)(req.user?._id);
+        }
+        if (profile.cooperative && profile.cooperative.toString() === coop._id.toString()) {
+            return res.status(400).json({ success: false, message: `Nông trại của bạn đã tham gia Hợp tác xã "${coop.name}" rồi.` });
+        }
+        // Nếu đang thuộc HTX khác, gỡ khỏi HTX cũ
+        if (profile.cooperative) {
+            const oldCoop = await Cooperative_1.Cooperative.findById(profile.cooperative);
+            if (oldCoop) {
+                oldCoop.members = (oldCoop.members || []).filter((m) => m.toString() !== profile._id.toString());
+                await oldCoop.save();
+            }
+        }
+        profile.cooperative = coop._id;
+        if (!profile.ownerName && req.user?.name) {
+            profile.ownerName = req.user.name;
+        }
+        await profile.save();
+        if (!coop.members)
+            coop.members = [];
+        if (!coop.members.map((id) => id.toString()).includes(profile._id.toString())) {
+            coop.members.push(profile._id);
+            await coop.save();
+        }
+        // Gửi thông báo đến Nông dân
+        try {
+            await Notification_1.Notification.create({
+                user: req.user?._id,
+                title: 'Gia nhập Hợp tác xã thành công',
+                message: `Chúc mừng bạn đã gia nhập thành công Hợp tác xã "${coop.name}" (Mã: ${coop.code}). Cán bộ kỹ thuật HTX hiện có thể đồng hành giám sát mùa vụ và hỗ trợ xuất hồ sơ VietGAP cho nông trại của bạn!`,
+                type: 'SYSTEM',
+            });
+        }
+        catch (err) {
+            console.warn('Lỗi tạo notification join HTX:', err);
+        }
+        // Gửi thông báo đến Quản lý HTX
+        if (coop.manager) {
+            try {
+                await Notification_1.Notification.create({
+                    user: coop.manager,
+                    title: 'Xã viên mới gia nhập HTX',
+                    message: `Hộ nông dân "${profile.farmName || req.user?.name || 'Xã viên mới'}" vừa nhập mã "${coop.code}" để gia nhập HTX.`,
+                    type: 'SYSTEM',
+                });
+            }
+            catch (err) {
+                console.warn('Lỗi tạo notification cho manager HTX:', err);
+            }
+        }
+        return res.json({
+            success: true,
+            message: `Đã gia nhập thành công Hợp tác xã "${coop.name}"!`,
+            data: {
+                _id: coop._id,
+                name: coop.name,
+                code: coop.code,
+                address: coop.address,
+                contactPhone: coop.contactPhone,
+                certificationStandards: coop.certificationStandards,
+            },
+        });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.joinCooperative = joinCooperative;
+/**
+ * Nông dân chủ động rời khỏi Hợp tác xã
+ */
+const leaveCooperative = async (req, res) => {
+    try {
+        let profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });
+        if (!profile || !profile.cooperative) {
+            return res.status(400).json({ success: false, message: 'Hiện tại nông trại của bạn chưa liên kết với Hợp tác xã nào.' });
+        }
+        const coop = await Cooperative_1.Cooperative.findById(profile.cooperative);
+        const oldName = coop ? coop.name : 'Hợp tác xã';
+        profile.cooperative = undefined;
+        await profile.save();
+        if (coop) {
+            coop.members = (coop.members || []).filter((m) => m.toString() !== profile._id.toString());
+            await coop.save();
+            // Thông báo cho Quản lý HTX
+            if (coop.manager) {
+                try {
+                    await Notification_1.Notification.create({
+                        user: coop.manager,
+                        title: 'Xã viên đã rời Hợp tác xã',
+                        message: `Hộ nông dân "${profile.farmName || req.user?.name || 'Xã viên'}" đã hủy liên kết khỏi HTX.`,
+                        type: 'SYSTEM',
+                    });
+                }
+                catch (err) {
+                    console.warn('Lỗi tạo thông báo rời HTX cho manager:', err);
+                }
+            }
+        }
+        // Thông báo cho nông dân
+        try {
+            await Notification_1.Notification.create({
+                user: req.user?._id,
+                title: 'Đã rời khỏi Hợp tác xã',
+                message: `Bạn đã hủy liên kết khỏi "${oldName}". Toàn bộ nhật ký canh tác của bạn vẫn được lưu giữ an toàn trên tài khoản độc lập.`,
+                type: 'SYSTEM',
+            });
+        }
+        catch (err) {
+            console.warn('Lỗi tạo notification rời HTX cho farmer:', err);
+        }
+        return res.json({
+            success: true,
+            message: `Đã hủy liên kết khỏi ${oldName} thành công.`,
+        });
+    }
+    catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+exports.leaveCooperative = leaveCooperative;
 const removeFarmPerformer = async (req, res) => {
     try {
         const profile = await FarmProfile_1.FarmProfile.findOne({ user: req.user?._id });

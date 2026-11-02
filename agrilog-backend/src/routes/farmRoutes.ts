@@ -1,5 +1,15 @@
 import express from 'express';
-import { getFarmProfile, updateFarmProfile, selectTrialPlan, getFarmPerformers, addFarmPerformer, removeFarmPerformer } from '../controllers/farmProfileController';
+import { 
+  getFarmProfile, 
+  updateFarmProfile, 
+  selectTrialPlan, 
+  getFarmPerformers, 
+  addFarmPerformer, 
+  removeFarmPerformer,
+  getFarmCooperative,
+  joinCooperative,
+  leaveCooperative
+} from '../controllers/farmProfileController';
 import { getReportsStats } from '../controllers/reportsController';
 import { protect, authorize } from '../middleware/authMiddleware';
 import { Role } from '../models/User';
@@ -23,5 +33,9 @@ router.delete('/performers/:name', removeFarmPerformer);
 
 router.route('/reports-stats')
   .get(getReportsStats);
+
+router.get('/cooperative', getFarmCooperative);
+router.post('/join-cooperative', joinCooperative);
+router.post('/leave-cooperative', leaveCooperative);
 
 export default router;

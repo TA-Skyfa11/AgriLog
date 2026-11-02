@@ -11,6 +11,7 @@ const User_1 = require("../models/User");
 const LoginHistory_1 = require("../models/LoginHistory");
 const Notification_1 = require("../models/Notification");
 const CompanyProfile_1 = require("../models/CompanyProfile");
+const cooperativeController_1 = require("./cooperativeController");
 const farmProfileController_1 = require("./farmProfileController");
 const db_1 = require("../config/db");
 const crypto_1 = __importDefault(require("crypto"));
@@ -59,7 +60,7 @@ const register = async (req, res) => {
         const salt = await bcryptjs_1.default.genSalt(10);
         const passwordHash = await bcryptjs_1.default.hash(password, salt);
         // Only allow FARM or COMPANY from registration, never ADMIN
-        const allowedRoles = [User_1.Role.FARM, User_1.Role.COMPANY];
+        const allowedRoles = [User_1.Role.FARM, User_1.Role.COMPANY, User_1.Role.COOPERATIVE];
         const finalRole = allowedRoles.includes(requestedRole) ? requestedRole : User_1.Role.FARM;
         const user = await User_1.User.create({
             name,
@@ -67,7 +68,40 @@ const register = async (req, res) => {
             email: normalizedEmail,
             passwordHash,
             role: finalRole,
+            allowAdminReset: true,
         });
+        // Automatically create corresponding profile with free service package designated by admin
+        if (finalRole === User_1.Role.FARM) {
+            try {
+                await (0, farmProfileController_1.createDefaultFarmProfile)(user._id, {
+                    farmName: name ? `Nông trại của ${name}` : 'Nông trại của tôi',
+                    contactPhone: cleanPhone,
+                });
+            }
+            catch (profileErr) {
+                console.warn('Lỗi tạo FarmProfile mặc định khi đăng ký:', profileErr);
+            }
+        }
+        else if (finalRole === User_1.Role.COOPERATIVE) {
+            try {
+                await (0, cooperativeController_1.getOrCreateUserCooperative)(user._id);
+            }
+            catch (profileErr) {
+                console.warn('Lỗi tạo Cooperative mặc định khi đăng ký:', profileErr);
+            }
+        }
+        else if (finalRole === User_1.Role.COMPANY) {
+            try {
+                await CompanyProfile_1.CompanyProfile.create({
+                    user: user._id,
+                    companyName: name ? `Doanh nghiệp của ${name}` : 'Doanh nghiệp của tôi',
+                    contactPhone: cleanPhone,
+                });
+            }
+            catch (profileErr) {
+                console.warn('Lỗi tạo CompanyProfile mặc định khi đăng ký:', profileErr);
+            }
+        }
         // Create notification for admin
         const admin = await User_1.User.findOne({ role: User_1.Role.ADMIN });
         if (admin) {
@@ -95,6 +129,7 @@ const register = async (req, res) => {
                 phone: user.phone,
                 email: user.email,
                 role: user.role,
+                allowAdminReset: user.allowAdminReset !== false,
                 allowDevPayment: user.allowDevPayment || false,
             }
         });
@@ -180,6 +215,7 @@ const login = async (req, res) => {
                 phone: user.phone,
                 email: user.email,
                 role: user.role,
+                allowAdminReset: user.allowAdminReset !== false,
                 allowDevPayment: user.allowDevPayment || false,
             }
         });
@@ -221,6 +257,7 @@ const verifyMfa = async (req, res) => {
                 phone: user.phone,
                 email: user.email,
                 role: user.role,
+                allowAdminReset: user.allowAdminReset !== false,
                 allowDevPayment: user.allowDevPayment || false,
             }
         });
@@ -252,7 +289,11 @@ const getMe = async (req, res) => {
         if (!user) {
             return res.status(404).json({ success: false, message: 'Người dùng không tồn tại' });
         }
-        res.json({ success: true, data: user });
+        const userObj = user.toObject ? user.toObject() : { ...user };
+        if (userObj.allowAdminReset === undefined) {
+            userObj.allowAdminReset = true;
+        }
+        res.json({ success: true, data: userObj });
     }
     catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -488,6 +529,7 @@ const googleAuth = async (req, res) => {
                 avatar,
                 authProvider: 'google',
                 isActive: true,
+                allowAdminReset: true,
             });
             // Automatically create corresponding profile
             if (finalRole === User_1.Role.FARM) {
@@ -559,6 +601,7 @@ const googleAuth = async (req, res) => {
                 role: user.role,
                 avatar: user.avatar,
                 authProvider: user.authProvider || 'google',
+                allowAdminReset: user.allowAdminReset !== false,
                 allowDevPayment: user.allowDevPayment || false,
             },
             isNewUser,

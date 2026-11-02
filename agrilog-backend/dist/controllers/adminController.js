@@ -169,6 +169,7 @@ const addUser = async (req, res) => {
             email,
             passwordHash,
             role: role || User_1.Role.FARM,
+            allowAdminReset: true,
         });
         res.status(201).json({
             success: true,
@@ -245,10 +246,10 @@ const adminResetPassword = async (req, res) => {
         if (!user) {
             return res.status(404).json({ success: false, message: 'Người dùng không tồn tại' });
         }
-        if (!user.allowAdminReset) {
+        if (user.allowAdminReset === false) {
             return res.status(403).json({
                 success: false,
-                message: 'Người dùng này chưa cho phép Admin đặt lại mật khẩu. Hãy yêu cầu họ bật tùy chọn này trong phần Cài đặt > Bảo mật.'
+                message: 'Người dùng này đã tắt quyền cho phép Admin đặt lại mật khẩu. Hãy yêu cầu họ bật tùy chọn này trong phần Cài đặt > Bảo mật.'
             });
         }
         const salt = await bcryptjs_1.default.genSalt(10);

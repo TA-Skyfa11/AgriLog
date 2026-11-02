@@ -21,7 +21,7 @@ const trialSettingSchema = new Schema<ITrialSetting>(
     trialPlan: {
       type: String,
       enum: ['BASIC', 'STANDARD', 'PREMIUM', 'ALL'],
-      default: 'ALL',
+      default: 'PREMIUM',
     },
     lockOnExpiry: { type: Boolean, default: false },
     expiryAction: {
@@ -32,14 +32,14 @@ const trialSettingSchema = new Schema<ITrialSetting>(
     trialPromptMessage: {
       type: String,
       default:
-        'Chào mừng bạn đến với AgriLog! Bạn đang trong thời hạn dùng thử 6 tháng miễn phí. Vui lòng chọn gói dịch vụ để bắt đầu trải nghiệm và tạo bảng nhật ký.',
+        'Chào mừng bạn đến với AgriLog! Nông trại của bạn đã được kích hoạt gói dùng thử miễn phí.',
     },
     expiryNotificationMessage: {
       type: String,
       default:
         'Thời hạn dùng thử miễn phí của bạn đã kết thúc. Tài khoản đã được chuyển về gói Miễn phí với các chức năng cơ bản (tối đa 1 bảng mỗi loại nhật ký, không xuất Excel/PDF và không tải ảnh). Hãy nâng cấp gói cước bất cứ lúc nào để mở rộng không giới hạn!',
     },
-    requirePlanSelection: { type: Boolean, default: true },
+    requirePlanSelection: { type: Boolean, default: false },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }

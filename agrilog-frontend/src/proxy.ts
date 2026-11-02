@@ -16,6 +16,8 @@ export function proxy(request: NextRequest) {
         return NextResponse.redirect(new URL('/admin/dashboard', request.url));
       } else if (role === 'COMPANY') {
         return NextResponse.redirect(new URL('/company/dashboard', request.url));
+      } else if (role === 'COOPERATIVE') {
+        return NextResponse.redirect(new URL('/cooperative/dashboard', request.url));
       } else {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
@@ -39,6 +41,8 @@ export function proxy(request: NextRequest) {
   if (pathname.startsWith('/admin') && role !== 'ADMIN') {
     if (role === 'COMPANY') {
       return NextResponse.redirect(new URL('/company/dashboard', request.url));
+    } else if (role === 'COOPERATIVE') {
+      return NextResponse.redirect(new URL('/cooperative/dashboard', request.url));
     }
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
@@ -46,17 +50,31 @@ export function proxy(request: NextRequest) {
   if (pathname.startsWith('/company') && role !== 'COMPANY') {
     if (role === 'ADMIN') {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    } else if (role === 'COOPERATIVE') {
+      return NextResponse.redirect(new URL('/cooperative/dashboard', request.url));
     }
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // Farm pages: block admin and company
-  if (!pathname.startsWith('/admin') && !pathname.startsWith('/company') && pathname !== '/') {
+  if (pathname.startsWith('/cooperative') && role !== 'COOPERATIVE') {
+    if (role === 'ADMIN') {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    } else if (role === 'COMPANY') {
+      return NextResponse.redirect(new URL('/company/dashboard', request.url));
+    }
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // Farm pages: block admin, company, and cooperative from entering farmer routes
+  if (!pathname.startsWith('/admin') && !pathname.startsWith('/company') && !pathname.startsWith('/cooperative') && pathname !== '/') {
     if (role === 'ADMIN') {
       return NextResponse.redirect(new URL('/admin/dashboard', request.url));
     }
     if (role === 'COMPANY') {
       return NextResponse.redirect(new URL('/company/dashboard', request.url));
+    }
+    if (role === 'COOPERATIVE') {
+      return NextResponse.redirect(new URL('/cooperative/dashboard', request.url));
     }
   }
 
@@ -68,4 +86,3 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\.mp4|demo4.mp4|demo.mp4|OneSignalSDKWorker.js).*)',
   ],
 };
-

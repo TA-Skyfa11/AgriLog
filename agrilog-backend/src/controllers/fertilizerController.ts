@@ -63,11 +63,38 @@ export const getFertilizerBoards = async (req: AuthRequest, res: Response) => {
   }
 };
 
+const fertilizerCreationLocks = new Set<string>();
+
 export const createFertilizerBoard = async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id?.toString();
+  if (!userId) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  if (fertilizerCreationLocks.has(userId)) {
+    return res.status(429).json({
+      success: false,
+      message: 'Yêu cầu tạo bảng đang được xử lý, vui lòng chờ trong giây lát.',
+    });
+  }
+
+  fertilizerCreationLocks.add(userId);
   try {
     let profile = await FarmProfile.findOne({ user: req.user?._id });
     if (!profile) {
       profile = await FarmProfile.create({ user: req.user?._id, farmName: 'Nông trại của tôi' });
+    }
+
+    // Chống tạo trùng lặp do spam request liên tiếp trong vòng 5 giây
+    const fiveSecondsAgo = new Date(Date.now() - 5000);
+    const recentDuplicate = await FertilizerBoard.findOne({
+      farmProfile: profile._id,
+      name: req.body.name,
+      cropType: req.body.cropType,
+      createdAt: { $gte: fiveSecondsAgo },
+    });
+    if (recentDuplicate) {
+      return res.status(200).json({ success: true, data: recentDuplicate });
     }
 
     // Check board limit
@@ -124,6 +151,8 @@ export const createFertilizerBoard = async (req: AuthRequest, res: Response) => 
     res.status(201).json({ success: true, data: board });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
+  } finally {
+    fertilizerCreationLocks.delete(userId);
   }
 };
 

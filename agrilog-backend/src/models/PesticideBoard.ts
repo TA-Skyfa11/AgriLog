@@ -7,7 +7,7 @@ export interface IPesticideBoard extends Document {
   areaSqm: number;
   areaText?: string;
   startDate: Date;
-  status: 'ACTIVE' | 'CLOSED';
+  status: 'PLANNING' | 'IN_PROGRESS' | 'HARVESTING' | 'COMPLETED' | 'ACTIVE' | 'CLOSED';
   description?: string;
   customColumns?: string[];
   groupId?: string;
@@ -24,7 +24,7 @@ const pesticideBoardSchema = new Schema<IPesticideBoard>(
     areaSqm: { type: Number, required: true },
     areaText: { type: String },
     startDate: { type: Date, required: true },
-    status: { type: String, enum: ['ACTIVE', 'CLOSED'], default: 'ACTIVE' },
+    status: { type: String, enum: ['PLANNING', 'IN_PROGRESS', 'HARVESTING', 'COMPLETED', 'ACTIVE', 'CLOSED'], default: 'IN_PROGRESS' },
     description: { type: String },
     customColumns: [{ type: String }],
     groupId: { type: String },
