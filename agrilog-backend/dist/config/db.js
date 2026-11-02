@@ -163,6 +163,29 @@ const initSupabaseSchema = async () => {
     catch (migErr) {
         console.warn('⚠️ [Migration Warning] Error migrating users allowAdminReset:', migErr.message);
     }
+    // Migration: Fix marketplace default to false and restore trial duration from 1 to 6 months
+    try {
+        const fixMarketMigrationCheck = await (0, exports.sql) `SELECT 1 FROM public.system_features WHERE id = 'migration_fix_marketplace_and_trial_defaults_v1' LIMIT 1;`;
+        if (fixMarketMigrationCheck.length === 0) {
+            await exports.sql.unsafe(`
+        UPDATE public.system_features
+        SET data = jsonb_set(data, '{isEnabled}', 'false'::jsonb, true)
+        WHERE data->>'key' = 'marketplace';
+
+        UPDATE public.trial_settings
+        SET data = jsonb_set(data, '{durationMonths}', '6'::jsonb, true)
+        WHERE data->>'durationMonths' = '1';
+
+        INSERT INTO public.system_features (id, data, created_at, updated_at)
+        VALUES ('migration_fix_marketplace_and_trial_defaults_v1', '{"key":"migration_fix_marketplace_and_trial_defaults_v1","applied":true}'::jsonb, NOW(), NOW())
+        ON CONFLICT (id) DO NOTHING;
+      `);
+            console.log('✓ Migration: Restored marketplace to OFF and trial duration to 6 months');
+        }
+    }
+    catch (fixErr) {
+        console.warn('⚠️ [Migration Warning] Error migrating marketplace/trial defaults:', fixErr.message);
+    }
     isSchemaInitialized = true;
 };
 exports.initSupabaseSchema = initSupabaseSchema;

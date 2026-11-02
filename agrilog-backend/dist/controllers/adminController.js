@@ -24,14 +24,14 @@ const LoginHistory_1 = require("../models/LoginHistory");
 const getUsers = async (req, res) => {
     try {
         const { role, status } = req.query;
-        let query = { role: { $ne: User_1.Role.ADMIN } };
+        let query = {};
         if (role && role !== 'ALL') {
             query.role = role;
         }
         if (status && status !== 'ALL') {
             query.isActive = status === 'ACTIVE';
         }
-        const users = await User_1.User.find(query).select('-passwordHash');
+        const users = await User_1.User.find(query).sort({ createdAt: -1 }).select('-passwordHash');
         const results = await Promise.all(users.map(async (u) => {
             let profile = null;
             let boardCount = 0;
@@ -53,6 +53,8 @@ const getUsers = async (req, res) => {
                 boardCount
             };
         }));
+        // Đảm bảo luôn được sắp xếp theo thời gian tạo mới nhất đến cũ nhất
+        results.sort((a, b) => new Date(b.user.createdAt).getTime() - new Date(a.user.createdAt).getTime());
         res.json({ success: true, data: results });
     }
     catch (error) {
