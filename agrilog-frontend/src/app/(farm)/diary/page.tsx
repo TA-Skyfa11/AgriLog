@@ -20,6 +20,7 @@ export default function DiaryBoardsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showTrialModal, setShowTrialModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     cropType: '',
@@ -57,6 +58,7 @@ export default function DiaryBoardsPage() {
   };
 
   const handleOpenCreateModal = () => {
+    setIsSubmitting(false);
     if (profile?.isTrial && (profile?.plan === 'ALL' || profile?.isTrialAll)) {
       toast(profile?.trialPromptMessage || 'Vui lòng chọn 1 gói cước dùng thử để bắt đầu tạo bảng nhật ký!', {
         icon: '🌱',
@@ -69,8 +71,10 @@ export default function DiaryBoardsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!formData.name || !formData.cropType) return;
     
+    setIsSubmitting(true);
     try {
       const res = await fetchAPI('/cultivation-boards', {
         method: 'POST',
@@ -87,6 +91,7 @@ export default function DiaryBoardsPage() {
         setShowModal(false);
         router.push(`/diary/cultivation/${res.data._id}`);
       } else {
+        setIsSubmitting(false);
         if (res.requireSelectPlan) {
           setShowModal(false);
           setShowTrialModal(true);
@@ -94,6 +99,7 @@ export default function DiaryBoardsPage() {
         toast.error(res.message || 'Có lỗi xảy ra khi tạo bảng canh tác');
       }
     } catch (error: any) {
+      setIsSubmitting(false);
       const msg = error.message || '';
       if (msg.includes('chọn gói') || msg.includes('dùng thử')) {
         setShowModal(false);
@@ -263,8 +269,22 @@ export default function DiaryBoardsPage() {
               </div>
 
               <div className={styles.modalActions}>
-                <button type="button" className={styles.btnCancel} onClick={() => setShowModal(false)}>Hủy</button>
-                <button type="submit" className={styles.btnSubmit}>Tạo bảng</button>
+                <button 
+                  type="button" 
+                  className={styles.btnCancel} 
+                  onClick={() => { setShowModal(false); setIsSubmitting(false); }}
+                  disabled={isSubmitting}
+                >
+                  Hủy
+                </button>
+                <button 
+                  type="submit" 
+                  className={styles.btnSubmit} 
+                  disabled={isSubmitting}
+                  style={isSubmitting ? { opacity: 0.6, cursor: 'not-allowed', pointerEvents: 'none' } : undefined}
+                >
+                  {isSubmitting ? 'Đang tạo...' : 'Tạo bảng'}
+                </button>
               </div>
             </form>
           </div>

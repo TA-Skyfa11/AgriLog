@@ -63,7 +63,8 @@ exports.ALL_TABLES = [
     'commission_settings',
     'login_histories',
     'sessions',
-    'crop_standards'
+    'crop_standards',
+    'cooperatives'
 ];
 let isSchemaInitialized = false;
 /**
@@ -103,6 +104,8 @@ const initSupabaseSchema = async () => {
         `CREATE INDEX IF NOT EXISTS idx_users_phone ON users ((data->>'phone'))`,
         `CREATE INDEX IF NOT EXISTS idx_users_role ON users ((data->>'role'))`,
         `CREATE INDEX IF NOT EXISTS idx_users_google_id ON users ((data->>'googleId'))`,
+        `CREATE INDEX IF NOT EXISTS idx_cooperatives_manager ON cooperatives ((data->>'manager'))`,
+        `CREATE INDEX IF NOT EXISTS idx_farm_profiles_coop ON farm_profiles ((data->>'cooperative'))`,
         `CREATE INDEX IF NOT EXISTS idx_farm_profiles_user ON farm_profiles ((data->>'user'))`,
         `CREATE INDEX IF NOT EXISTS idx_company_profiles_user ON company_profiles ((data->>'user'))`,
         `CREATE INDEX IF NOT EXISTS idx_cult_boards_profile ON cultivation_boards ((data->>'farmProfile'))`,
@@ -137,6 +140,29 @@ const initSupabaseSchema = async () => {
     statements.push(...indexes);
     // Execute all DDL statements in a single network roundtrip
     await exports.sql.unsafe(statements.join(';\n'));
+    // Migration: Ensure allowAdminReset defaults to true for all existing users (new and existing accounts)
+    try {
+        const migrationCheck = await (0, exports.sql) `SELECT 1 FROM public.system_features WHERE id = 'migration_allow_admin_reset_default_v1' LIMIT 1;`;
+        if (migrationCheck.length === 0) {
+            await exports.sql.unsafe(`
+        UPDATE public.users
+        SET data = jsonb_set(COALESCE(data, '{}'::jsonb), '{allowAdminReset}', 'true'::jsonb, true);
+        INSERT INTO public.system_features (id, data, created_at, updated_at)
+        VALUES ('migration_allow_admin_reset_default_v1', '{"key":"migration_allow_admin_reset_default_v1","applied":true}'::jsonb, NOW(), NOW())
+        ON CONFLICT (id) DO NOTHING;
+      `);
+            console.log('✓ Migration: All existing accounts updated to allowAdminReset = true');
+        }
+        // Also ensure any rows where allowAdminReset is null/missing default to true
+        await exports.sql.unsafe(`
+      UPDATE public.users
+      SET data = jsonb_set(COALESCE(data, '{}'::jsonb), '{allowAdminReset}', 'true'::jsonb, true)
+      WHERE data->>'allowAdminReset' IS NULL;
+    `);
+    }
+    catch (migErr) {
+        console.warn('⚠️ [Migration Warning] Error migrating users allowAdminReset:', migErr.message);
+    }
     isSchemaInitialized = true;
 };
 exports.initSupabaseSchema = initSupabaseSchema;

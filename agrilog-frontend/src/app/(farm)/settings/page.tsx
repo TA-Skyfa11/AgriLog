@@ -2,15 +2,37 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { fetchAPI } from '@/lib/api';
 import styles from '@/css/settings.module.css';
-import { User, Lock, Bell, Globe, Layout, Shield, Save, Eye, EyeOff, Check } from 'lucide-react';
+import { User, Lock, Bell, Globe, Layout, Shield, Save, Eye, EyeOff, Check, Building2, Users, CheckCircle2, AlertTriangle, LogOut, Copy, ArrowRight } from 'lucide-react';
 import { useAppContext } from '@/context/AppProvider';
 import { toast } from 'react-hot-toast';
 import { requestPushPermission } from '@/lib/onesignal';
 
 
 export default function SettingsPage() {
+  const router = useRouter();
+
+  // Guard: If not a farmer account, immediately redirect to their dedicated settings page
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        if (u.role === 'COOPERATIVE') {
+          router.replace('/cooperative/settings');
+          return;
+        } else if (u.role === 'COMPANY') {
+          router.replace('/company/settings');
+          return;
+        } else if (u.role === 'ADMIN') {
+          router.replace('/admin/settings');
+          return;
+        }
+      }
+    } catch (e) {}
+  }, [router]);
   const [formData, setFormData] = useState({
     farmName: '',
     address: '',
@@ -48,6 +70,13 @@ export default function SettingsPage() {
   // Security tab state
   const [allowAdminReset, setAllowAdminReset] = useState(true);
   const [togglingReset, setTogglingReset] = useState(false);
+
+  // Cooperative tab state
+  const [coopData, setCoopData] = useState<any>(null);
+  const [coopLoading, setCoopLoading] = useState(false);
+  const [coopCodeInput, setCoopCodeInput] = useState('');
+  const [joiningCoop, setJoiningCoop] = useState(false);
+  const [leavingCoop, setLeavingCoop] = useState(false);
 
   const loadProfile = async () => {
     try {
@@ -90,7 +119,72 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadProfile();
+    loadCooperative();
   }, []);
+
+
+  const loadCooperative = async () => {
+    try {
+      setCoopLoading(true);
+      const res = await fetchAPI('/farm/cooperative');
+      if (res.success) {
+        setCoopData(res.data);
+      }
+    } catch (err) {
+      console.warn('Lỗi tải thông tin HTX:', err);
+    } finally {
+      setCoopLoading(false);
+    }
+  };
+
+  const handleJoinCooperative = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!coopCodeInput.trim()) {
+      toast.error('Vui lòng nhập mã Hợp tác xã (Ví dụ: HTX-HB01)');
+      return;
+    }
+    try {
+      setJoiningCoop(true);
+      const res = await fetchAPI('/farm/join-cooperative', {
+        method: 'POST',
+        body: JSON.stringify({ coopCode: coopCodeInput.trim() }),
+      });
+      if (res.success) {
+        toast.success(res.message || 'Gia nhập Hợp tác xã thành công!');
+        setCoopCodeInput('');
+        await loadCooperative();
+      } else {
+        toast.error(res.message || 'Không thể gia nhập Hợp tác xã');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi kết nối khi gia nhập HTX');
+    } finally {
+      setJoiningCoop(false);
+    }
+  };
+
+  const handleLeaveCooperative = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn rời khỏi Hợp tác xã này không? Toàn bộ dữ liệu nhật ký canh tác của nông trại vẫn được lưu giữ an toàn.')) {
+      return;
+    }
+    try {
+      setLeavingCoop(true);
+      const res = await fetchAPI('/farm/leave-cooperative', {
+        method: 'POST',
+      });
+      if (res.success) {
+        toast.success('Đã rời khỏi Hợp tác xã thành công!');
+        await loadCooperative();
+      } else {
+        toast.error(res.message || 'Lỗi khi rời HTX');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Lỗi kết nối khi rời HTX');
+    } finally {
+      setLeavingCoop(false);
+    }
+  };
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -186,6 +280,9 @@ export default function SettingsPage() {
         <div className={styles.sidebar}>
           <div className={`${styles.navItem} ${activeTab === 'account' ? styles.active : ''}`} onClick={() => setActiveTab('account')}>
             <User size={18} /> Tài khoản
+          </div>
+          <div className={`${styles.navItem} ${activeTab === 'cooperative' ? styles.active : ''}`} onClick={() => setActiveTab('cooperative')}>
+            <Building2 size={18} /> Hợp tác xã liên kết
           </div>
           <div className={`${styles.navItem} ${activeTab === 'password' ? styles.active : ''}`} onClick={() => setActiveTab('password')}>
             <Lock size={18} /> Mật khẩu
@@ -297,6 +394,189 @@ export default function SettingsPage() {
                   <Save size={18} /> {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
               </form>
+            </>
+          )}
+
+          {/* ===== TAB: Hợp tác xã liên kết ===== */}
+          {activeTab === 'cooperative' && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h2 className={styles.panelTitle} style={{ marginBottom: '0.25rem' }}>Hợp tác xã liên kết</h2>
+                  <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem', margin: 0 }}>
+                    Liên kết nông trại vào Hợp tác xã (HTX) để cùng giám sát an toàn mùa vụ, kiểm soát PHI và xuất hồ sơ chứng nhận VietGAP.
+                  </p>
+                </div>
+                {coopData && (
+                  <span className={styles.coopBadge}>
+                    <CheckCircle2 size={16} color="#059669" /> Đang liên kết HTX
+                  </span>
+                )}
+              </div>
+
+              {coopLoading ? (
+                <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b' }}>Đang tải thông tin Hợp tác xã...</div>
+              ) : coopData ? (
+                /* ĐÃ THAM GIA HTX */
+                <div>
+                  <div className={styles.coopCard} style={{ borderLeft: '5px solid #16a34a' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                      <div>
+                        <div style={{ fontSize: '0.8125rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Hợp tác xã chủ quản</div>
+                        <h3 style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a', margin: '0.25rem 0' }}>{coopData.name}</h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                          <span className={styles.coopCodeTag}>
+                            Mã HTX: <strong>{coopData.code}</strong>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(coopData.code);
+                              toast.success('Đã sao chép mã HTX vào bộ nhớ tạm!');
+                            }}
+                            className={styles.outlineBtn}
+                            style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                          >
+                            <Copy size={13} /> Sao chép mã
+                          </button>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleLeaveCooperative}
+                        disabled={leavingCoop}
+                        style={{
+                          background: 'none',
+                          border: '1px solid #ef4444',
+                          color: '#ef4444',
+                          borderRadius: '8px',
+                          padding: '0.5rem 0.875rem',
+                          fontSize: '0.8125rem',
+                          fontWeight: 600,
+                          cursor: leavingCoop ? 'not-allowed' : 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.375rem',
+                        }}
+                      >
+                        <LogOut size={15} /> {leavingCoop ? 'Đang xử lý...' : 'Rời Hợp tác xã'}
+                      </button>
+                    </div>
+
+                    <div className={styles.coopInfoGrid}>
+                      <div className={styles.coopInfoItem}>
+                        <div className={styles.coopInfoLabel}>Cán bộ Quản lý / Kỹ thuật</div>
+                        <div className={styles.coopInfoValue}>{coopData.managerName || 'Ban Quản trị'}</div>
+                        <div style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: '0.25rem' }}>{coopData.managerPhone || coopData.contactPhone || '—'}</div>
+                      </div>
+                      <div className={styles.coopInfoItem}>
+                        <div className={styles.coopInfoLabel}>Địa chỉ trụ sở HTX</div>
+                        <div className={styles.coopInfoValue}>{coopData.address || '—'}</div>
+                      </div>
+                      <div className={styles.coopInfoItem}>
+                        <div className={styles.coopInfoLabel}>Tiêu chuẩn áp dụng</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginTop: '0.25rem' }}>
+                          {(coopData.certificationStandards && coopData.certificationStandards.length > 0) ? (
+                            coopData.certificationStandards.map((std: string, idx: number) => (
+                              <span key={idx} style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0', fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
+                                {std}
+                              </span>
+                            ))
+                          ) : (
+                            <span style={{ color: '#94a3b8', fontSize: '0.8125rem' }}>VietGAP</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className={styles.coopInfoItem}>
+                        <div className={styles.coopInfoLabel}>Số hộ xã viên cùng tham gia</div>
+                        <div className={styles.coopInfoValue} style={{ color: '#16a34a' }}>
+                          <Users size={16} style={{ display: 'inline', verticalAlign: '-2px', marginRight: '4px' }} />
+                          {coopData.memberCount || 1} nông hộ
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quyền lợi xã viên */}
+                    <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '1rem', border: '1px solid #e2e8f0', marginTop: '1rem' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#1e293b', marginBottom: '0.5rem' }}>
+                        🌾 Quyền lợi thành viên HTX đang hoạt động:
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.8125rem', color: '#475569', lineHeight: 1.6 }}>
+                        <li><strong>Giám sát cách ly thuốc BVTV (PHI):</strong> Cán bộ kỹ thuật theo dõi nhật ký phun thuốc và cảnh báo không được thu hoạch non nếu chưa đủ ngày cách ly.</li>
+                        <li><strong>Gộp hồ sơ mùa vụ VietGAP:</strong> Bảng nhật ký canh tác của bạn được tự động trích xuất kèm toàn HTX để cung cấp cho đối tác bao tiêu và đoàn đánh giá cấp chứng nhận.</li>
+                        <li><strong>Hỗ trợ kỹ thuật canh tác:</strong> Nhận khuyến cáo bón phân, phòng trừ sâu bệnh theo hướng dẫn chuyên môn của HTX.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* CHƯA THAM GIA HTX */
+                <div>
+                  <div className={styles.coopCard} style={{ background: '#f8fafc', border: '1.5px dashed #cbd5e1' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                      <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: '#e0f2fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Building2 size={24} color="#0284c7" />
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>Gia nhập Hợp tác xã (HTX)</h3>
+                        <p style={{ fontSize: '0.8125rem', color: '#64748b', margin: '0.15rem 0 0 0' }}>
+                          Nhập Mã Hợp tác xã do Ban quản trị HTX cung cấp để liên kết tài khoản nông trại của bạn.
+                        </p>
+                      </div>
+                    </div>
+
+                    <form onSubmit={handleJoinCooperative} style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1.25rem' }}>
+                      <input
+                        type="text"
+                        placeholder="Nhập Mã HTX (Ví dụ: HTX-HB01)"
+                        value={coopCodeInput}
+                        onChange={(e) => setCoopCodeInput(e.target.value.toUpperCase())}
+                        style={{
+                          flex: 1,
+                          minWidth: '240px',
+                          padding: '0.65rem 1rem',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '8px',
+                          fontSize: '0.9375rem',
+                          fontWeight: 600,
+                          letterSpacing: '1px',
+                          textTransform: 'uppercase',
+                        }}
+                      />
+                      <button
+                        type="submit"
+                        className={styles.button}
+                        disabled={joiningCoop}
+                        style={{ padding: '0.65rem 1.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                      >
+                        <ArrowRight size={16} /> {joiningCoop ? 'Đang kiểm tra...' : 'Gia nhập ngay'}
+                      </button>
+                    </form>
+                  </div>
+
+                  <div style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                    <div style={{ padding: '1rem', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#16a34a', marginBottom: '0.25rem' }}>🛡️ Giám sát tuân thủ PHI</div>
+                      <div style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                        HTX sẽ giúp bạn cảnh báo an toàn thu hoạch khi vừa phun thuốc bảo vệ thực vật, tránh rủi ro dư lượng.
+                      </div>
+                    </div>
+                    <div style={{ padding: '1rem', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#2563eb', marginBottom: '0.25rem' }}>📑 Xuất hồ sơ tiêu chuẩn</div>
+                      <div style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                        Hồ sơ nhật ký của bạn được cán bộ xuất gộp 1 nút bấm để nộp cho cơ quan chứng nhận VietGAP hoặc đơn vị bao tiêu.
+                      </div>
+                    </div>
+                    <div style={{ padding: '1rem', background: '#ffffff', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#d97706', marginBottom: '0.25rem' }}>🤝 Liên kết chuỗi giá trị</div>
+                      <div style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                        Bán hàng vào chuỗi cung ứng HTX, siêu thị với giá thu mua ổn định và thương hiệu tập thể.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
 

@@ -7,6 +7,7 @@ import { User, Role } from '../models/User';
 import { LoginHistory } from '../models/LoginHistory';
 import { Notification } from '../models/Notification';
 import { CompanyProfile } from '../models/CompanyProfile';
+import { getOrCreateUserCooperative } from './cooperativeController';
 import { createDefaultFarmProfile } from './farmProfileController';
 import { supabase } from '../config/db';
 import crypto from 'crypto';
@@ -64,7 +65,7 @@ export const register = async (req: Request, res: Response) => {
     const passwordHash = await bcrypt.hash(password, salt);
 
     // Only allow FARM or COMPANY from registration, never ADMIN
-    const allowedRoles = [Role.FARM, Role.COMPANY];
+    const allowedRoles = [Role.FARM, Role.COMPANY, Role.COOPERATIVE];
     const finalRole = allowedRoles.includes(requestedRole) ? requestedRole : Role.FARM;
 
     const user = await User.create({
@@ -75,6 +76,34 @@ export const register = async (req: Request, res: Response) => {
       role: finalRole,
       allowAdminReset: true,
     });
+
+    // Automatically create corresponding profile with free service package designated by admin
+    if (finalRole === Role.FARM) {
+      try {
+        await createDefaultFarmProfile(user._id, {
+          farmName: name ? `Nông trại của ${name}` : 'Nông trại của tôi',
+          contactPhone: cleanPhone,
+        });
+      } catch (profileErr) {
+        console.warn('Lỗi tạo FarmProfile mặc định khi đăng ký:', profileErr);
+      }
+    } else if (finalRole === Role.COOPERATIVE) {
+      try {
+        await getOrCreateUserCooperative(user._id);
+      } catch (profileErr) {
+        console.warn('Lỗi tạo Cooperative mặc định khi đăng ký:', profileErr);
+      }
+    } else if (finalRole === Role.COMPANY) {
+      try {
+        await CompanyProfile.create({
+          user: user._id,
+          companyName: name ? `Doanh nghiệp của ${name}` : 'Doanh nghiệp của tôi',
+          contactPhone: cleanPhone,
+        });
+      } catch (profileErr) {
+        console.warn('Lỗi tạo CompanyProfile mặc định khi đăng ký:', profileErr);
+      }
+    }
 
     // Create notification for admin
     const admin = await User.findOne({ role: Role.ADMIN });

@@ -19,12 +19,12 @@ export default function ServicesPage() {
   const [trialPolicy, setTrialPolicy] = useState({
     isEnabled: true,
     durationMonths: 6,
-    trialPlan: 'ALL',
+    trialPlan: 'PREMIUM',
     lockOnExpiry: false,
     expiryAction: 'SWITCH_TO_FREE',
-    trialPromptMessage: 'Chào mừng bạn đến với AgriLog! Bạn đang trong thời hạn dùng thử 6 tháng miễn phí. Vui lòng chọn gói dịch vụ để bắt đầu trải nghiệm và tạo bảng nhật ký.',
+    trialPromptMessage: 'Chào mừng bạn đến với AgriLog! Nông trại của bạn đã được kích hoạt gói dùng thử miễn phí.',
     expiryNotificationMessage: 'Thời hạn dùng thử miễn phí của bạn đã kết thúc. Tài khoản đã được chuyển về gói Miễn phí với các chức năng cơ bản (tối đa 1 bảng mỗi loại nhật ký, không xuất Excel/PDF và không tải ảnh). Hãy nâng cấp gói cước bất cứ lúc nào để mở rộng không giới hạn!',
-    requirePlanSelection: true,
+    requirePlanSelection: false,
   });
   const [applyToExistingUsers, setApplyToExistingUsers] = useState(true);
   const [trialLoading, setTrialLoading] = useState(false);
@@ -333,7 +333,7 @@ export default function ServicesPage() {
             {/* Gói cước cấp trong thời gian dùng thử */}
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>
-                Gói tính năng dùng thử ban đầu
+                Gói miễn phí tự động cấp khi tạo tài khoản (Admin chỉ định)
               </label>
               <select
                 value={trialPolicy.trialPlan}
@@ -345,10 +345,10 @@ export default function ServicesPage() {
                   fontWeight: 600
                 }}
               >
+                <option value="PREMIUM">PREMIUM - Gói cao cấp nhất (Mặc định)</option>
+                <option value="STANDARD">STANDARD - Gói tiêu chuẩn</option>
+                <option value="BASIC">BASIC - Gói cơ bản</option>
                 <option value="ALL">CẢ 3 GÓI (Yêu cầu người dùng chọn gói trải nghiệm)</option>
-                <option value="PREMIUM">PREMIUM (Cấp thẳng toàn bộ tính năng cao cấp)</option>
-                <option value="STANDARD">STANDARD (Gói tiêu chuẩn)</option>
-                <option value="BASIC">BASIC (Gói cơ bản)</option>
               </select>
             </div>
 

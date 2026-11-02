@@ -184,12 +184,9 @@ export default function RegisterPage() {
       });
 
       if (profileData.success) {
-        if (profileData.data?.isTrial) {
-          setTrialInfo(profileData.data);
-        }
-        await loadPackages();
-        toast.success('Lưu thông tin nông trại thành công!');
-        setStep(3); // Go to billing or trial celebration
+        const planName = profileData.data?.plan || 'PREMIUM';
+        toast.success(`Đăng ký thành công! Nông trại của bạn đã được kích hoạt gói ${planName} miễn phí.`);
+        router.push('/dashboard');
       } else {
         setError(profileData.message || 'Lưu thông tin nông trại thất bại');
       }
@@ -213,18 +210,15 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       if (role === 'FARM') {
-        const profileData = await fetchAPI('/farm/profile', {
+        await fetchAPI('/farm/profile', {
           method: 'PUT',
           body: JSON.stringify({
             farmName: effectiveName,
             contactPhone: effectiveContactPhone,
           }),
         });
-        if (profileData.success && profileData.data?.isTrial) {
-          setTrialInfo(profileData.data);
-        }
-        await loadPackages();
-        setStep(3);
+        toast.success('Đăng ký thành công! Nông trại của bạn đã được kích hoạt gói dịch vụ miễn phí.');
+        router.push('/dashboard');
       } else {
         await fetchAPI('/company/profile', {
           method: 'PUT',
@@ -237,7 +231,8 @@ export default function RegisterPage() {
       }
     } catch {
       if (role === 'FARM') {
-        setStep(3);
+        toast.success('Đăng ký thành công! Nông trại của bạn đã được kích hoạt gói dịch vụ miễn phí.');
+        router.push('/dashboard');
       } else {
         router.push('/company/dashboard');
       }
@@ -420,41 +415,19 @@ export default function RegisterPage() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: '0.4rem',
         fontSize: '0.825rem', fontWeight: 600,
-        color: step === 2 ? 'var(--color-primary-600)' : step > 2 ? '#16a34a' : 'var(--color-text-muted)'
+        color: step === 2 ? 'var(--color-primary-600)' : '#16a34a'
       }}>
         <span style={{
           width: '24px', height: '24px', borderRadius: '50%',
-          backgroundColor: step === 2 ? 'var(--color-primary-600)' : step > 2 ? '#16a34a' : 'var(--color-border)',
-          color: step >= 2 ? 'white' : 'var(--color-text-muted)',
+          backgroundColor: step === 2 ? 'var(--color-primary-600)' : '#16a34a',
+          color: 'white',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '0.75rem', fontWeight: 700
         }}>
-          {step > 2 ? '✓' : '2'}
+          2
         </span>
-        Nông trại
+        {role === 'FARM' ? 'Nông trại' : 'Doanh nghiệp'}
       </div>
-
-      {role === 'FARM' && (
-        <>
-          <div style={{ width: '28px', height: '2px', backgroundColor: step === 3 ? 'var(--color-primary-600)' : 'var(--color-border)' }} />
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '0.4rem',
-            fontSize: '0.825rem', fontWeight: 600,
-            color: step === 3 ? 'var(--color-primary-600)' : 'var(--color-text-muted)'
-          }}>
-            <span style={{
-              width: '24px', height: '24px', borderRadius: '50%',
-              backgroundColor: step === 3 ? 'var(--color-primary-600)' : 'var(--color-border)',
-              color: step === 3 ? 'white' : 'var(--color-text-muted)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.75rem', fontWeight: 700
-            }}>
-              3
-            </span>
-            Gói dịch vụ
-          </div>
-        </>
-      )}
     </div>
   );
 
@@ -777,7 +750,7 @@ export default function RegisterPage() {
                   </div>
 
                 <button type="submit" className={styles.button} disabled={loading} style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                  {loading ? 'Đang lưu...' : <>Hoàn tất & Tiếp tục <ArrowRight size={16} /></>}
+                  {loading ? 'Đang lưu...' : <>Hoàn tất & Bắt đầu trải nghiệm <ArrowRight size={16} /></>}
                 </button>
 
                 <button

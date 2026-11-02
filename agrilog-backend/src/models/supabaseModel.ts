@@ -149,6 +149,9 @@ export const TABLE_MAP: Record<string, string> = {
   cropStandard: 'crop_standards',
   crop_standards: 'crop_standards',
   CropStandards: 'crop_standards',
+  Cooperative: 'cooperatives',
+  cooperative: 'cooperatives',
+  cooperatives: 'cooperatives',
 };
 
 function formatParam(val: any): any {

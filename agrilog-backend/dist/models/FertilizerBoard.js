@@ -42,7 +42,7 @@ const fertilizerBoardSchema = new supabaseModel_1.Schema({
     areaSqm: { type: Number, required: true },
     areaText: { type: String },
     startDate: { type: Date, required: true },
-    status: { type: String, enum: ['ACTIVE', 'CLOSED'], default: 'ACTIVE' },
+    status: { type: String, enum: ['PLANNING', 'IN_PROGRESS', 'HARVESTING', 'COMPLETED', 'ACTIVE', 'CLOSED'], default: 'IN_PROGRESS' },
     description: { type: String },
     customColumns: [{ type: String }],
     groupId: { type: String },

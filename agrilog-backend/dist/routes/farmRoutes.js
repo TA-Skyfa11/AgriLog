@@ -21,4 +21,7 @@ router.route('/performers')
 router.delete('/performers/:name', farmProfileController_1.removeFarmPerformer);
 router.route('/reports-stats')
     .get(reportsController_1.getReportsStats);
+router.get('/cooperative', farmProfileController_1.getFarmCooperative);
+router.post('/join-cooperative', farmProfileController_1.joinCooperative);
+router.post('/leave-cooperative', farmProfileController_1.leaveCooperative);
 exports.default = router;

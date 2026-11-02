@@ -4,6 +4,7 @@ export enum Role {
   FARM = 'FARM',
   ADMIN = 'ADMIN',
   COMPANY = 'COMPANY',
+  COOPERATIVE = 'COOPERATIVE',
 }
 
 export interface IUser extends Document {

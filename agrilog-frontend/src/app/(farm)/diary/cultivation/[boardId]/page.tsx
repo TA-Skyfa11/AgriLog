@@ -106,6 +106,11 @@ export default function CultivationDiaryDetailPage() {
   }, [entries]);
   const [userPlan, setUserPlan] = useState('BASIC');
   const [allowExport, setAllowExport] = useState<boolean>(true);
+  const [phiWarnings, setPhiWarnings] = useState<any[]>([]);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summaryReport, setSummaryReport] = useState<any>(null);
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
+  const [comparisonData, setComparisonData] = useState<any[]>([]);
 
   // Define new inline input style
   const inlineInputStyle: React.CSSProperties = {
@@ -550,26 +555,81 @@ export default function CultivationDiaryDetailPage() {
     }
   };
 
+  const handleLifecycleTransition = async (newStatus: string) => {
+    if (newStatus === 'COMPLETED') {
+      setShowHarvestModal(true);
+      return;
+    }
+    try {
+      const res = await fetchAPI(`/cultivation-boards/${boardId}/lifecycle-status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.success) {
+        toast.success(`Đã chuyển trạng thái sang: ${newStatus === 'IN_PROGRESS' ? 'Đang canh tác' : newStatus === 'HARVESTING' ? 'Thu hoạch' : newStatus}`);
+        loadBoardData();
+      } else {
+        toast.error(res.message || 'Lỗi chuyển trạng thái');
+      }
+    } catch (e) {
+      toast.error('Lỗi kết nối khi chuyển trạng thái');
+    }
+  };
+
   const handleHarvestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!harvestData.harvestYield) return;
 
     try {
-      const res = await fetchAPI(`/cultivation-boards/${boardId}`, {
+      const res = await fetchAPI(`/cultivation-boards/${boardId}/lifecycle-status`, {
         method: 'PUT',
         body: JSON.stringify({
-          status: 'HARVESTED',
+          status: 'COMPLETED',
           harvestYield: Number(harvestData.harvestYield),
           harvestDate: harvestData.harvestDate || format(new Date(), 'yyyy-MM-dd'),
+          seedCost: (harvestData as any).seedCost ? Number((harvestData as any).seedCost) : undefined,
         }),
       });
 
       if (res.success) {
         setShowHarvestModal(false);
+        if (res.summaryReport) {
+          setSummaryReport(res.summaryReport);
+          setShowSummaryModal(true);
+        }
+        toast.success(res.message || 'Vụ mùa đã kết thúc và báo cáo tổng kết đã được tự động sinh!');
         loadBoardData();
+      } else {
+        toast.error(res.message || 'Lỗi cập nhật thu hoạch');
       }
     } catch (error) {
       toast.error('Lỗi cập nhật thu hoạch');
+    }
+  };
+
+  const handleViewSummaryReport = async () => {
+    try {
+      const res = await fetchAPI(`/cultivation-boards/${boardId}/season-summary`);
+      if (res.success && res.data) {
+        setSummaryReport(res.data);
+        setShowSummaryModal(true);
+      } else {
+        toast.error('Chưa có báo cáo tổng kết');
+      }
+    } catch (e) {
+      toast.error('Lỗi tải báo cáo tổng kết');
+    }
+  };
+
+  const handleViewComparison = async () => {
+    try {
+      const res = await fetchAPI('/cultivation-boards/season-comparison');
+      if (res.success && res.data) {
+        setComparisonData(res.data);
+        setShowComparisonModal(true);
+      }
+    } catch (e) {
+      toast.error('Lỗi tải dữ liệu so sánh');
     }
   };
 
@@ -952,6 +1012,186 @@ export default function CultivationDiaryDetailPage() {
                 <button type="submit" className={styles.btnSubmit} style={{ backgroundColor: '#10b981' }}>Xác nhận Thu hoạch</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Báo cáo Tổng kết Mùa vụ (Season Summary Report Modal) */}
+      {showSummaryModal && summaryReport && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal} style={{ maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>🎉 Báo cáo Tổng kết Mùa vụ Canh tác</h2>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setShowSummaryModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '0.5rem 0' }}>
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+                <div style={{ fontWeight: 700, color: '#166534', fontSize: '15px' }}>{board?.name} ({board?.cropType})</div>
+                <div style={{ fontSize: '13px', color: '#15803d', marginTop: '4px' }}>
+                  Diện tích: <strong>{board?.areaSqm} m²</strong> | Ngày kết thúc: <strong>{new Date().toLocaleDateString('vi-VN')}</strong>
+                </div>
+              </div>
+
+              {/* 4 Key KPI metrics in summary */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px' }}>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>TỔNG SẢN LƯỢNG ĐẠT ĐƯỢC</div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#0284c7', margin: '2px 0' }}>
+                    {summaryReport.actualYield?.toLocaleString('vi-VN')} kg
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>
+                    Đạt {summaryReport.yieldAchievementRate}% kế hoạch
+                  </div>
+                </div>
+
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px' }}>
+                  <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>TỔNG CHI PHÍ ĐẦU VÀO</div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', margin: '2px 0' }}>
+                    {summaryReport.totalCost?.toLocaleString('vi-VN')} đ
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>
+                    Giá thành: <strong>{summaryReport.costPerKg?.toLocaleString('vi-VN')} đ/kg</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chi tiết chi phí vật tư */}
+              <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+                <div style={{ fontWeight: 700, fontSize: '13px', color: '#334155', marginBottom: '8px' }}>
+                  CHI TIẾT VẬT TƯ & CHI PHÍ ĐÃ SỬ DỤNG:
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px dashed #e2e8f0', fontSize: '13px' }}>
+                  <span>🌱 <strong>Tổng tiền giống:</strong></span>
+                  <span style={{ fontWeight: 700 }}>{summaryReport.totalSeedCost?.toLocaleString('vi-VN')} đ</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px dashed #e2e8f0', fontSize: '13px' }}>
+                  <span>🧪 <strong>Tổng phân bón đã dùng ({summaryReport.totalFertilizerQty} kg):</strong></span>
+                  <span style={{ fontWeight: 700 }}>{summaryReport.totalFertilizerCost?.toLocaleString('vi-VN')} đ</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px dashed #e2e8f0', fontSize: '13px' }}>
+                  <span>🛡️ <strong>Thuốc BVTV ({summaryReport.totalPesticideApplications} lần phun):</strong></span>
+                  <span style={{ fontWeight: 700 }}>{summaryReport.totalPesticideCost?.toLocaleString('vi-VN')} đ</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: '13px' }}>
+                  <span>👨‍🌾 <strong>Công lao động canh tác ({summaryReport.totalLaborDays} ngày công):</strong></span>
+                  <span style={{ fontWeight: 700 }}>{summaryReport.totalLaborCost?.toLocaleString('vi-VN')} đ</span>
+                </div>
+              </div>
+
+              {/* Tuân thủ an toàn PHI */}
+              <div style={{ 
+                background: summaryReport.phiComplianceStatus === 'SAFE' ? '#ecfdf5' : '#fef2f2', 
+                border: `1px solid ${summaryReport.phiComplianceStatus === 'SAFE' ? '#a7f3d0' : '#fecaca'}`, 
+                borderRadius: '8px', 
+                padding: '10px 14px', 
+                marginBottom: '16px' 
+              }}>
+                <div style={{ fontWeight: 700, fontSize: '13px', color: summaryReport.phiComplianceStatus === 'SAFE' ? '#166534' : '#b91c1c' }}>
+                  {summaryReport.phiComplianceStatus === 'SAFE' ? '✅ ĐẠT CHUẨN AN TOÀN THỰC PHẨM VIETGAP' : '⚠️ CẢNH BÁO VI PHẠM CÁCH LY PHI'}
+                </div>
+                <div style={{ fontSize: '12px', color: summaryReport.phiComplianceStatus === 'SAFE' ? '#15803d' : '#991b1b', marginTop: '2px' }}>
+                  {summaryReport.phiNotes}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button 
+                  onClick={() => { setShowSummaryModal(false); handleViewComparison(); }}
+                  style={{ background: '#0284c7', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  📈 So sánh các Vụ trong năm
+                </button>
+                <button 
+                  onClick={() => setShowSummaryModal(false)}
+                  style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal So sánh các vụ trong năm (Season Comparison Modal) */}
+      {showComparisonModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal} style={{ maxWidth: '850px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>📈 So sánh Hiệu quả Giữa các Vụ trong năm</h2>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setShowComparisonModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '0.5rem 0' }}>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 12px' }}>
+                Bảng so sánh năng suất đạt được và tổng chi phí đầu vào giữa các vụ mùa canh tác của nông trại:
+              </p>
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                      <th style={{ padding: '8px', textAlign: 'left' }}>Vụ mùa</th>
+                      <th style={{ padding: '8px', textAlign: 'left' }}>Cây trồng</th>
+                      <th style={{ padding: '8px', textAlign: 'right' }}>Diện tích</th>
+                      <th style={{ padding: '8px', textAlign: 'right' }}>Sản lượng thực tế</th>
+                      <th style={{ padding: '8px', textAlign: 'right' }}>Tổng chi phí</th>
+                      <th style={{ padding: '8px', textAlign: 'right' }}>Giá thành/kg</th>
+                      <th style={{ padding: '8px', textAlign: 'center' }}>Tuân thủ PHI</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comparisonData.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: '24px', color: '#94a3b8' }}>Chưa có vụ mùa để so sánh.</td>
+                      </tr>
+                    ) : (
+                      comparisonData.map(s => (
+                        <tr key={s._id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '8px', fontWeight: 600 }}>{s.name}</td>
+                          <td style={{ padding: '8px' }}>{s.cropType}</td>
+                          <td style={{ padding: '8px', textAlign: 'right' }}>{s.areaSqm} m²</td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: '#0284c7' }}>
+                            {s.actualYield ? `${s.actualYield.toLocaleString('vi-VN')} kg` : '—'}
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>
+                            {s.totalCost ? `${s.totalCost.toLocaleString('vi-VN')} đ` : '—'}
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'right', color: '#16a34a', fontWeight: 600 }}>
+                            {s.costPerKg ? `${s.costPerKg.toLocaleString('vi-VN')} đ/kg` : '—'}
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'center' }}>
+                            <span style={{ 
+                              padding: '2px 6px', 
+                              borderRadius: '4px', 
+                              fontSize: '11px',
+                              background: s.phiComplianceStatus === 'SAFE' ? '#dcfce7' : '#fee2e2',
+                              color: s.phiComplianceStatus === 'SAFE' ? '#15803d' : '#b91c1c'
+                            }}>
+                              {s.phiComplianceStatus === 'SAFE' ? 'Đạt chuẩn' : 'Vi phạm PHI'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                <button 
+                  onClick={() => setShowComparisonModal(false)}
+                  style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

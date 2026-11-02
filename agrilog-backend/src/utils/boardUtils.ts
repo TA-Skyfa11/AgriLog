@@ -21,14 +21,14 @@ export const getOrCreateTrialSetting = async (): Promise<ITrialSetting> => {
     setting = await TrialSetting.create({
       isEnabled: true,
       durationMonths: 6, // Mặc định 6 tháng dùng thử miễn phí
-      trialPlan: 'ALL', // Mặc định cho phép trải nghiệm các gói, yêu cầu chọn gói
+      trialPlan: 'PREMIUM', // Mặc định là gói cao nhất
       lockOnExpiry: false,
       expiryAction: 'SWITCH_TO_FREE',
       trialPromptMessage:
-        'Chào mừng bạn đến với AgriLog! Bạn đang trong thời hạn dùng thử 6 tháng miễn phí. Vui lòng chọn gói dịch vụ để bắt đầu trải nghiệm và tạo bảng nhật ký.',
+        'Chào mừng bạn đến với AgriLog! Nông trại của bạn đã được kích hoạt gói dùng thử miễn phí.',
       expiryNotificationMessage:
         'Thời hạn dùng thử miễn phí của bạn đã kết thúc. Tài khoản đã được chuyển về gói Miễn phí với các chức năng cơ bản (tối đa 1 bảng mỗi loại nhật ký, không xuất Excel/PDF và không tải ảnh). Hãy nâng cấp gói cước bất cứ lúc nào để mở rộng không giới hạn!',
-      requirePlanSelection: true,
+      requirePlanSelection: false,
     });
   }
   return setting;
@@ -62,6 +62,7 @@ export const getEffectivePlan = (profile: any) => {
       }
     }
   }
+
   return effectivePlan;
 };
 
