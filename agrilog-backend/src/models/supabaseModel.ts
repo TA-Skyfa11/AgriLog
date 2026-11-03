@@ -88,6 +88,7 @@ export interface Document {
   deleteOne(): Promise<any>;
   toObject(): any;
   toJSON(): any;
+  set(pathOrObj: any, val?: any): this;
   [key: string]: any;
 }
 
@@ -339,12 +340,40 @@ export function createDoc<T = any>(tableName: string, row: any, modelInstance?: 
     updatedAt: row.updated_at instanceof Date ? row.updated_at : new Date(row.updated_at),
   };
 
+  doc.set = function(pathOrObj: any, val?: any) {
+    if (typeof pathOrObj === 'string') {
+      if (pathOrObj !== '_id' && pathOrObj !== 'id') {
+        if (pathOrObj.includes('.')) {
+          const parts = pathOrObj.split('.');
+          let curr = this;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!curr[parts[i]] || typeof curr[parts[i]] !== 'object') {
+              curr[parts[i]] = {};
+            }
+            curr = curr[parts[i]];
+          }
+          curr[parts[parts.length - 1]] = val;
+        } else {
+          this[pathOrObj] = val;
+        }
+      }
+    } else if (pathOrObj && typeof pathOrObj === 'object') {
+      for (const [key, value] of Object.entries(pathOrObj)) {
+        if (key !== '_id' && key !== 'id' && key !== 'createdAt' && key !== 'updatedAt') {
+          this[key] = value;
+        }
+      }
+    }
+    return this;
+  };
+
   doc.toObject = function() {
     const obj = { ...this };
     delete obj.toObject;
     delete obj.toJSON;
     delete obj.save;
     delete obj.deleteOne;
+    delete obj.set;
     return obj;
   };
 

@@ -167,11 +167,22 @@ export const updateFarmProfile = async (req: AuthRequest, res: Response) => {
           profile.isTrial = false;
         }
       }
-      profile.set(req.body);
+      const updateData = { ...req.body };
+      delete updateData._id;
+      delete updateData.id;
+      delete updateData.user;
+      delete updateData.createdAt;
+      delete updateData.updatedAt;
+
+      if (typeof profile.set === 'function') {
+        profile.set(updateData);
+      } else {
+        Object.assign(profile, updateData);
+      }
       await profile.save();
     }
     
-    const profileObj: any = profile.toObject();
+    const profileObj: any = profile.toObject ? profile.toObject() : { ...profile };
     profileObj.effectivePlan = getEffectivePlan(profile);
     profileObj.isPlanExpired = isPlanExpired(profile);
     profileObj.isTrial = profile.isTrial || false;
@@ -217,7 +228,7 @@ export const selectTrialPlan = async (req: AuthRequest, res: Response) => {
       type: 'BILLING'
     });
 
-    const profileObj: any = profile.toObject();
+    const profileObj: any = profile.toObject ? profile.toObject() : { ...profile };
     profileObj.effectivePlan = getEffectivePlan(profile);
     profileObj.isPlanExpired = isPlanExpired(profile);
     profileObj.isTrial = profile.isTrial;

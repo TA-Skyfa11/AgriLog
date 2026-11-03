@@ -29,8 +29,8 @@ export const registerSchema = z.object({
     .string('Mật khẩu không được để trống')
     .min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
   role: z
-    .enum([Role.FARM, Role.COMPANY], {
-      message: 'Vai trò chỉ có thể là FARM hoặc COMPANY',
+    .enum([Role.FARM, Role.COMPANY, Role.COOPERATIVE], {
+      message: 'Vai trò chỉ có thể là FARM, COMPANY hoặc COOPERATIVE',
     })
     .optional()
     .default(Role.FARM),
@@ -105,7 +105,7 @@ export const googleAuthSchema = z.object({
   name: z.string().trim().optional(),
   googleId: z.string().trim().optional(),
   avatar: z.string().trim().optional(),
-  role: z.enum([Role.FARM, Role.COMPANY]).optional().default(Role.FARM),
+  role: z.enum([Role.FARM, Role.COMPANY, Role.COOPERATIVE]).optional().default(Role.FARM),
   supabaseToken: z.string().trim().optional(),
   idToken: z.string().trim().optional(),
 });

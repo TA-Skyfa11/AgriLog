@@ -89,7 +89,11 @@ export const register = async (req: Request, res: Response) => {
       }
     } else if (finalRole === Role.COOPERATIVE) {
       try {
-        await getOrCreateUserCooperative(user._id);
+        await getOrCreateUserCooperative(user._id, {
+          name: name ? `Hợp tác xã ${name}` : 'Hợp tác xã Nông nghiệp',
+          contactPhone: cleanPhone,
+          email: normalizedEmail,
+        });
       } catch (profileErr) {
         console.warn('Lỗi tạo Cooperative mặc định khi đăng ký:', profileErr);
       }

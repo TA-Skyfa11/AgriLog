@@ -8,6 +8,22 @@ export default function OneSignalInit() {
   const router = useRouter();
 
   useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event?.reason;
+      const msg = reason?.message || String(reason || '');
+      const name = reason?.name;
+      if (
+        name === 'AbortError' ||
+        msg.includes('Registration failed') ||
+        msg.includes('push service error')
+      ) {
+        console.warn('ℹ️ [OneSignal] Trình duyệt không thể kết nối tới FCM Push Service:', msg);
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
     const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
     if (!appId) {
       console.log('ℹ️ [OneSignal] NEXT_PUBLIC_ONESIGNAL_APP_ID chưa được cung cấp.');
@@ -61,6 +77,9 @@ export default function OneSignalInit() {
         }
       }
     });
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
   }, [router]);
 
   return (

@@ -64,6 +64,8 @@ export default function AuthCallbackPage() {
             router.push('/admin/dashboard');
           } else if (data.user.role === 'COMPANY') {
             router.push('/company/dashboard');
+          } else if (data.user.role === 'COOPERATIVE') {
+            router.push('/cooperative/dashboard');
           } else {
             router.push('/dashboard');
           }

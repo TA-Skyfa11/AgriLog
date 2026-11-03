@@ -48,7 +48,10 @@ export const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
       window.location.href = '/';
       return { success: false, message: 'Unauthorized' };
     }
-    throw new Error(data.message || 'Something went wrong');
+    const detailedMsg = Array.isArray(data.errors) && data.errors.length > 0
+      ? data.errors.map((e: any) => typeof e === 'string' ? e : (e.message || JSON.stringify(e))).join(', ')
+      : (data.message || 'Something went wrong');
+    throw new Error(detailedMsg);
   }
 
   return data;

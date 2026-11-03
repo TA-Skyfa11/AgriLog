@@ -16,20 +16,25 @@ import { generatePdfFromHtml } from '../utils/pdfGenerator';
 /**
  * Helper to get or create a cooperative for the current logged-in COOPERATIVE user
  */
-export async function getOrCreateUserCooperative(userId: any): Promise<ICooperative> {
+export async function getOrCreateUserCooperative(
+  userId: any,
+  initialData: Partial<any> = {}
+): Promise<ICooperative> {
   let coop = await Cooperative.findOne({ manager: userId });
   if (!coop) {
+    const defaultCode = 'HTX-' + Math.floor(1000 + Math.random() * 9000);
     coop = await Cooperative.create({
-      name: 'Hợp tác xã Nông nghiệp Công nghệ cao',
-      code: 'HTX-' + Math.floor(1000 + Math.random() * 9000),
+      name: initialData.name || 'Hợp tác xã Nông nghiệp',
+      code: initialData.code || defaultCode,
       manager: userId,
-      address: 'Xã Hòa Bình, Huyện Thường Tín, TP. Hà Nội',
-      contactPhone: '0981234567',
-      email: 'htx.nongnghiep@agrilog.vn',
-      establishedYear: 2022,
-      certificationStandards: ['VietGAP', 'GlobalGAP', 'OCOP 4 Sao'],
-      description: 'Hợp tác xã chuyên canh tác nông sản sạch đạt tiêu chuẩn an toàn sinh học và liên kết bao tiêu xuất khẩu.',
+      address: initialData.address || '',
+      contactPhone: initialData.contactPhone || '',
+      email: initialData.email || '',
+      establishedYear: initialData.establishedYear || new Date().getFullYear(),
+      certificationStandards: initialData.certificationStandards || ['VietGAP'],
+      description: initialData.description || 'Hợp tác xã chuyên canh tác nông sản sạch đạt tiêu chuẩn an toàn sinh học và liên kết bao tiêu xuất khẩu.',
       members: [],
+      ...initialData,
     });
   }
   return coop;
@@ -58,6 +63,7 @@ export const updateCooperativeProfile = async (req: AuthRequest, res: Response) 
     const coop = await getOrCreateUserCooperative(req.user?._id);
     const {
       name,
+      code,
       address,
       contactPhone,
       email,
@@ -67,6 +73,14 @@ export const updateCooperativeProfile = async (req: AuthRequest, res: Response) 
     } = req.body;
 
     if (name) coop.name = name.trim();
+    if (code) {
+      const cleanCode = code.trim().toUpperCase();
+      const existing = await Cooperative.findOne({ code: cleanCode });
+      if (existing && existing._id.toString() !== coop._id.toString()) {
+        return res.status(400).json({ success: false, message: 'Mã Hợp tác xã này đã được sử dụng bởi HTX khác' });
+      }
+      coop.code = cleanCode;
+    }
     if (address !== undefined) coop.address = address.trim();
     if (contactPhone !== undefined) coop.contactPhone = contactPhone.trim();
     if (email !== undefined) coop.email = email.trim();
@@ -79,7 +93,7 @@ export const updateCooperativeProfile = async (req: AuthRequest, res: Response) 
     res.json({
       success: true,
       message: 'Cập nhật thông tin Hợp tác xã thành công!',
-      data: coop,
+      data: coop.toObject ? coop.toObject() : coop,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });

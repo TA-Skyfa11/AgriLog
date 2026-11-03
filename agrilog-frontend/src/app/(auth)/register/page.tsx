@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { fetchAPI } from '@/lib/api';
+import { loginOneSignal } from '@/lib/onesignal';
 import styles from '@/css/login.module.css';
 import billingStyles from '@/css/billing.module.css';
 import {
@@ -21,6 +22,8 @@ import {
   Sparkles,
   Sprout,
   ArrowRight,
+  Users,
+  Building2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -28,7 +31,9 @@ export default function RegisterPage() {
   const router = useRouter();
   
   const [step, setStep] = useState(1);
-  const [role] = useState('FARM');
+  const [role, setRole] = useState<'FARM' | 'COOPERATIVE'>('FARM');
+  const [coopCode, setCoopCode] = useState('');
+  const [standards, setStandards] = useState<string[]>(['VietGAP']);
   
   // Account
   const [name, setName] = useState('');
@@ -138,12 +143,20 @@ export default function RegisterPage() {
         setCurrentUser(registerData.user);
         localStorage.removeItem('cart');
 
-        // Set default profileName if empty
+        // Set default profileName and code if empty
         if (!profileName.trim()) {
-          setProfileName(`Nông trại ${name.trim() || 'của tôi'}`);
+          setProfileName(role === 'COOPERATIVE' ? `Hợp tác xã ${name.trim() || 'Nông nghiệp'}` : `Nông trại ${name.trim() || 'của tôi'}`);
+        }
+        if (role === 'COOPERATIVE' && !coopCode.trim()) {
+          setCoopCode('HTX-' + Math.floor(1000 + Math.random() * 9000));
         }
         if (!contactPhone.trim()) {
           setContactPhone(cleanPhone);
+        }
+
+        const userId = registerData.user?._id || registerData.user?.id;
+        if (userId) {
+          loginOneSignal(userId);
         }
 
         toast.success('Tạo tài khoản thành công! Vui lòng hoàn tất thông tin.');
@@ -166,29 +179,50 @@ export default function RegisterPage() {
     e.preventDefault();
     setError('');
 
-    const effectiveName = profileName.trim() || (role === 'FARM' ? `Nông trại ${name.trim() || 'của tôi'}` : `Doanh nghiệp ${name.trim() || 'của tôi'}`);
+    const effectiveName = profileName.trim() || (role === 'COOPERATIVE' ? `Hợp tác xã ${name.trim() || 'Nông nghiệp'}` : `Nông trại ${name.trim() || 'của tôi'}`);
     const cleanPhone = phone.replace(/[\s.-]/g, '');
     const effectiveContactPhone = contactPhone.trim() || cleanPhone;
 
     setLoading(true);
 
     try {
-      const profileData = await fetchAPI('/farm/profile', {
-        method: 'PUT',
-        body: JSON.stringify({
-          farmName: effectiveName,
-          address,
-          areaSqm: areaSqm ? Number(areaSqm) : undefined,
-          contactPhone: effectiveContactPhone
-        }),
-      });
+      if (role === 'FARM') {
+        const profileData = await fetchAPI('/farm/profile', {
+          method: 'PUT',
+          body: JSON.stringify({
+            farmName: effectiveName,
+            address,
+            areaSqm: areaSqm ? Number(areaSqm) : undefined,
+            contactPhone: effectiveContactPhone
+          }),
+        });
 
-      if (profileData.success) {
-        const planName = profileData.data?.plan || 'PREMIUM';
-        toast.success(`Đăng ký thành công! Nông trại của bạn đã được kích hoạt gói ${planName} miễn phí.`);
-        router.push('/dashboard');
+        if (profileData.success) {
+          const planName = profileData.data?.plan || 'PREMIUM';
+          toast.success(`Đăng ký thành công! Nông trại của bạn đã được kích hoạt gói ${planName} miễn phí.`);
+          router.push('/dashboard');
+        } else {
+          setError(profileData.message || 'Lưu thông tin nông trại thất bại');
+        }
       } else {
-        setError(profileData.message || 'Lưu thông tin nông trại thất bại');
+        const cleanCoopCode = (coopCode.trim() || ('HTX-' + Math.floor(1000 + Math.random() * 9000))).toUpperCase();
+        const coopData = await fetchAPI('/cooperative/profile', {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: effectiveName,
+            code: cleanCoopCode,
+            address,
+            contactPhone: effectiveContactPhone,
+            certificationStandards: standards,
+          }),
+        });
+
+        if (coopData.success) {
+          toast.success('Đăng ký thành công! Chào mừng Quản lý Hợp tác xã.');
+          router.push('/cooperative/dashboard');
+        } else {
+          setError(coopData.message || 'Lưu thông tin hợp tác xã thất bại');
+        }
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -203,7 +237,7 @@ export default function RegisterPage() {
 
   const handleSkipProfile = async () => {
     setError('');
-    const effectiveName = profileName.trim() || (role === 'FARM' ? `Nông trại ${name.trim() || 'của tôi'}` : `Doanh nghiệp ${name.trim() || 'của tôi'}`);
+    const effectiveName = profileName.trim() || (role === 'COOPERATIVE' ? `Hợp tác xã ${name.trim() || 'Nông nghiệp'}` : `Nông trại ${name.trim() || 'của tôi'}`);
     const cleanPhone = phone.replace(/[\s.-]/g, '');
     const effectiveContactPhone = contactPhone.trim() || cleanPhone;
 
@@ -220,21 +254,22 @@ export default function RegisterPage() {
         toast.success('Đăng ký thành công! Nông trại của bạn đã được kích hoạt gói dịch vụ miễn phí.');
         router.push('/dashboard');
       } else {
-        await fetchAPI('/company/profile', {
+        await fetchAPI('/cooperative/profile', {
           method: 'PUT',
           body: JSON.stringify({
-            companyName: effectiveName,
+            name: effectiveName,
             contactPhone: effectiveContactPhone,
           }),
         });
-        router.push('/company/dashboard');
+        toast.success('Đăng ký thành công! Chào mừng Quản lý Hợp tác xã.');
+        router.push('/cooperative/dashboard');
       }
     } catch {
       if (role === 'FARM') {
         toast.success('Đăng ký thành công! Nông trại của bạn đã được kích hoạt gói dịch vụ miễn phí.');
         router.push('/dashboard');
       } else {
-        router.push('/company/dashboard');
+        router.push('/cooperative/dashboard');
       }
     } finally {
       setLoading(false);
@@ -392,16 +427,17 @@ export default function RegisterPage() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const activeColor = role === 'COOPERATIVE' ? '#2563eb' : 'var(--color-primary-600)';
   const renderStepper = () => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.75rem' }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: '0.4rem',
         fontSize: '0.825rem', fontWeight: 600,
-        color: step === 1 ? 'var(--color-primary-600)' : '#16a34a'
+        color: step === 1 ? activeColor : '#16a34a'
       }}>
         <span style={{
           width: '24px', height: '24px', borderRadius: '50%',
-          backgroundColor: step > 1 ? '#16a34a' : 'var(--color-primary-600)',
+          backgroundColor: step > 1 ? '#16a34a' : activeColor,
           color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '0.75rem', fontWeight: 700
         }}>
@@ -415,18 +451,18 @@ export default function RegisterPage() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: '0.4rem',
         fontSize: '0.825rem', fontWeight: 600,
-        color: step === 2 ? 'var(--color-primary-600)' : '#16a34a'
+        color: step === 2 ? activeColor : '#16a34a'
       }}>
         <span style={{
           width: '24px', height: '24px', borderRadius: '50%',
-          backgroundColor: step === 2 ? 'var(--color-primary-600)' : '#16a34a',
+          backgroundColor: step === 2 ? activeColor : '#16a34a',
           color: 'white',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '0.75rem', fontWeight: 700
         }}>
           2
         </span>
-        {role === 'FARM' ? 'Nông trại' : 'Doanh nghiệp'}
+        {role === 'COOPERATIVE' ? 'Hợp tác xã' : 'Nông trại'}
       </div>
     </div>
   );
@@ -629,6 +665,100 @@ export default function RegisterPage() {
               {error && <div style={{ color: 'var(--color-error)', marginBottom: '1rem', fontSize: '0.875rem', textAlign: 'center', backgroundColor: '#fee2e2', padding: '0.75rem', borderRadius: '8px' }}>{error}</div>}
 
               <form className={styles.form} onSubmit={handleAccountSubmit}>
+                {/* Lựa chọn loại tài khoản: Nông dân hoặc Quản lý HTX */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <label className={styles.label} style={{ marginBottom: '0.5rem', display: 'block', fontWeight: 600 }}>
+                    Bạn muốn đăng ký với vai trò: <span style={{ color: 'red' }}>*</span>
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div
+                      onClick={() => setRole('FARM')}
+                      style={{
+                        border: role === 'FARM' ? '2px solid #16a34a' : '1px solid var(--color-border)',
+                        backgroundColor: role === 'FARM' ? 'rgba(22, 163, 74, 0.05)' : 'var(--color-bg)',
+                        borderRadius: '12px',
+                        padding: '0.875rem 0.75rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                        gap: '0.35rem',
+                        position: 'relative',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: role === 'FARM' ? '0 4px 12px rgba(22, 163, 74, 0.12)' : 'none',
+                      }}
+                    >
+                      {role === 'FARM' && (
+                        <div style={{
+                          position: 'absolute', top: '8px', right: '8px',
+                          width: '18px', height: '18px', borderRadius: '50%',
+                          backgroundColor: '#16a34a', color: 'white',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '11px', fontWeight: 700
+                        }}>✓</div>
+                      )}
+                      <div style={{
+                        width: '40px', height: '40px', borderRadius: '10px',
+                        backgroundColor: role === 'FARM' ? '#dcfce7' : '#e2e8f0',
+                        color: role === 'FARM' ? '#16a34a' : '#64748b',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Sprout size={22} />
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: '0.925rem', color: role === 'FARM' ? '#15803d' : 'var(--color-text-main)' }}>
+                        Nông dân
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', lineHeight: 1.35 }}>
+                        Quản lý nông trại, ghi nhật ký canh tác & vật tư
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => setRole('COOPERATIVE')}
+                      style={{
+                        border: role === 'COOPERATIVE' ? '2px solid #2563eb' : '1px solid var(--color-border)',
+                        backgroundColor: role === 'COOPERATIVE' ? 'rgba(37, 99, 235, 0.05)' : 'var(--color-bg)',
+                        borderRadius: '12px',
+                        padding: '0.875rem 0.75rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                        gap: '0.35rem',
+                        position: 'relative',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: role === 'COOPERATIVE' ? '0 4px 12px rgba(37, 99, 235, 0.12)' : 'none',
+                      }}
+                    >
+                      {role === 'COOPERATIVE' && (
+                        <div style={{
+                          position: 'absolute', top: '8px', right: '8px',
+                          width: '18px', height: '18px', borderRadius: '50%',
+                          backgroundColor: '#2563eb', color: 'white',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '11px', fontWeight: 700
+                        }}>✓</div>
+                      )}
+                      <div style={{
+                        width: '40px', height: '40px', borderRadius: '10px',
+                        backgroundColor: role === 'COOPERATIVE' ? '#dbeafe' : '#e2e8f0',
+                        color: role === 'COOPERATIVE' ? '#2563eb' : '#64748b',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Users size={22} />
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: '0.925rem', color: role === 'COOPERATIVE' ? '#1d4ed8' : 'var(--color-text-main)' }}>
+                        Quản lý HTX
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', lineHeight: 1.35 }}>
+                        Quản lý xã viên, giám sát an toàn VietGAP/PHI
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="name">Họ và tên <span style={{ color: 'red' }}>*</span></label>
                   <input id="name" type="text" className={styles.input} placeholder="Nguyễn Văn A" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -676,18 +806,20 @@ export default function RegisterPage() {
                 <div style={{
                   display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
                   padding: '0.25rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600,
-                  backgroundColor: '#dcfce7',
-                  color: '#16a34a',
+                  backgroundColor: role === 'COOPERATIVE' ? '#dbeafe' : '#dcfce7',
+                  color: role === 'COOPERATIVE' ? '#2563eb' : '#16a34a',
                   marginBottom: '0.5rem'
                 }}>
-                  <Sprout size={14} />
-                  Hồ sơ Nông trại
+                  {role === 'COOPERATIVE' ? <Users size={14} /> : <Sprout size={14} />}
+                  {role === 'COOPERATIVE' ? 'Hồ sơ Hợp tác xã' : 'Hồ sơ Nông trại'}
                 </div>
                 <h1 className={styles.title} style={{ fontSize: '1.875rem' }}>
-                  Thông tin Nông Trại
+                  {role === 'COOPERATIVE' ? 'Thông tin Hợp Tác Xã' : 'Thông tin Nông Trại'}
                 </h1>
                 <p className={styles.subtitle}>
-                  Bổ sung thông tin nông trại của bạn để bắt đầu quản lý mùa vụ
+                  {role === 'COOPERATIVE'
+                    ? 'Bổ sung thông tin hợp tác xã để bắt đầu liên kết xã viên và kiểm soát mùa vụ'
+                    : 'Bổ sung thông tin nông trại của bạn để bắt đầu quản lý mùa vụ'}
                 </p>
               </div>
 
@@ -696,19 +828,39 @@ export default function RegisterPage() {
               <form className={styles.form} onSubmit={handleProfileSubmit}>
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="profileName">
-                    Tên Nông Trại <span style={{ color: 'red' }}>*</span>
+                    {role === 'COOPERATIVE' ? 'Tên Hợp Tác Xã' : 'Tên Nông Trại'} <span style={{ color: 'red' }}>*</span>
                   </label>
                   <input
                     id="profileName"
                     type="text"
                     className={styles.input}
-                    placeholder="Ví dụ: Nông trại Xanh Đà Lạt"
+                    placeholder={role === 'COOPERATIVE' ? 'Ví dụ: Hợp tác xã Nông nghiệp Sạch Hòa Bình' : 'Ví dụ: Nông trại Xanh Đà Lạt'}
                     value={profileName}
                     onChange={(e) => setProfileName(e.target.value)}
                     required
                     autoFocus
                   />
                 </div>
+
+                {role === 'COOPERATIVE' && (
+                  <div className={styles.formGroup}>
+                    <label className={styles.label} htmlFor="coopCode">
+                      Mã Hợp Tác Xã <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <input
+                      id="coopCode"
+                      type="text"
+                      className={styles.input}
+                      placeholder="Ví dụ: HTX-HB01"
+                      value={coopCode}
+                      onChange={(e) => setCoopCode(e.target.value.toUpperCase())}
+                      required
+                    />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '0.25rem', display: 'block' }}>
+                      Mã định danh để xã viên nhập khi kết nối vào HTX của bạn (chữ in hoa và số)
+                    </span>
+                  </div>
+                )}
 
                 <div className={styles.formGroup}>
                   <label className={styles.label} htmlFor="contactPhone">Số điện thoại liên hệ</label>
@@ -726,18 +878,21 @@ export default function RegisterPage() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.label} htmlFor="address">Địa chỉ</label>
+                  <label className={styles.label} htmlFor="address">
+                    {role === 'COOPERATIVE' ? 'Địa chỉ trụ sở HTX' : 'Địa chỉ nông trại'}
+                  </label>
                   <input
                     id="address"
                     type="text"
                     className={styles.input}
-                    placeholder="Ví dụ: Xã Tân Hội, Huyện Đức Trọng, Lâm Đồng"
+                    placeholder={role === 'COOPERATIVE' ? 'Ví dụ: Xã Hòa Bình, Huyện Thường Tín, Hà Nội' : 'Ví dụ: Xã Tân Hội, Huyện Đức Trọng, Lâm Đồng'}
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                   />
                 </div>
 
-                <div className={styles.formGroup}>
+                {role === 'FARM' ? (
+                  <div className={styles.formGroup}>
                     <label className={styles.label} htmlFor="areaSqm">Diện tích tổng (m²)</label>
                     <input
                       id="areaSqm"
@@ -748,9 +903,57 @@ export default function RegisterPage() {
                       onChange={(e) => setAreaSqm(e.target.value)}
                     />
                   </div>
+                ) : (
+                  <div className={styles.formGroup}>
+                    <label className={styles.label} style={{ marginBottom: '0.4rem', display: 'block' }}>Tiêu chuẩn canh tác áp dụng</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {['VietGAP', 'GlobalGAP', 'OCOP 4 Sao', 'Hữu cơ (Organic)'].map((std) => {
+                        const isSelected = standards.includes(std);
+                        return (
+                          <button
+                            type="button"
+                            key={std}
+                            onClick={() => {
+                              setStandards((prev: string[]) => prev.includes(std) ? prev.filter((s: string) => s !== std) : [...prev, std]);
+                            }}
+                            style={{
+                              padding: '0.4rem 0.85rem',
+                              borderRadius: '20px',
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              border: isSelected ? '1px solid #2563eb' : '1px solid var(--color-border)',
+                              backgroundColor: isSelected ? '#eff6ff' : 'var(--color-bg)',
+                              color: isSelected ? '#2563eb' : 'var(--color-text-muted)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            {isSelected && <Check size={13} color="#2563eb" />}
+                            {std}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-                <button type="submit" className={styles.button} disabled={loading} style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                  {loading ? 'Đang lưu...' : <>Hoàn tất & Bắt đầu trải nghiệm <ArrowRight size={16} /></>}
+                <button
+                  type="submit"
+                  className={styles.button}
+                  disabled={loading}
+                  style={{
+                    marginTop: '0.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    backgroundColor: role === 'COOPERATIVE' ? '#2563eb' : undefined
+                  }}
+                >
+                  {loading ? 'Đang lưu...' : <>Hoàn tất & Bắt đầu {role === 'COOPERATIVE' ? 'quản lý' : 'trải nghiệm'} <ArrowRight size={16} /></>}
                 </button>
 
                 <button

@@ -76,6 +76,15 @@ async function runAuthPhoneTests() {
   });
   assert(validPhoneAndEmail.success, 'Đăng ký đầy đủ cả SĐT và email hợp lệ');
 
+  // Register with role COOPERATIVE should succeed
+  const validCoopRegister = registerSchema.safeParse({
+    name: 'Cán bộ HTX Test',
+    phone: '0981999888',
+    password: 'password123',
+    role: Role.COOPERATIVE,
+  });
+  assert(validCoopRegister.success, 'Đăng ký tài khoản với vai trò Quản lý HTX (Role.COOPERATIVE) hợp lệ qua Zod Schema');
+
   // Login schema validations
   const loginWithPhone = loginSchema.safeParse({
     identifier: '0987111222',

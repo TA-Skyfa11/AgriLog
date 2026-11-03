@@ -187,10 +187,21 @@ const updateFarmProfile = async (req, res) => {
                     profile.isTrial = false;
                 }
             }
-            profile.set(req.body);
+            const updateData = { ...req.body };
+            delete updateData._id;
+            delete updateData.id;
+            delete updateData.user;
+            delete updateData.createdAt;
+            delete updateData.updatedAt;
+            if (typeof profile.set === 'function') {
+                profile.set(updateData);
+            }
+            else {
+                Object.assign(profile, updateData);
+            }
             await profile.save();
         }
-        const profileObj = profile.toObject();
+        const profileObj = profile.toObject ? profile.toObject() : { ...profile };
         profileObj.effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
         profileObj.isPlanExpired = (0, boardUtils_1.isPlanExpired)(profile);
         profileObj.isTrial = profile.isTrial || false;
@@ -229,7 +240,7 @@ const selectTrialPlan = async (req, res) => {
             message: `Bạn đã bắt đầu dùng thử gói ${packageCode}. Hạn dùng thử đến ngày ${expiryDateStr}. Chúc bạn có trải nghiệm tuyệt vời và ghi chép mùa vụ thật hiệu quả!`,
             type: 'BILLING'
         });
-        const profileObj = profile.toObject();
+        const profileObj = profile.toObject ? profile.toObject() : { ...profile };
         profileObj.effectivePlan = (0, boardUtils_1.getEffectivePlan)(profile);
         profileObj.isPlanExpired = (0, boardUtils_1.isPlanExpired)(profile);
         profileObj.isTrial = profile.isTrial;

@@ -84,7 +84,11 @@ const register = async (req, res) => {
         }
         else if (finalRole === User_1.Role.COOPERATIVE) {
             try {
-                await (0, cooperativeController_1.getOrCreateUserCooperative)(user._id);
+                await (0, cooperativeController_1.getOrCreateUserCooperative)(user._id, {
+                    name: name ? `Hợp tác xã ${name}` : 'Hợp tác xã Nông nghiệp',
+                    contactPhone: cleanPhone,
+                    email: normalizedEmail,
+                });
             }
             catch (profileErr) {
                 console.warn('Lỗi tạo Cooperative mặc định khi đăng ký:', profileErr);

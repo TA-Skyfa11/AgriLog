@@ -173,6 +173,19 @@ async function runCrudTests() {
   );
   assert(updateManyRes.modifiedCount === 1, 'updateMany cập nhật hàng loạt chính xác số lượng');
 
+  // Kiểm thử Document.prototype.set & save
+  const userForSet = await User.findById('crud_test_user_01');
+  assert(typeof userForSet?.set === 'function', 'Document instance có method .set()');
+  userForSet?.set({ fullName: 'Nguyễn Văn Test', phone: '0987654321' });
+  assert(userForSet?.fullName === 'Nguyễn Văn Test' && userForSet?.phone === '0987654321', 'doc.set(object) cập nhật thuộc tính thành công');
+  userForSet?.set('address', 'Cần Thơ');
+  assert(userForSet?.address === 'Cần Thơ', 'doc.set(path, val) cập nhật thuộc tính thành công');
+  await userForSet?.save();
+  const userReloaded = await User.findById('crud_test_user_01');
+  assert(userReloaded?.fullName === 'Nguyễn Văn Test' && userReloaded?.address === 'Cần Thơ', 'doc.save() sau doc.set lưu dữ liệu vào database thành công');
+  const userObj = userReloaded?.toObject();
+  assert(userObj && userObj.set === undefined && userObj.save === undefined, 'doc.toObject() loại bỏ các methods nội bộ (set, save, toObject)');
+
   // --------------------------------------------------------------------------
   console.log('\n📌 6. Kiểm thử Xóa dữ liệu (findByIdAndDelete, deleteOne, deleteMany):');
   // --------------------------------------------------------------------------

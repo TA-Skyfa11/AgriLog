@@ -1,5 +1,6 @@
 import express from 'express';
-import { protect } from '../middleware/authMiddleware';
+import { protect, authorize } from '../middleware/authMiddleware';
+import { Role } from '../models/User';
 import {
   getCooperativeDashboard,
   getComplianceAlerts,
@@ -17,6 +18,7 @@ import {
 const router = express.Router();
 
 router.use(protect);
+router.use(authorize(Role.COOPERATIVE, Role.ADMIN));
 
 router.get('/dashboard', getCooperativeDashboard);
 router.get('/compliance-alerts', getComplianceAlerts);

@@ -18,14 +18,26 @@ export const updateCompanyProfile = async (req: AuthRequest, res: Response) => {
   try {
     let profile = await CompanyProfile.findOne({ user: req.user?._id });
 
+    const updateData = { ...req.body };
+    delete updateData._id;
+    delete updateData.id;
+    delete updateData.user;
+    delete updateData.createdAt;
+    delete updateData.updatedAt;
+
     if (!profile) {
-      profile = new CompanyProfile({ user: req.user?._id, ...req.body });
+      profile = new CompanyProfile({ user: req.user?._id, ...updateData });
     } else {
-      profile.set(req.body);
+      if (typeof profile.set === 'function') {
+        profile.set(updateData);
+      } else {
+        Object.assign(profile, updateData);
+      }
     }
 
     await profile.save();
-    res.json({ success: true, data: profile });
+    const resultData = profile.toObject ? profile.toObject() : profile;
+    res.json({ success: true, data: resultData });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
   }
