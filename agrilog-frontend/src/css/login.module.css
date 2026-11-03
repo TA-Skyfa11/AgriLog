@@ -249,3 +249,162 @@
   transform: none;
 }
 
+
+/* Added for Forgot Password & Reset Password */
+.labelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.forgotPasswordLink {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-primary-600);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.forgotPasswordLink:hover {
+  color: var(--color-primary-800);
+  text-decoration: underline;
+}
+
+.passwordWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.passwordToggle {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.2s ease;
+}
+
+.passwordToggle:hover {
+  color: #475569;
+}
+
+.successBox {
+  background-color: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  padding: 1.25rem;
+  border-radius: var(--radius-xl);
+  margin-bottom: 1.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.devAlert {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #fef3c7;
+  border: 1px dashed #f59e0b;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  color: #92400e;
+  word-break: break-all;
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modalContent {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 440px;
+  padding: 2rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  position: relative;
+  animation: slideUp 0.25s ease-out;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+
+.modalCloseBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.modalCloseBtn:hover {
+  background-color: #f1f5f9;
+  color: #334155;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Error Alert Box */
+.errorAlert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background-color: #fef2f2;
+  border: 1.5px solid #f87171;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  color: #991b1b;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  text-align: left;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.errorAlert strong {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.errorAlert p {
+  margin: 0 0 0.5rem 0;
+  color: #7f1d1d;
+}
+
+.errorAlert a {
+  color: #b91c1c;
+  font-weight: 700;
+  text-decoration: underline;
+}

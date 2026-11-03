@@ -428,8 +428,21 @@ export const forgotPassword = async (req: Request, res: Response) => {
         subject: 'AgriLog - Đặt lại mật khẩu',
         html: message
       });
-      res.status(200).json({ success: true, message: 'Email khôi phục mật khẩu đã được gửi' });
-    } catch (err) {
+      res.status(200).json({
+        success: true,
+        message: 'Email khôi phục mật khẩu đã được gửi',
+        ...(process.env.NODE_ENV !== 'production' ? { devResetUrl: resetUrl } : {})
+      });
+    } catch (err: any) {
+      console.error('[forgotPassword] sendEmail error:', err?.message || err);
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[forgotPassword] Dev mode fallback. Reset URL: ' + resetUrl);
+        return res.status(200).json({
+          success: true,
+          message: 'Email khôi phục mật khẩu đã được tạo (Chế độ phát triển)',
+          devResetUrl: resetUrl
+        });
+      }
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
       await user.save();
@@ -448,7 +461,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     const user = await User.findOne({
       resetPasswordToken,
-      resetPasswordExpire: { $gt: Date.now() }
+      resetPasswordExpire: { $gt: new Date() }
     });
 
     if (!user) {
@@ -470,6 +483,60 @@ export const resetPassword = async (req: Request, res: Response) => {
     res.status(200).json({ success: true, message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới.' });
   } catch (error) {
     res.status(500).json({ success: false, message: (error as Error).message });
+  }
+};
+
+export const directResetPassword = async (req: Request, res: Response) => {
+  try {
+    const { identifier, newPassword } = req.body;
+
+    if (!identifier || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp số điện thoại hoặc email và mật khẩu mới' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
+    }
+
+    const rawIdentifier = String(identifier).trim();
+    const normalizedEmail = rawIdentifier.toLowerCase();
+    const cleanedPhone = rawIdentifier.replace(/[\s.-]/g, '');
+    const standardPhone = cleanedPhone.startsWith('+84')
+      ? '0' + cleanedPhone.slice(3)
+      : cleanedPhone.startsWith('84') && cleanedPhone.length === 11
+      ? '0' + cleanedPhone.slice(2)
+      : cleanedPhone;
+
+    // Find user by email or phone
+    const user = await User.findOne({
+      $or: [
+        { email: normalizedEmail },
+        { phone: standardPhone },
+        { phone: cleanedPhone },
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy tài khoản với số điện thoại hoặc email này',
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.passwordHash = await bcrypt.hash(newPassword, salt);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay với mật khẩu mới.',
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: (error as Error).message });
   }
 };
 

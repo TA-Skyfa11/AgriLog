@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Eye, EyeOff, Lock, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { fetchAPI } from '@/lib/api';
 import { loginOneSignal } from '@/lib/onesignal';
-import GoogleAuthButton from '@/components/common/GoogleAuthButton';
 import styles from '@/css/login.module.css';
 
 export default function LoginPage() {
@@ -19,6 +19,17 @@ export default function LoginPage() {
   const [requiresMfa, setRequiresMfa] = useState(false);
   const [mfaEmail, setMfaEmail] = useState('');
   const [otp, setOtp] = useState('');
+
+  // Direct Password Reset Modal State
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [resetIdentifier, setResetIdentifier] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [showResetNewPassword, setShowResetNewPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetSuccess, setResetSuccess] = useState('');
 
   const handleLoginSuccess = (data: any) => {
     document.cookie = `token=${data.token || ''}; path=/; max-age=2592000`;
@@ -99,6 +110,62 @@ export default function LoginPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDirectResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError('');
+    setResetSuccess('');
+
+    if (!resetIdentifier.trim()) {
+      setResetError('Vui lòng nhập số điện thoại hoặc email');
+      return;
+    }
+
+    if (resetNewPassword.length < 6) {
+      setResetError('Mật khẩu mới phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    if (resetNewPassword !== resetConfirmPassword) {
+      setResetError('Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    setResetLoading(true);
+
+    try {
+      const data = await fetchAPI('/auth/direct-reset-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          identifier: resetIdentifier.trim(),
+          newPassword: resetNewPassword,
+        }),
+      });
+
+      if (data.success) {
+        setResetSuccess(data.message || 'Đặt lại mật khẩu thành công!');
+        // Update login form
+        setIdentifier(resetIdentifier.trim());
+        setPassword(resetNewPassword);
+        setError('');
+
+        setTimeout(() => {
+          setShowForgotModal(false);
+          setResetNewPassword('');
+          setResetConfirmPassword('');
+          setResetSuccess('');
+        }, 1500);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setResetError(err.message);
+      } else {
+        setResetError('Đặt lại mật khẩu thất bại. Vui lòng kiểm tra lại.');
+      }
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -204,7 +271,22 @@ export default function LoginPage() {
             </div>
             
             <div className={styles.formGroup}>
-              <label className={styles.label} htmlFor="password">Mật khẩu</label>
+              <div className={styles.labelRow}>
+                <label className={styles.label} htmlFor="password">Mật khẩu</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetIdentifier(identifier);
+                    setResetError('');
+                    setResetSuccess('');
+                    setShowForgotModal(true);
+                  }}
+                  className={styles.forgotPasswordLink}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  Quên mật khẩu?
+                </button>
+              </div>
               <input
                 id="password"
                 type="password"
@@ -221,17 +303,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Ẩn tính năng đăng nhập bằng Google
-          <div className={styles.divider}>
-            <span className={styles.dividerText}>Hoặc</span>
-          </div>
-
-          <GoogleAuthButton
-            mode="signin"
-            onError={(msg) => setError(msg)}
-          />
-          */}
-
           <div className={styles.footer}>
             Chưa có tài khoản?{' '}
             <Link href="/register" className={styles.footerLink}>
@@ -240,7 +311,142 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {/* ===== POPUP MODAL ĐỔI MẬT KHẨU NHANH ===== */}
+      {showForgotModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowForgotModal(false)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div>
+                <h2 style={{ fontSize: '1.35rem', fontWeight: 700, margin: '0 0 0.35rem 0', color: 'var(--color-text-main)' }}>
+                  Đặt lại mật khẩu
+                </h2>
+                <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)', margin: 0 }}>
+                  Nhập tài khoản và mật khẩu mới để đổi ngay.
+                </p>
+              </div>
+              <button
+                type="button"
+                className={styles.modalCloseBtn}
+                onClick={() => setShowForgotModal(false)}
+                aria-label="Đóng"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {resetError && (
+              <div className={styles.errorAlert}>
+                <AlertCircle size={22} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <strong>{resetError.toLowerCase().includes('không tìm thấy') ? 'Tài khoản không tồn tại!' : 'Thông báo lỗi:'}</strong>
+                  <p>{resetError}</p>
+                  {resetError.toLowerCase().includes('không tìm thấy') && (
+                    <div style={{ marginTop: '0.35rem' }}>
+                      Chưa có tài khoản?{' '}
+                      <Link href="/register" onClick={() => setShowForgotModal(false)} style={{ fontWeight: 700, textDecoration: 'underline' }}>
+                        Đăng ký tài khoản mới ngay →
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {resetSuccess ? (
+              <div className={styles.successBox}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '0.35rem', fontWeight: 600 }}>
+                  <CheckCircle2 size={20} color="#059669" />
+                  <span>Thành công!</span>
+                </div>
+                <p style={{ margin: 0 }}>{resetSuccess}</p>
+              </div>
+            ) : (
+              <form onSubmit={handleDirectResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="modal-identifier">
+                    Số điện thoại hoặc Email
+                  </label>
+                  <input
+                    id="modal-identifier"
+                    type="text"
+                    className={styles.input}
+                    placeholder="0987654321 hoặc nhap@email.com"
+                    value={resetIdentifier}
+                    onChange={(e) => setResetIdentifier(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="modal-newPassword">
+                    Mật khẩu mới
+                  </label>
+                  <div className={styles.passwordWrapper}>
+                    <input
+                      id="modal-newPassword"
+                      type={showResetNewPassword ? 'text' : 'password'}
+                      className={styles.input}
+                      placeholder="Tối thiểu 6 ký tự"
+                      value={resetNewPassword}
+                      onChange={(e) => setResetNewPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      className={styles.passwordToggle}
+                      onClick={() => setShowResetNewPassword(!showResetNewPassword)}
+                      aria-label="Ẩn hiện mật khẩu mới"
+                    >
+                      {showResetNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.label} htmlFor="modal-confirmPassword">
+                    Xác nhận mật khẩu mới
+                  </label>
+                  <div className={styles.passwordWrapper}>
+                    <input
+                      id="modal-confirmPassword"
+                      type={showResetConfirmPassword ? 'text' : 'password'}
+                      className={styles.input}
+                      placeholder="Nhập lại mật khẩu mới"
+                      value={resetConfirmPassword}
+                      onChange={(e) => setResetConfirmPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      className={styles.passwordToggle}
+                      onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                      aria-label="Ẩn hiện xác nhận mật khẩu"
+                    >
+                      {showResetConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className={styles.button}
+                  disabled={resetLoading}
+                  style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                >
+                  <Lock size={18} />
+                  {resetLoading ? 'Đang cập nhật...' : 'Cập nhật mật khẩu mới'}
+                </button>
+              </form>
+            )}
+
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

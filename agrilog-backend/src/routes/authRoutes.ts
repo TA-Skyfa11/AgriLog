@@ -8,6 +8,7 @@ import {
   getLoginHistory,
   forgotPassword,
   resetPassword,
+  directResetPassword,
   verifyMfa,
   logout,
   googleAuth,
@@ -34,6 +35,7 @@ router.post('/verify-mfa', validate(verifyMfaSchema), verifyMfa);
 router.post('/logout', logout);
 router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
+router.post('/direct-reset-password', directResetPassword);
 router.put('/change-password', protect, validate(changePasswordSchema), changePassword);
 router.get('/login-history', protect, getLoginHistory);
 
