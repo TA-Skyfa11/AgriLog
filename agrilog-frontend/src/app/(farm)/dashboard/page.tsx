@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
+import { getBoardStatusDisplay } from '@/lib/boardStatus';
 import styles from '@/css/farmDashboard.module.css';
 import { 
   LayoutDashboard, ClipboardCheck, Package, ShoppingCart, 
@@ -277,12 +278,25 @@ export default function DashboardPage() {
                   <div className={styles.boardIcon}>
                     <LayoutDashboard size={20} />
                   </div>
-                  <div className={styles.boardBadge} style={{ 
-                    backgroundColor: board.status === 'ACTIVE' ? '#dcfce7' : '#fee2e2',
-                    color: board.status === 'ACTIVE' ? '#15803d' : '#b91c1c'
-                  }}>
-                    {board.status === 'ACTIVE' ? 'Đang chăm sóc' : board.status === 'HARVESTED' ? 'Đã thu hoạch' : 'Đã hủy'}
-                  </div>
+                  {(() => {
+                    const statusInfo = getBoardStatusDisplay(board.status, board.type || 'cultivation');
+                    return (
+                      <div
+                        className={styles.boardBadge}
+                        style={{
+                          backgroundColor: statusInfo.bg,
+                          color: statusInfo.color,
+                          border: `1px solid ${statusInfo.border}`,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: statusInfo.color }} />
+                        {statusInfo.label}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className={styles.boardTitle}>{board.name}</div>
                 <div className={styles.boardDate}>Ngày tạo: {format(new Date(board.createdAt), 'dd/MM/yyyy')}</div>

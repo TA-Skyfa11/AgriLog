@@ -102,7 +102,7 @@ const createCultivationBoard = async (req, res) => {
             return res.status(403).json({ success: false, message: `Gói cước của bạn chỉ cho phép tạo tối đa ${planLimits.columns} cột tùy chỉnh.` });
         }
         const groupId = 'gid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
-        const initialStatus = req.body.status || 'PLANNING';
+        const initialStatus = req.body.status || 'IN_PROGRESS';
         const board = new CultivationBoard_1.CultivationBoard({
             ...req.body,
             status: initialStatus,

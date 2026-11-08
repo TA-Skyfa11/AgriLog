@@ -38,6 +38,7 @@ import { exportSingleDiaryExcel, exportSingleDiaryPDF } from '@/lib/diaryExport'
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { fetchAPI, getApiUrl } from '@/lib/api';
+import { getBoardStatusDisplay } from '@/lib/boardStatus';
 import styles from '@/css/diaryDetail.module.css';
 import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, FileText, Download, Printer, ArrowLeft, Image as ImageIcon, X, RefreshCw } from 'lucide-react';
@@ -142,7 +143,8 @@ export default function CultivationDiaryDetailPage() {
     areaSqm: '',
     areaText: '',
     startDate: '',
-    description: ''
+    description: '',
+    status: 'IN_PROGRESS'
   });
 
   const loadBoardData = async () => {
@@ -167,7 +169,8 @@ export default function CultivationDiaryDetailPage() {
           areaSqm: boardRes.data.areaSqm || '',
           areaText: boardRes.data.areaText || '',
           startDate: boardRes.data.startDate ? new Date(boardRes.data.startDate).toISOString().split('T')[0] : '',
-          description: boardRes.data.description || ''
+          description: boardRes.data.description || '',
+          status: boardRes.data.status || 'IN_PROGRESS'
         });
       }
       if (entriesRes.success) {
@@ -715,7 +718,7 @@ export default function CultivationDiaryDetailPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 className={styles.title}><FileText size={24} color="#16a34a" /> {board.name}</h1>
           <p className={styles.subtitle}>
@@ -725,14 +728,73 @@ export default function CultivationDiaryDetailPage() {
             Ngày bắt đầu: {format(new Date(board.startDate), 'dd/MM/yyyy')}
           </p>
         </div>
-        <div style={{ fontSize: '0.875rem', fontWeight: 700, padding: '0.5rem 1rem', borderRadius: '9999px', backgroundColor: board.status === 'ACTIVE' ? '#dcfce7' : '#fee2e2', color: board.status === 'ACTIVE' ? '#15803d' : '#b91c1c' }}>
-          {board.status === 'ACTIVE' ? 'Đang canh tác' : board.status === 'HARVESTED' ? 'Đã thu hoạch' : 'Đã hủy'}
-        </div>
+        {(() => {
+          const statusInfo = getBoardStatusDisplay(board.status, 'cultivation');
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={{
+                fontSize: '0.875rem',
+                fontWeight: 700,
+                padding: '0.45rem 1rem',
+                borderRadius: '9999px',
+                backgroundColor: statusInfo.bg,
+                color: statusInfo.color,
+                border: `1px solid ${statusInfo.border}`,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: statusInfo.color }} />
+                {statusInfo.label}
+              </div>
+              {board.status !== 'COMPLETED' && board.status !== 'HARVESTED' && (
+                <select
+                  value={board.status || 'IN_PROGRESS'}
+                  onChange={(e) => handleLifecycleTransition(e.target.value)}
+                  style={{
+                    padding: '0.45rem 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.825rem',
+                    backgroundColor: '#ffffff',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    color: '#334155'
+                  }}
+                  title="Chuyển trạng thái vụ mùa"
+                >
+                  <option value="PLANNING">Lên kế hoạch</option>
+                  <option value="IN_PROGRESS">Đang canh tác</option>
+                  <option value="HARVESTING">Đang thu hoạch</option>
+                  <option value="COMPLETED">🌾 Báo cáo Thu hoạch</option>
+                  <option value="CANCELLED">Đã hủy</option>
+                </select>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
-      {board.status === 'HARVESTED' && (
-        <div className={styles.harvestBadge}>
-          🎉 Nông trại đã thu hoạch luống này vào ngày {format(new Date(board.harvestDate), 'dd/MM/yyyy')} với sản lượng: <strong>{board.harvestYield} kg</strong>!
+      {(board.status === 'HARVESTED' || board.status === 'COMPLETED') && (
+        <div className={styles.harvestBadge} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <div>
+            🎉 Nông trại đã thu hoạch luống này vào ngày {format(new Date(board.harvestDate || board.completedAt || new Date()), 'dd/MM/yyyy')} với sản lượng: <strong>{board.harvestYield || 0} kg</strong>!
+          </div>
+          <button
+            onClick={handleViewSummaryReport}
+            style={{
+              padding: '6px 14px',
+              borderRadius: '6px',
+              border: '1px solid #16a34a',
+              background: '#ffffff',
+              color: '#16a34a',
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontSize: '0.85rem'
+            }}
+          >
+            📊 Xem báo cáo tổng kết mùa vụ
+          </button>
         </div>
       )}
 
@@ -1259,6 +1321,21 @@ export default function CultivationDiaryDetailPage() {
                   value={editFormData.startDate} 
                   onChange={(e) => setEditFormData({...editFormData, startDate: e.target.value})} 
                 />
+              </div>
+
+              <div className={modalStyles.formGroup}>
+                <label className={modalStyles.label}>Trạng thái vụ mùa</label>
+                <select 
+                  className={modalStyles.input}
+                  value={editFormData.status}
+                  onChange={(e) => setEditFormData({...editFormData, status: e.target.value})}
+                >
+                  <option value="PLANNING">Lên kế hoạch</option>
+                  <option value="IN_PROGRESS">Đang canh tác</option>
+                  <option value="HARVESTING">Đang thu hoạch</option>
+                  <option value="COMPLETED">Đã thu hoạch / Hoàn thành</option>
+                  <option value="CANCELLED">Đã hủy</option>
+                </select>
               </div>
 
               <div className={modalStyles.formGroup}>

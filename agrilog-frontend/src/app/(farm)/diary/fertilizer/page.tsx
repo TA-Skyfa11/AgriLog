@@ -10,6 +10,7 @@ import { FlaskConical, Search, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'react-hot-toast';
 import SelectTrialModal from '@/components/trial/SelectTrialModal';
+import { getBoardStatusDisplay } from '@/lib/boardStatus';
 
 export default function FertilizerDiaryPage() {
   const router = useRouter();
@@ -148,14 +149,27 @@ export default function FertilizerDiaryPage() {
         </div>
       ) : (
         <div className={styles.grid}>
-          {boards.map(board => (
+          {boards.map(board => {
+            const statusInfo = getBoardStatusDisplay(board.status, 'fertilizer');
+            return (
             <Link href={`/diary/fertilizer/${board._id}`} key={board._id} className={styles.card}>
               <div className={styles.cardTop}>
                 <div className={styles.cardIcon} style={{ backgroundColor: '#eff6ff', color: '#3b82f6' }}>
                   <FlaskConical size={24} />
                 </div>
-                <div className={`${styles.statusBadge} ${board.status === 'ACTIVE' ? styles.statusActive : ''}`}>
-                  {board.status === 'ACTIVE' ? 'Đang sử dụng' : 'Đã đóng'}
+                <div
+                  className={styles.statusBadge}
+                  style={{
+                    backgroundColor: statusInfo.bg,
+                    color: statusInfo.color,
+                    border: `1px solid ${statusInfo.border}`,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: statusInfo.color }} />
+                  {statusInfo.label}
                 </div>
               </div>
               <div className={styles.cardBody}>
@@ -170,7 +184,8 @@ export default function FertilizerDiaryPage() {
                 <button className={styles.openBtn}>Mở bảng</button>
               </div>
             </Link>
-          ))}
+            );
+          })}
         </div>
       )}
 

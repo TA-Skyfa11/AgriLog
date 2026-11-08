@@ -39,6 +39,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { fetchAPI, getApiUrl } from '@/lib/api';
 import styles from '@/css/diaryDetail.module.css';
+import { getBoardStatusDisplay } from '@/lib/boardStatus';
 import modalStyles from '@/css/diary.module.css';
 import { Trash2, Plus, ShieldAlert, Download, Printer, ArrowLeft, Image as ImageIcon, X, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
@@ -636,9 +637,26 @@ export default function PesticideDiaryDetailPage() {
             Ngày bắt đầu: {format(new Date(board.startDate), 'dd/MM/yyyy')}
           </p>
         </div>
-        <div style={{ fontSize: '0.875rem', fontWeight: 700, padding: '0.5rem 1rem', borderRadius: '9999px', backgroundColor: '#fff7ed', color: '#ea580c' }}>
-          Đang sử dụng
-        </div>
+        {(() => {
+          const statusInfo = getBoardStatusDisplay(board.status, 'pesticide');
+          return (
+            <div style={{
+              fontSize: '0.875rem',
+              fontWeight: 700,
+              padding: '0.45rem 1rem',
+              borderRadius: '9999px',
+              backgroundColor: statusInfo.bg,
+              color: statusInfo.color,
+              border: `1px solid ${statusInfo.border}`,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+            }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: statusInfo.color }} />
+              {statusInfo.label}
+            </div>
+          );
+        })()}
       </div>
 
       {showEditModal && (

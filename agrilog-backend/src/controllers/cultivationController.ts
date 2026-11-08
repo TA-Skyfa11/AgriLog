@@ -127,7 +127,7 @@ export const createCultivationBoard = async (req: AuthRequest, res: Response) =>
     }
 
     const groupId = 'gid_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
-    const initialStatus = req.body.status || 'PLANNING';
+    const initialStatus = req.body.status || 'IN_PROGRESS';
     const board = new CultivationBoard({
       ...req.body,
       status: initialStatus,
